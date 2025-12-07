@@ -1,15 +1,17 @@
 import React from 'react'
-import { Shield, Lock, Eye, Users, FileText, CheckCircle } from 'lucide-react'
+import { Shield, Lock, Eye, Users, FileText, CheckCircle, AlertTriangle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
 
 const SecurityAndPrivacyPolicy: React.FC = () => {
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen flex flex-col">
       <Header showBackButton={true} />
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main id="main-content" className="flex-1" role="main" aria-label="Security and Privacy Policy" tabIndex={-1}>
         <section className="section-padding py-8 lg:py-12">
           <div className="container-max">
             {/* Hero Section */}
@@ -131,7 +133,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       <CheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
                       <div>
                         <h4 className="text-lg text-heading">DID-Based Authentication</h4>
-                        <p className="text-body">Decentralized identity management with cryptographic key pairs</p>
+                        <p className="text-body">Decentralized identity management with cryptographic key pairs and blockchain verification</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -517,6 +519,241 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
               </div>
             </div>
 
+            {/* Decentralized Identity (DID) */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Decentralized Identity (DID)
+                </span>
+              </h2>
+              
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading mb-4">What is DID?</h3>
+                  <p className="text-body leading-relaxed">
+                    SafePsy uses Decentralized Identity (DID) technology to give you complete control over your digital identity. 
+                    Your DID is a unique identifier stored on the blockchain that you own and control through your cryptocurrency wallet. 
+                    Unlike traditional identity systems, your DID cannot be taken away, modified, or revoked by SafePsy or any third party.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading">DID Benefits</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">User Ownership</p>
+                          <p className="text-sm text-body">You own and control your identity on the blockchain</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Verifiable Credentials</p>
+                          <p className="text-sm text-body">Cryptographically verifiable identity without third-party verification</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Privacy-Preserving</p>
+                          <p className="text-sm text-body">Minimal data exposure with selective disclosure</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Portable Identity</p>
+                          <p className="text-sm text-body">Use your DID across different platforms and services</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading">DID Management</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Lock className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Blockchain Storage</p>
+                          <p className="text-sm text-body">Your DID is stored on Ethereum blockchain, ensuring immutability and transparency</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Wallet Control</p>
+                          <p className="text-sm text-body">Only you can manage your DID through your wallet's private keys</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Eye className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Revocation Rights</p>
+                          <p className="text-sm text-body">You can revoke your DID at any time, removing it from the registry</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <FileText className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Update Capability</p>
+                          <p className="text-sm text-body">Update your DID information while maintaining cryptographic integrity</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-blue-600" />
+                    DID Privacy & Security
+                  </h4>
+                  <p className="text-body text-sm leading-relaxed">
+                    Your DID is cryptographically linked to your wallet address. SafePsy never stores your private keys and cannot 
+                    access or modify your DID without your explicit cryptographic signature. All DID operations are recorded on the 
+                    blockchain, providing a transparent and auditable identity management system. Your DID data can be encrypted and 
+                    stored securely, with only you holding the decryption keys.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* AI-Powered Features */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  AI-Powered Therapy Assistant
+                </span>
+              </h2>
+              
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading mb-4">AI Service Overview</h3>
+                  <p className="text-body leading-relaxed">
+                    SafePsy includes an AI-powered therapy assistant designed to complement human therapy sessions. Our AI assistant 
+                    helps you prepare for sessions, reflect between appointments, and access guidance when needed. The AI is trained 
+                    on psychology-informed principles and is designed to support, not replace, professional mental health care.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading">AI Features</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Conversational Support</p>
+                          <p className="text-sm text-body">Real-time AI conversations to help process thoughts and emotions</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Session Preparation</p>
+                          <p className="text-sm text-body">Help organize thoughts and questions before therapy sessions</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Between-Session Support</p>
+                          <p className="text-sm text-body">Access guidance and reflection tools between appointments</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Streaming Responses</p>
+                          <p className="text-sm text-body">Real-time token streaming for natural conversation flow</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading">Data Privacy & AI</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">No Training Data Usage</p>
+                          <p className="text-sm text-body">Your conversations are not used to train AI models</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Lock className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Encrypted Conversations</p>
+                          <p className="text-sm text-body">All AI conversations are encrypted and stored securely</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Eye className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">User Control</p>
+                          <p className="text-sm text-body">You can delete AI conversation history at any time</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <FileText className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Third-Party AI Services</p>
+                          <p className="text-sm text-body">We use OpenAI API with strict data handling agreements</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                    AI Limitations & Disclaimers
+                  </h4>
+                  <div className="space-y-2 text-body text-sm leading-relaxed">
+                    <p>
+                      <strong>Not a Replacement for Professional Care:</strong> The AI assistant is designed to complement, not replace, 
+                      professional mental health therapy. It should not be used as a substitute for professional diagnosis or treatment.
+                    </p>
+                    <p>
+                      <strong>No Medical Advice:</strong> The AI assistant does not provide medical advice, diagnosis, or treatment. 
+                      Always consult with licensed mental health professionals for clinical decisions.
+                    </p>
+                    <p>
+                      <strong>Emergency Situations:</strong> The AI assistant is not equipped to handle mental health emergencies. 
+                      If you are experiencing a crisis, please contact emergency services or a crisis hotline immediately.
+                    </p>
+                    <p>
+                      <strong>Accuracy:</strong> While we strive for accuracy, AI responses may contain errors or be inappropriate for 
+                      your specific situation. Use your judgment and consult professionals when needed.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-blue-600" />
+                    AI Data Processing
+                  </h4>
+                  <p className="text-body text-sm leading-relaxed mb-3">
+                    When you interact with our AI assistant, the following data is processed:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-body text-sm ml-4">
+                    <li>Your conversation messages are sent to OpenAI API for processing</li>
+                    <li>Conversation history is stored encrypted in our systems for continuity</li>
+                    <li>Usage metrics (token counts, response times) are logged for service improvement</li>
+                    <li>No personal identifiers are shared with AI service providers beyond what's necessary for the conversation</li>
+                    <li>You can request deletion of your AI conversation data at any time</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             {/* Data Categories */}
             <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
               <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
@@ -539,9 +776,15 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <tbody>
                       <tr>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Identity Data (DID)</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Identity verification and access control</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">User-controlled deletion</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Blockchain-based identity verification and access control</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">User-controlled deletion (blockchain immutable)</td>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent, Contract</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">AI Conversation Data</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">AI-powered therapy assistance and conversation history</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">User-controlled deletion (30 days default)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent, Legitimate Interests</td>
                       </tr>
                       <tr>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Health Data</td>
@@ -575,6 +818,14 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
               <p className="text-lg text-body mb-8 max-w-2xl mx-auto">
                 We're committed to transparency and protecting your privacy. Contact us with any questions about our security measures or data protection practices.
               </p>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => navigate('/contact-us')}
+                  className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[44px]"
+                >
+                  Contact Us
+                </button>
+              </div>
             </div>
 
 

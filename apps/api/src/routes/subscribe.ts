@@ -2,11 +2,35 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { ipHash } from "../lib/crypto";
 import { subscriptionRateLimitMiddleware } from "../lib/ratelimit";
+import { safetyMiddleware, safetyResponseInterceptor } from "../middleware/safety";
 
 const router = Router();
 
 // Apply rate limiting middleware
 router.use(subscriptionRateLimitMiddleware);
+
+// Apply safety middleware (injection filter, moderation, PII redaction)
+router.use(safetyMiddleware({
+  injectionFilter: {
+    enabled: true,
+    blockOnDetect: true, // Block requests with injection attempts
+    logDetections: true,
+  },
+  moderation: {
+    enabled: true,
+    blockOnDetect: false, // Log but don't block (moderation is informational)
+    logDetections: true,
+  },
+  piiRedaction: {
+    enabled: true,
+    redactInLogs: true, // Redact PII in logs for privacy
+    redactInResponses: false, // Don't redact in responses
+    preserveForAuth: true,
+  },
+}));
+
+// Apply response interceptor
+router.use(safetyResponseInterceptor);
 
 router.post("/", async (req, res) => {
   const email = (req.body?.email || "").toString().trim().toLowerCase();

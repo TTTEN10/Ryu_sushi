@@ -78,6 +78,35 @@ typechain-types/
 tmp/
 temp/
 
+# Build artifacts
+*.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# Database files
+*.db
+*.db-journal
+
 # User-specific files
 .cursor-tutor/
 .nvm/
+
+# Additional security - private keys and secrets
+*.pem
+*.key
+*.p12
+*.pfx
+*private*
+*secret*
+*credentials*
+
+# Deployment scripts that might contain secrets
+deployment/*.key
+deployment/*.pem
+
+# Yarn cache
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*

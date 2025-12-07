@@ -1,6 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Shield, Heart, Users, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useOffline } from '../hooks/useOffline'
+import { useToast } from '../hooks/useToast'
+import { getActionableErrorMessage, fetchWithErrorHandling } from '../utils/errorMessages'
+import { offlineQueue } from '../utils/queueManager'
 
 interface SignupResponse {
   success: boolean
@@ -9,6 +13,8 @@ interface SignupResponse {
 
 const Hero: React.FC = () => {
   const navigate = useNavigate()
+  const { isOffline } = useOffline()
+  const { showToast, ToastContainer } = useToast()
   const [formData, setFormData] = useState({
     email: '',
     consentGiven: false
@@ -16,6 +22,7 @@ const Hero: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [successTimeout, setSuccessTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
@@ -39,42 +46,103 @@ const Hero: React.FC = () => {
     return true
   }
 
+  // Clear success timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (successTimeout) {
+        clearTimeout(successTimeout)
+      }
+    }
+  }, [successTimeout])
+
+  // Process offline queue when coming back online
+  useEffect(() => {
+    if (!isOffline && offlineQueue.getQueueSize() > 0) {
+      offlineQueue.processQueue().then(({ succeeded }) => {
+        if (succeeded > 0) {
+          showToast('success', `${succeeded} queued action(s) completed successfully!`)
+        }
+      })
+    }
+  }, [isOffline, showToast])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) return
 
+    // Check if offline
+    if (isOffline) {
+      // Queue the action
+      const queueId = offlineQueue.add(
+        `${import.meta.env.VITE_API_URL || '/api'}/subscribe`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email.trim().toLowerCase(),
+            consentGiven: formData.consentGiven
+          }),
+        }
+      )
+      showToast('info', 'You\'re offline. Your request has been queued and will be sent when you\'re back online.')
+      setFormData({
+        email: '',
+        consentGiven: false
+      })
+      return
+    }
+
     setIsLoading(true)
     setStatus('idle')
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/subscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email.trim().toLowerCase(),
-          consentGiven: formData.consentGiven
-        }),
-      })
+      const response = await fetchWithErrorHandling(
+        `${import.meta.env.VITE_API_URL || '/api'}/subscribe`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email.trim().toLowerCase(),
+            consentGiven: formData.consentGiven
+          }),
+        }
+      )
 
       const data: SignupResponse = await response.json()
 
       if (response.ok && data.success) {
         setStatus('success')
         setMessage(data.message)
+        showToast('success', data.message, 7000)
         setFormData({
           email: '',
           consentGiven: false
         })
+        // Persist success message for 10 seconds
+        const timeout = setTimeout(() => {
+          setStatus('idle')
+          setMessage('')
+        }, 10000)
+        setSuccessTimeout(timeout)
       } else {
+        const errorMsg = getActionableErrorMessage(null, {
+          status: response.status,
+          originalMessage: data.message,
+        })
         setStatus('error')
-        setMessage(data.message || 'Something went wrong. Please try again.')
+        setMessage(errorMsg)
+        showToast('error', errorMsg)
       }
     } catch (error) {
+      const errorMsg = getActionableErrorMessage(error)
       setStatus('error')
-      setMessage('Network error. Please check your connection and try again.')
+      setMessage(errorMsg)
+      showToast('error', errorMsg)
     } finally {
       setIsLoading(false)
     }
@@ -101,6 +169,7 @@ const Hero: React.FC = () => {
               <button 
                 onClick={() => navigate('/about-us')}
                 className="btn-secondary text-lg px-8 py-4 hover:scale-105 active:scale-95 transition-transform duration-200"
+                aria-label="Learn more about SafePsy"
               >
                 Learn More
               </button>
@@ -117,7 +186,7 @@ const Hero: React.FC = () => {
               </span>
             </h2>
             
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" aria-label="Join waitlist form" noValidate>
               <div className="space-y-4 sm:space-y-6">
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-base sm:text-lg font-medium text-heading">
@@ -130,10 +199,25 @@ const Hero: React.FC = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    disabled={isLoading}
-                    className="w-full px-4 py-3 text-base sm:text-lg border-2 border-neutral-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition-all duration-300 bg-white/80 backdrop-blur-sm disabled:opacity-50 min-h-[44px] hover:border-primary-400/50"
+                    disabled={isLoading || isOffline}
+                    autoComplete="email"
+                    aria-required="true"
+                    aria-invalid={status === 'error' && !formData.email.trim()}
+                    aria-describedby="email-error email-help"
+                    className={`w-full px-4 py-3 text-base sm:text-lg border-2 rounded-xl focus:ring-2 focus:ring-primary-200 focus:outline-none transition-all duration-300 bg-white/80 backdrop-blur-sm disabled:opacity-50 min-h-[44px] hover:border-primary-400/50 ${
+                      status === 'error' && !formData.email.trim()
+                        ? 'border-red-500 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
+                        : 'border-neutral-300 focus:border-primary-500'
+                    }`}
                     placeholder="Enter your email address"
                   />
+                  <span id="email-help" className="sr-only">Enter a valid email address to join our waitlist</span>
+                  {status === 'error' && !formData.email.trim() && (
+                    <div className="form-error" id="email-error" role="alert">
+                      <AlertCircle className="form-error-icon" />
+                      <span>Please enter your email address</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -146,10 +230,22 @@ const Hero: React.FC = () => {
                       onChange={handleInputChange}
                       required
                       disabled={isLoading}
-                      className="mt-1 w-5 h-5 text-primary-600 border-2 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50"
+                      aria-required="true"
+                      aria-invalid={status === 'error' && !formData.consentGiven}
+                      aria-describedby="consent-error consent-help"
+                      className="mt-1 w-5 h-5 text-primary-600 border-2 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50 min-w-[20px] min-h-[20px]"
                     />
                     <label htmlFor="consentGiven" className="text-xs sm:text-sm text-body leading-relaxed">
                       I consent to SafePsy collecting and processing my personal data for the purpose of joining the waitlist and receiving product updates. I have read and agree to the{' '}
+                      <Link 
+                        to="/tos" 
+                        className="text-primary-600 hover:text-primary-700 underline font-medium break-words"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Terms of Service
+                      </Link>
+                      {' '}and{' '}
                       <Link 
                         to="/sap-policy" 
                         className="text-primary-600 hover:text-primary-700 underline font-medium break-words"
@@ -164,19 +260,29 @@ const Hero: React.FC = () => {
                 </div>
               </div>
 
+              {/* Offline Indicator */}
+              {isOffline && (
+                <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                  <span className="text-sm text-yellow-800 dark:text-yellow-300">
+                    You're offline. Your request will be queued and sent when you're back online.
+                  </span>
+                </div>
+              )}
+
               {/* Status Message */}
               {status !== 'idle' && (
                 <div
                   role="status"
                   aria-live="polite"
-                  className={`p-4 rounded-lg flex items-center gap-3 ${
+                  className={`p-4 rounded-lg flex items-center gap-3 fade-in ${
                     status === 'success'
-                      ? 'bg-primary-50 text-primary-800 border border-primary-200 dark:bg-primary-900/20 dark:text-primary-300 dark:border-primary-500/50'
+                      ? 'bg-primary-50 text-primary-800 border border-primary-200 dark:bg-primary-900/20 dark:text-primary-300 dark:border-primary-500/50 animate-pulse'
                       : 'bg-red-50 text-red-800 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-500/50'
                   }`}
                 >
                   {status === 'success' ? (
-                    <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 flex-shrink-0 text-green-600 dark:text-green-400" />
                   ) : (
                     <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   )}
@@ -187,14 +293,18 @@ const Hero: React.FC = () => {
               <div className="text-center">
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || isOffline}
+                  aria-label={isLoading ? "Submitting your request" : "Join the SafePsy waitlist"}
+                  aria-busy={isLoading}
                   className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-base sm:text-lg px-8 sm:px-12 py-3 sm:py-4 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 mx-auto min-h-[44px] w-full sm:w-auto"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Joining...
+                      <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                      <span>Joining...</span>
                     </>
+                  ) : isOffline ? (
+                    'Queue for Later (Offline)'
                   ) : (
                     'Join Waitlist'
                   )}
@@ -218,7 +328,7 @@ const Hero: React.FC = () => {
                 </span>
                 and{' '}
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold">
-                  user-controlled{' '}
+                  user-controlled
                 </span>
                 ."
               </div>
@@ -270,6 +380,7 @@ const Hero: React.FC = () => {
         </div>
 
       </div>
+      <ToastContainer />
     </section>
   )
 }

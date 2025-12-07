@@ -29,8 +29,8 @@ SPglobalv1/
 │       ├── prisma/                 # Database schema
 │       ├── dist/                   # Compiled JavaScript
 │       └── package.json
-├── frontend/                       # Legacy frontend (reference)
-├── backend/                        # Legacy backend (reference)
+├── frontend/                       # Legacy frontend (reference only - not actively used)
+├── backend/                        # Legacy backend (reference only - not actively used)
 ├── tests/                          # Integration tests
 ├── public/                         # Shared static assets
 ├── deployment/                     # Deployment scripts and configurations
@@ -483,11 +483,17 @@ Health check endpoint.
 ### Core Documentation
 - **[Privacy by Design](./PRIVACY-BY-DESIGN.md)** - Privacy implementation guide
 - **[Development Guide](./DEVELOPMENT.md)** - Development setup and guidelines
+- **[Cleanup Summary](./CLEANUP_SUMMARY.md)** - Repository cleanup and optimization details
 
 ### Component Documentation
 - **Frontend Components**: Located in `apps/web/src/components/`
 - **API Routes**: Located in `apps/api/src/routes/`
 - **Database Schema**: Located in `apps/api/prisma/schema.prisma`
+
+### Repository Maintenance
+- Build artifacts (`*.tsbuildinfo`, `*.db`) are excluded via `.gitignore`
+- Legacy directories (`frontend/`, `backend/`) are for reference only
+- Active codebase is in `apps/web/` and `apps/api/`
 
 ## 🤝 Contributing
 

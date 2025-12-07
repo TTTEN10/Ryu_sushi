@@ -31,3 +31,105 @@ export const ipHash = (ip: string) => {
     .update(ip + SALT)
     .digest("hex");
 };
+
+/**
+ * AES-256-GCM Encryption Utility for Backend
+ * 
+ * Security Policy Compliance:
+ * - AES-256-GCM encryption (as per security policy)
+ * - Secure key derivation using PBKDF2
+ * - Authentication tag for integrity verification
+ */
+
+/**
+ * Encrypts data using AES-256-GCM
+ * @param data - Plain text data to encrypt
+ * @param key - Encryption key (must be 32 bytes for AES-256)
+ * @returns Encrypted data with IV and auth tag (base64 encoded)
+ */
+export function encryptAES256GCM(data: string, key: Buffer): string {
+  if (key.length !== 32) {
+    throw new Error('Key must be 32 bytes for AES-256');
+  }
+
+  // Generate a random IV (12 bytes for GCM)
+  const iv = crypto.randomBytes(12);
+
+  // Create cipher
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+  // Encrypt the data
+  let encrypted = cipher.update(data, 'utf8');
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+  // Get authentication tag
+  const authTag = cipher.getAuthTag();
+
+  // Combine IV, encrypted data, and auth tag
+  const combined = Buffer.concat([iv, encrypted, authTag]);
+
+  // Convert to base64 for storage/transmission
+  return combined.toString('base64');
+}
+
+/**
+ * Decrypts data using AES-256-GCM
+ * @param encryptedData - Encrypted data (base64 encoded, includes IV and auth tag)
+ * @param key - Decryption key (must be 32 bytes for AES-256)
+ * @returns Decrypted plain text data
+ */
+export function decryptAES256GCM(encryptedData: string, key: Buffer): string {
+  if (key.length !== 32) {
+    throw new Error('Key must be 32 bytes for AES-256');
+  }
+
+  // Decode from base64
+  const combined = Buffer.from(encryptedData, 'base64');
+
+  // Extract IV (first 12 bytes)
+  const iv = combined.slice(0, 12);
+
+  // Extract auth tag (last 16 bytes)
+  const authTag = combined.slice(-16);
+
+  // Extract encrypted data (middle bytes)
+  const encrypted = combined.slice(12, -16);
+
+  // Create decipher
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+
+  // Decrypt the data
+  let decrypted = decipher.update(encrypted);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+  // Convert to string
+  return decrypted.toString('utf8');
+}
+
+/**
+ * Derives an encryption key from a password using PBKDF2
+ * @param password - Password string
+ * @param salt - Salt (should be random, 16+ bytes)
+ * @returns Derived key (32 bytes for AES-256)
+ */
+export function deriveKeyPBKDF2(password: string, salt: Buffer): Buffer {
+  // Derive key using PBKDF2 with 100,000 iterations (as per security policy)
+  return crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
+}
+
+/**
+ * Generates a random encryption key (32 bytes for AES-256)
+ * @returns Random key
+ */
+export function generateEncryptionKey(): Buffer {
+  return crypto.randomBytes(32);
+}
+
+/**
+ * Generates a random salt for key derivation
+ * @returns Random salt (16 bytes)
+ */
+export function generateSalt(): Buffer {
+  return crypto.randomBytes(16);
+}

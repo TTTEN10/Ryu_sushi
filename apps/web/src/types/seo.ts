@@ -11,4 +11,5 @@ export interface SEOConfig {
   twitterImage?: string;
   twitterCard?: 'summary' | 'summary_large_image' | 'app' | 'player';
   canonical?: string;
+  type?: 'website' | 'article' | 'profile';
 }

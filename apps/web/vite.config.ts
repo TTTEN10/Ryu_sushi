@@ -9,6 +9,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   root: __dirname,
   plugins: [react()],
+  resolve: {
+    // Resolve modules from workspace root for hoisted dependencies
+    preserveSymlinks: true,
+    alias: {
+      buffer: 'buffer',
+      // Map process/browser imports to process (which uses browser.js via package.json browser field)
+      'process/browser': 'process',
+      stream: 'stream-browserify',
+      events: 'events',
+    },
+    conditions: ['browser', 'module', 'import'],
+  },
+  define: {
+    'process.env': {},
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['process', 'buffer', 'stream-browserify', 'events'],
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
+  },
   server: {
     port: 3000,
     host: true,
@@ -22,5 +46,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
   },
 })

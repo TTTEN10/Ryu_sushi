@@ -12,13 +12,22 @@ import Maintenance from "./components/Maintenance";
 import Cookies from "./components/Cookies";
 import CookieBanner from "./components/CookieBanner";
 import SEOHead from "./components/SEOHead";
+import Testing from "./components/Testing";
+import DPIA from "./components/DPIA";
+import AboutMe from "./components/AboutMe";
+import TermsOfService from "./components/TermsOfService";
 import { useSEO } from "./hooks/useSEO";
 import { useCookieConsent } from "./hooks/useCookieConsent";
+import { useFocusManagement, useKeyboardNavigation } from "./hooks/useFocusManagement";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { WalletProvider } from "./contexts/WalletContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Component to handle SEO for each route
 function RouteWithSEO({ children }: { children: React.ReactNode }) {
   const seoConfig = useSEO();
+  useFocusManagement();
+  useKeyboardNavigation();
   return (
     <>
       <SEOHead config={seoConfig} />
@@ -46,15 +55,17 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <HelmetProvider>
-        <Router>
+      <WalletProvider>
+        <AuthProvider>
+          <HelmetProvider>
+          <Router>
           <Routes>
           <Route path="/" element={
             <RouteWithSEO>
               <div className="min-h-screen flex flex-col">
                 <Header showTagline={true} />
 
-                <main className="flex-1">
+                <main id="main-content" className="flex-1" role="main" aria-label="Main content" tabIndex={-1}>
                   <Hero />
                 </main>
 
@@ -87,6 +98,26 @@ export default function App() {
               <Cookies />
             </RouteWithSEO>
           } />
+          <Route path="/chat" element={
+            <RouteWithSEO>
+              <Testing />
+            </RouteWithSEO>
+          } />
+          <Route path="/dpia" element={
+            <RouteWithSEO>
+              <DPIA />
+            </RouteWithSEO>
+          } />
+          <Route path="/about-me" element={
+            <RouteWithSEO>
+              <AboutMe />
+            </RouteWithSEO>
+          } />
+          <Route path="/tos" element={
+            <RouteWithSEO>
+              <TermsOfService />
+            </RouteWithSEO>
+          } />
           <Route path="/500" element={
             <RouteWithSEO>
               <ServerError />
@@ -103,6 +134,8 @@ export default function App() {
           <CookieBanner onConsentChange={handleConsentChange} />
         </Router>
       </HelmetProvider>
+      </AuthProvider>
+      </WalletProvider>
     </ThemeProvider>
   );
 }

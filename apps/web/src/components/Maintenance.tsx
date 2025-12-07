@@ -12,7 +12,7 @@ const Maintenance: React.FC = () => {
       <Header showBackButton={false} />
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main id="main-content" className="flex-1" role="main" aria-label="Site maintenance" tabIndex={-1}>
         <section className="section-padding py-8 lg:py-12">
           <div className="container-max">
             {/* Maintenance Content */}

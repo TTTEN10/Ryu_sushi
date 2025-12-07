@@ -71,6 +71,14 @@ const Footer: React.FC = () => {
                 © 2025 SafePsy. All rights reserved.
               </p>
               <button 
+                onClick={() => navigate('/tos')}
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+              >
+                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                  Terms of Service & Privacy Policy
+                </span>
+              </button>
+              <button 
                 onClick={() => navigate('/sap-policy')}
                 className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
               >

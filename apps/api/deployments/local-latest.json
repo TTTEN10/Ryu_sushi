@@ -1,0 +1,18 @@
+{
+  "network": "local",
+  "networkName": "Local Network (Remix VM / Hardhat)",
+  "contractName": "DIDIdentityToken",
+  "contractAddress": "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8",
+  "deployer": "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+  "backendSigner": "0x1f4739e229adcb1c986c8a8b66f686ddec29694c",
+  "transactionHash": "0x74d35eea4aa860a960d5b7d9d07001cde90a748b05e579efbaf836eeca2dc760",
+  "blockNumber": 2,
+  "timestamp": 0,
+  "configuration": {
+    "name": "SafePsy DID",
+    "symbol": "SAFEPSY-DID",
+    "baseURI": "https://api.safepsy.com/metadata/",
+    "allowPublicMinting": false
+  },
+  "deployedAt": "2025-12-07T16:40:00.000Z"
+}

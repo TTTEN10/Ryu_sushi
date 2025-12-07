@@ -1,0 +1,828 @@
+import { useState, useRef, useEffect } from 'react';
+import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, Wifi, WifiOff, MessageSquare } from 'lucide-react';
+import { useWallet } from '../contexts/WalletContext';
+import { useChatEncryption } from '../hooks/useChatEncryption';
+import { encryptChatMessage, decryptChatMessage } from '../utils/did-encryption';
+import { updateChatReference } from '../utils/did-contract';
+import { useOffline } from '../hooks/useOffline';
+import { useToast } from '../hooks/useToast';
+import { getActionableErrorMessage } from '../utils/errorMessages';
+import Paywall from './Paywall';
+import EmptyState from './EmptyState';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  encrypted?: boolean;
+  isEditing?: boolean;
+  canEdit?: boolean; // User messages can be edited within 30 seconds
+}
+
+interface PaywallData {
+  quota: {
+    dailyUsed: number;
+    dailyLimit: number;
+    monthlyUsed: number;
+    monthlyLimit: number;
+    resetDailyAt: string;
+    resetMonthlyAt: string;
+  };
+  pricing: {
+    PREMIUM: {
+      crypto: {
+        ETH: string;
+        USDT: string;
+        USDC: string;
+      };
+      stripe: string | null;
+    };
+  };
+  paymentRecipient: string | null;
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+const MAX_MESSAGE_LENGTH = 2000;
+const EDIT_WINDOW_MS = 30000; // 30 seconds
+
+export default function ChatWidget() {
+  const { wallet, signer } = useWallet();
+  const { symmetricKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
+  const { isOffline } = useOffline();
+  const { showToast, ToastContainer } = useToast();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallData, setPaywallData] = useState<PaywallData | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load chat history when encryption is ready
+  useEffect(() => {
+    if (symmetricKey && !encryptionLoading) {
+      setIsLoadingHistory(true);
+      loadChat().then((loadedMessages) => {
+        if (loadedMessages && loadedMessages.length > 0) {
+          const now = Date.now();
+          setMessages(loadedMessages.map((msg: any) => {
+            const timestamp = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
+            const messageTime = timestamp.getTime();
+            const canEdit = msg.role === 'user' && (now - messageTime) < EDIT_WINDOW_MS;
+            
+            return {
+              id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+              role: msg.role,
+              content: msg.content,
+              timestamp,
+              encrypted: false, // Already decrypted by hook
+              canEdit,
+            };
+          }));
+        }
+        setIsLoadingHistory(false);
+      }).catch((err) => {
+        console.error('Error loading chat:', err);
+        showToast('error', 'Failed to load chat history');
+        setIsLoadingHistory(false);
+      });
+    } else if (!symmetricKey && !encryptionLoading) {
+      setIsLoadingHistory(false);
+    }
+  }, [symmetricKey, encryptionLoading, loadChat, showToast]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  // Encrypt message content using DID encryption
+  const encryptMessage = async (content: string): Promise<string> => {
+    if (!symmetricKey) {
+      throw new Error('Encryption key not initialized');
+    }
+    return await encryptChatMessage(content, symmetricKey);
+  };
+
+  // Decrypt message content using DID encryption
+  const decryptMessage = async (encryptedContent: string): Promise<string> => {
+    if (!symmetricKey) {
+      throw new Error('Encryption key not initialized');
+    }
+    return await decryptChatMessage(encryptedContent, symmetricKey);
+  };
+
+  // Check if message can be edited (within 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.role === 'user' && msg.canEdit) {
+            const now = Date.now();
+            const messageTime = msg.timestamp.getTime();
+            return {
+              ...msg,
+              canEdit: (now - messageTime) < EDIT_WINDOW_MS,
+            };
+          }
+          return msg;
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle editing a message
+  const handleEditMessage = (messageId: string) => {
+    const message = messages.find((m) => m.id === messageId);
+    if (message && message.canEdit) {
+      setEditingMessageId(messageId);
+      setEditContent(message.content);
+      inputRef.current?.focus();
+    }
+  };
+
+  // Handle saving edited message
+  const handleSaveEdit = async () => {
+    if (!editContent.trim() || !editingMessageId) return;
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === editingMessageId
+          ? { ...msg, content: editContent.trim(), canEdit: false, isEditing: false }
+          : msg
+      )
+    );
+
+    try {
+      const updatedMessages = messages.map((msg) =>
+        msg.id === editingMessageId
+          ? { ...msg, content: editContent.trim() }
+          : msg
+      );
+      await saveChat(
+        updatedMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+        }))
+      );
+      showToast('success', 'Message updated');
+    } catch (error) {
+      console.error('Error saving edited message:', error);
+      showToast('error', 'Failed to update message');
+    }
+
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  // Handle canceling edit
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  // Handle deleting a message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!window.confirm('Are you sure you want to delete this message?')) {
+      return;
+    }
+
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+
+    try {
+      const updatedMessages = messages.filter((msg) => msg.id !== messageId);
+      await saveChat(
+        updatedMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+        }))
+      );
+      showToast('success', 'Message deleted');
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      showToast('error', 'Failed to delete message');
+      // Restore message on error
+      const message = messages.find((m) => m.id === messageId);
+      if (message) {
+        setMessages((prev) => [...prev, message]);
+      }
+    }
+  };
+
+  // Handle sending a message
+  const handleSend = async () => {
+    if (!input.trim() || isStreaming || !symmetricKey || input.length > MAX_MESSAGE_LENGTH) return;
+
+    if (isOffline) {
+      showToast('error', 'Cannot send messages while offline. Please check your connection.');
+      return;
+    }
+
+    const userMessage: Message = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date(),
+      encrypted: false,
+      canEdit: true,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    
+    // Save chat after user message
+    try {
+      const updatedMessages = [...messages, userMessage];
+      await saveChat(updatedMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+      })));
+    } catch (error) {
+      console.error('Error saving chat:', error);
+    }
+    setInput('');
+    setIsStreaming(true);
+    setIsTyping(true);
+
+    // Show typing indicator
+    setTimeout(() => {
+      setIsTyping(false);
+    }, 500);
+
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+
+    try {
+      // Messages are already decrypted in state, just format for API
+      const decryptedMessages = [...messages, userMessage].map((msg) => ({
+        role: msg.role,
+        content: msg.content, // Already decrypted
+        timestamp: msg.timestamp,
+      }));
+
+      // Prepare headers with wallet authentication if available
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add JWT token if available
+      const token = localStorage.getItem('walletSessionToken');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Also add wallet headers for quota checking
+      if (wallet) {
+        headers['x-wallet-address'] = wallet.address;
+        headers['x-chain-id'] = wallet.chainId.toString();
+      }
+
+      // Stream response from API
+      const response = await fetch(`${API_BASE_URL}/api/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          messages: decryptedMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          stream: true,
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+
+        // Check if it's a quota exceeded error
+        if (response.status === 429 && errorData.error === 'QUOTA_EXCEEDED' && errorData.paywall) {
+          setPaywallData({
+            quota: errorData.quota,
+            pricing: errorData.paywall.pricing,
+            paymentRecipient: errorData.paywall.paymentRecipient,
+          });
+          setShowPaywall(true);
+          setIsStreaming(false);
+          return;
+        }
+
+        const errorMsg = getActionableErrorMessage(null, {
+          status: response.status,
+          code: errorData.error || errorData.code,
+          originalMessage: errorData.message,
+        });
+        throw new Error(errorMsg);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      let buffer = '';
+      let currentEvent = '';
+      let assistantMessage: Message = {
+        id: `msg-${Date.now()}-assistant`,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.substring(7).trim();
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+
+              if (currentEvent === 'token') {
+                // Append token to assistant message
+                assistantMessage.content += data.token;
+                setMessages((prev) => {
+                  const lastMsg = prev[prev.length - 1];
+                  if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
+                    return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
+                  }
+                  return [...prev, assistantMessage];
+                });
+              } else if (currentEvent === 'done') {
+                // Save chat after assistant response
+                setIsStreaming(false);
+                try {
+                  const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
+                  await saveChat(updatedMessages.map((msg) => ({
+                    id: msg.id,
+                    role: msg.role,
+                    content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
+                    timestamp: msg.timestamp,
+                  })));
+                  
+                  // Update DID if signer is available
+                  if (signer && wallet) {
+                    try {
+                      const token = localStorage.getItem('walletSessionToken');
+                      const headers: HeadersInit = {
+                        'Content-Type': 'application/json',
+                      };
+                      if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                      }
+                      
+                      const saveResponse = await fetch(`${API_BASE_URL}/api/chat/save`, {
+                        method: 'POST',
+                        headers,
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          encryptedChatBlob: '', // Will be set by backend
+                          didTokenId: null,
+                        }),
+                      });
+                      
+                      if (saveResponse.ok) {
+                        const saveData = await saveResponse.json();
+                        if (saveData.success && saveData.data.requiresDidUpdate && signer) {
+                          // Update DID contract with chat reference
+                          const chatRef = saveData.data.blobHash || '';
+                          await updateChatReference(signer, chatRef, new Uint8Array(0));
+                        }
+                      }
+                    } catch (didError) {
+                      console.error('Error updating DID:', didError);
+                      // Continue even if DID update fails
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error saving chat:', error);
+                }
+              } else if (currentEvent === 'error') {
+                // Check if it's a quota exceeded error
+                if (data.error === 'QUOTA_EXCEEDED' && data.paywall) {
+                  setPaywallData({
+                    quota: data.quota,
+                    pricing: data.paywall.pricing,
+                    paymentRecipient: data.paywall.paymentRecipient,
+                  });
+                  setShowPaywall(true);
+                  setIsStreaming(false);
+                  return;
+                }
+                throw new Error(data.message || 'Streaming error');
+              }
+            } catch (error) {
+              console.error('Error parsing SSE data:', error);
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Request aborted');
+      } else {
+        const errorMsg = error instanceof Error 
+          ? error.message 
+          : getActionableErrorMessage(error);
+        
+        showToast('error', errorMsg);
+        
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}-error`,
+            role: 'assistant',
+            content: `I encountered an error: ${errorMsg}. Please try again.`,
+            timestamp: new Date(),
+            encrypted: false,
+          },
+        ]);
+      }
+      setIsStreaming(false);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  // Handle cancel streaming
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsStreaming(false);
+      setIsTyping(false);
+    }
+  };
+
+  // Display message (already decrypted by hook)
+  const displayMessage = async (message: Message): Promise<string> => {
+    // Messages are already decrypted when loaded from the hook
+    return message.content;
+  };
+
+  return (
+    <>
+      {showPaywall && paywallData && (
+        <Paywall
+          quota={paywallData.quota}
+          pricing={paywallData.pricing}
+          paymentRecipient={paywallData.paymentRecipient}
+          onClose={() => {
+            setShowPaywall(false);
+            setPaywallData(null);
+          }}
+          onUpgradeSuccess={() => {
+            setShowPaywall(false);
+            setPaywallData(null);
+            // Optionally refresh quota or retry the request
+          }}
+        />
+      )}
+      <div className="flex flex-col h-[600px] bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-lg border border-neutral-dark/20 dark:border-white/20 shadow-sm">
+      {/* Header */}
+      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg">
+        <p className="text-xs text-body opacity-60 text-center">All the exchanged data will be encrypted and stored in your personal wallet. Nobody except you will have access to it</p>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white/70 dark:bg-black/30">
+        {isLoadingHistory ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              </div>
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
+          <EmptyState
+            icon={MessageSquare}
+            title="Start a conversation"
+            description="Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet."
+          />
+        ) : (
+          messages.map((message) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              displayMessage={displayMessage}
+              isEditing={editingMessageId === message.id}
+              editContent={editContent}
+              onEdit={handleEditMessage}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              onDelete={handleDeleteMessage}
+              setEditContent={setEditContent}
+            />
+          ))
+        )}
+
+        {/* Connection Status */}
+        {isStreaming && (
+          <div className="flex items-center gap-2 text-xs text-body opacity-75 px-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Connected - Streaming response...</span>
+          </div>
+        )}
+
+        {/* Typing Indicator */}
+        {isTyping && (
+          <div className="flex items-center space-x-2 text-body opacity-75">
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <span className="text-xs">Assistant is typing...</span>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-gray-200 dark:border-white/20 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
+        {/* Offline Indicator */}
+        {isOffline && (
+          <div className="mb-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
+            <WifiOff className="w-4 h-4" />
+            <span>Offline - Messages cannot be sent</span>
+          </div>
+        )}
+        
+        {/* Editing Indicator */}
+        {editingMessageId && (
+          <div className="mb-2 flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs">
+            <span className="text-blue-700 dark:text-blue-300">Editing message...</span>
+            <button
+              onClick={handleCancelEdit}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+              aria-label="Cancel editing"
+            >
+              <CloseIcon className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
+        <div className="flex space-x-2">
+          <div className="flex-1 relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={editingMessageId ? editContent : input}
+              onChange={(e) => {
+                if (editingMessageId) {
+                  if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
+                    setEditContent(e.target.value);
+                  }
+                } else {
+                  if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
+                    setInput(e.target.value);
+                  }
+                }
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (editingMessageId) {
+                    handleSaveEdit();
+                  } else {
+                    handleSend();
+                  }
+                }
+                if (e.key === 'Escape') {
+                  if (editingMessageId) {
+                    handleCancelEdit();
+                  }
+                }
+              }}
+              placeholder={editingMessageId ? "Edit your message..." : "Type your message..."}
+              disabled={isStreaming || !symmetricKey || encryptionLoading || isOffline}
+              maxLength={MAX_MESSAGE_LENGTH}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-black/30 text-heading placeholder:text-body placeholder:opacity-50"
+            />
+            {/* Character Counter */}
+            <div className="absolute bottom-1 right-2 text-xs text-body opacity-50">
+              {editingMessageId ? editContent.length : input.length}/{MAX_MESSAGE_LENGTH}
+              {((editingMessageId ? editContent.length : input.length) / MAX_MESSAGE_LENGTH) > 0.8 && (
+                <span className="text-yellow-600 dark:text-yellow-400 ml-1">⚠️</span>
+              )}
+            </div>
+          </div>
+          {editingMessageId ? (
+            <>
+              <button
+                onClick={handleSaveEdit}
+                disabled={!editContent.trim()}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Save edit"
+              >
+                <Check className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Cancel edit"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </>
+          ) : isStreaming ? (
+            <button
+              onClick={handleCancel}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+              aria-label="Cancel streaming"
+            >
+              Cancel
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || !symmetricKey || encryptionLoading || isOffline || input.length > MAX_MESSAGE_LENGTH}
+              className="px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center min-h-[44px] min-w-[44px]"
+              aria-label="Send message"
+            >
+              <ArrowUp className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+        {encryptionLoading && (
+          <p className="text-xs text-body opacity-75 mt-2 flex items-center gap-1">
+            <span className="animate-spin">⟳</span>
+            Initializing encryption...
+          </p>
+        )}
+        {encryptionError && (
+          <p className="text-xs text-red-600 dark:text-red-400 mt-2">{encryptionError}</p>
+        )}
+      </div>
+      </div>
+      <ToastContainer />
+    </>
+  );
+}
+
+// Message Bubble Component
+function MessageBubble({
+  message,
+  displayMessage,
+  isEditing = false,
+  editContent = '',
+  onEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onDelete,
+  setEditContent,
+}: {
+  message: Message;
+  displayMessage: (message: Message) => Promise<string>;
+  isEditing?: boolean;
+  editContent?: string;
+  onEdit?: (id: string) => void;
+  onSaveEdit?: () => void;
+  onCancelEdit?: () => void;
+  onDelete?: (id: string) => void;
+  setEditContent?: (content: string) => void;
+}) {
+  const [decryptedContent, setDecryptedContent] = useState<string>('');
+  const [isDecrypting, setIsDecrypting] = useState(true);
+  const [showActions, setShowActions] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadContent = async () => {
+      setIsDecrypting(true);
+      try {
+        const content = await displayMessage(message);
+        if (isMounted) {
+          setDecryptedContent(content);
+          setIsDecrypting(false);
+        }
+      } catch (error) {
+        console.error('Error loading message content:', error);
+        if (isMounted) {
+          setDecryptedContent('[Error loading message]');
+          setIsDecrypting(false);
+        }
+      }
+    };
+    loadContent();
+    return () => {
+      isMounted = false;
+    };
+  }, [message, displayMessage]);
+
+  const isUser = message.role === 'user';
+
+  return (
+    <div 
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} group`}
+      onMouseEnter={() => isUser && setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+    >
+      <div
+        className={`max-w-[80%] rounded-lg px-4 py-3 relative ${
+          isUser
+            ? 'bg-indigo-600 text-white'
+            : 'bg-gray-50 dark:bg-gray-800/50 text-heading border border-gray-200 dark:border-white/20'
+        }`}
+      >
+        {isEditing && isUser ? (
+          <div className="space-y-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent?.(e.target.value)}
+              className="w-full px-2 py-1 rounded text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+              rows={3}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={onSaveEdit}
+                className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              >
+                Save
+              </button>
+              <button
+                onClick={onCancelEdit}
+                className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : isDecrypting ? (
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse"></div>
+            <span className={`text-xs ${isUser ? 'text-white' : 'text-body opacity-75'}`}>Decrypting...</span>
+          </div>
+        ) : (
+          <>
+            <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{decryptedContent}</p>
+            
+            {/* Action Buttons (for user messages) */}
+            {isUser && showActions && message.canEdit && !isEditing && (
+              <div className="absolute -top-8 right-0 flex gap-1 bg-gray-800 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                  onClick={() => onEdit?.(message.id)}
+                  className="p-1 hover:bg-gray-700 dark:hover:bg-gray-600 rounded"
+                  title="Edit message"
+                  aria-label="Edit message"
+                >
+                  <Edit2 className="w-3 h-3 text-white" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this message?')) {
+                      onDelete?.(message.id);
+                    }
+                  }}
+                  className="p-1 hover:bg-gray-700 dark:hover:bg-gray-600 rounded"
+                  title="Delete message"
+                  aria-label="Delete message"
+                >
+                  <Trash2 className="w-3 h-3 text-white" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+        <p className={`text-xs mt-2 ${isUser ? 'text-indigo-100' : 'text-body opacity-75'}`}>
+          {message.timestamp.toLocaleTimeString()}
+          {message.encrypted && (
+            <span className="ml-2">🔒</span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+

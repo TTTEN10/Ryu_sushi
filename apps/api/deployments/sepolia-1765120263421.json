@@ -1,0 +1,18 @@
+{
+  "network": "sepolia",
+  "networkName": "Sepolia Testnet",
+  "contractName": "DIDIdentityToken",
+  "contractAddress": "0x103eAd096f898132E138ad228E35296db983A053",
+  "deployer": "0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c",
+  "backendSigner": "0x1f4739e229adcb1c986c8a8b66f686ddec29694c",
+  "transactionHash": "0xa2c7c52684c507087c8a28251069d4f540ba8e3cf5d74379babf333b1395e6d1",
+  "blockNumber": 9789472,
+  "timestamp": 1765120260,
+  "configuration": {
+    "name": "SafePsy DID Identity",
+    "symbol": "SAFEPSY-DID",
+    "baseURI": "https://api.safepsy.com/metadata/",
+    "allowPublicMinting": false
+  },
+  "deployedAt": "2025-12-07T15:11:00.000Z"
+}

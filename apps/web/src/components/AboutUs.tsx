@@ -11,7 +11,7 @@ const AboutUs: React.FC = () => {
       <Header showBackButton={true} />
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main id="main-content" className="flex-1" role="main" aria-label="About SafePsy" tabIndex={-1}>
         <section className="section-padding py-8 lg:py-12">
           <div className="container-max">
             {/* Hero Section */}
