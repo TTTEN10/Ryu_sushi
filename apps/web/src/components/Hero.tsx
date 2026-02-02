@@ -149,8 +149,8 @@ const Hero: React.FC = () => {
   }
 
   return (
-    <section className="section-padding py-8 lg:py-12 fade-in">
-      <div className="container-max">
+    <section className="section-padding py-8 lg:py-12 fade-in relative">
+      <div className="container-max relative z-10">
         {/* Main Hero Section */}
         <div className="mb-12">
           {/* Headline */}
@@ -317,9 +317,9 @@ const Hero: React.FC = () => {
         {/* Mission Statement Section */}
         <div className="text-center py-12 sm:py-16 lg:py-20 fade-in">
           <div className="max-w-4xl mx-auto px-4">
-            <div className="text-body leading-relaxed space-y-3 italic">
+            <div className="text-body leading-relaxed space-y-3">
               <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl">
-                "The future of mental health depends on technology
+                The future of mental health depends on technology
               </div>
               <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl">
                 that is both{' '}
@@ -329,8 +329,7 @@ const Hero: React.FC = () => {
                 and{' '}
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold">
                   user-controlled
-                </span>
-                ."
+                </span>{' '}
               </div>
             </div>
           </div>
