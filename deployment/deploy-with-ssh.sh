@@ -5,11 +5,14 @@
 
 set -e
 
-SERVER_IP="51.159.179.75"
+# Configuration - Values stored in Scaleway Secret Manager or environment
+# Access via: getSecret('safepsy-credentials', 'infrastructure.ssh.serverIp')
+SERVER_IP="${SSH_SERVER_IP:-51.158.74.207}"
 SERVER_USER="root"
-REPO_URL="https://github.com/TTTEN10/SPlandingv1.git"
+REPO_URL="${REPO_URL:-https://github.com/TTTEN10/SPlandingv1.git}"
 APP_DIR="/opt/safepsy-landing"
-SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAeUOnlUT/45PSadp9QNgRCRqgLNnsHYBQzIfqnwMcH9 \"login\""
+# SSH key from environment (never hardcode)
+SSH_KEY="${SSH_PUBLIC_KEY:-}"
 
 echo "🚀 SafePsy Landing Page Deployment with SSH Setup"
 echo "================================================="
@@ -50,7 +53,12 @@ else
     echo "2. Add your SSH key:"
     echo "   mkdir -p ~/.ssh"
     echo "   chmod 700 ~/.ssh"
-    echo "   echo '$SSH_KEY' >> ~/.ssh/authorized_keys"
+    if [ -n "$SSH_KEY" ]; then
+        echo "   echo '$SSH_KEY' >> ~/.ssh/authorized_keys"
+    else
+        echo "   cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys"
+        echo "   (or copy your public key manually)"
+    fi
     echo "   chmod 600 ~/.ssh/authorized_keys"
     echo ""
     echo "3. Test the connection:"
@@ -96,10 +104,10 @@ run_remote "cat > $APP_DIR/.env << 'EOF'
 NODE_ENV=production
 PORT=3001
 DATABASE_URL=file:./prod.db
-FRONTEND_URL=https://safepsy.com
+FRONTEND_URL=https://chat.safepsy.com
 IP_HASHING_ENABLED=false
 IP_SALT=\$(openssl rand -hex 32)
-PLAUSIBLE_DOMAIN=safepsy.com
+PLAUSIBLE_DOMAIN=chat.safepsy.com
 ENABLE_CONFIRMATION_EMAIL=false
 EOF"
 
@@ -109,18 +117,18 @@ run_remote "cat > $APP_DIR/backend/.env << 'EOF'
 NODE_ENV=production
 PORT=3001
 DATABASE_URL=file:./prod.db
-FRONTEND_URL=https://safepsy.com
+FRONTEND_URL=https://chat.safepsy.com
 IP_HASHING_ENABLED=false
 IP_SALT=\$(openssl rand -hex 32)
-PLAUSIBLE_DOMAIN=safepsy.com
+PLAUSIBLE_DOMAIN=chat.safepsy.com
 ENABLE_CONFIRMATION_EMAIL=false
 EOF"
 
 # Create production frontend .env file
 run_remote "cat > $APP_DIR/frontend/.env << 'EOF'
 # SafePsy Frontend Production Configuration
-VITE_PLAUSIBLE_DOMAIN=safepsy.com
-VITE_API_URL=https://safepsy.com/api
+VITE_PLAUSIBLE_DOMAIN=chat.safepsy.com
+VITE_API_URL=https://chat.safepsy.com/api
 EOF"
 
 echo "📁 Creating data and logs directories..."
@@ -154,7 +162,7 @@ echo "   - Stop: ssh $SERVER_USER@$SERVER_IP 'cd $APP_DIR && docker-compose down
 echo "   - Update: ssh $SERVER_USER@$SERVER_IP 'cd $APP_DIR && git pull && docker-compose up --build -d'"
 echo ""
 echo "📝 Next steps:"
-echo "   1. Configure your domain (safepsy.com) to point to $SERVER_IP"
+echo "   1. Configure your domain (chat.safepsy.com) to point to $SERVER_IP"
 echo "   2. Set up SSL certificates for HTTPS"
 echo "   3. Configure firewall rules"
 echo "   4. Set up monitoring and backups"

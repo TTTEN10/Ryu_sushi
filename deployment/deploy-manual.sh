@@ -2,12 +2,16 @@
 
 # Manual SafePsy Landing Page Deployment Script
 # This script provides step-by-step instructions for deployment
+# Server IP stored in Scaleway Secret Manager
+# Access via: getSecret('safepsy-credentials', 'infrastructure.ssh.serverIp')
 
 set -e
 
-SERVER_IP="51.159.179.75"
-REPO_URL="https://github.com/TTTEN10/SPlandingv1.git"
-APP_DIR="/opt/safepsy-landing"
+# Configuration - Server IP from environment or Scaleway Secret Manager
+SERVER_IP="${SSH_SERVER_IP:-51.158.74.207}"
+# Repository URL - update this to match your current deployment repository
+REPO_URL="${REPO_URL:-https://github.com/TTTEN10/SPlandingv1.git}"
+APP_DIR="${APP_DIR:-/opt/safepsy-landing}"
 
 echo "🚀 SafePsy Landing Page Deployment Guide"
 echo "========================================"
@@ -41,10 +45,10 @@ echo "   cat > .env << 'EOF'"
 echo "   NODE_ENV=production"
 echo "   PORT=3001"
 echo "   DATABASE_URL=file:./prod.db"
-echo "   FRONTEND_URL=https://safepsy.com"
+echo "   FRONTEND_URL=https://chat.safepsy.com"
 echo "   IP_HASHING_ENABLED=false"
 echo "   IP_SALT=\$(openssl rand -hex 32)"
-echo "   PLAUSIBLE_DOMAIN=safepsy.com"
+echo "   PLAUSIBLE_DOMAIN=chat.safepsy.com"
 echo "   ENABLE_CONFIRMATION_EMAIL=false"
 echo "   EOF"
 echo ""
@@ -53,17 +57,17 @@ echo "   cat > backend/.env << 'EOF'"
 echo "   NODE_ENV=production"
 echo "   PORT=3001"
 echo "   DATABASE_URL=file:./prod.db"
-echo "   FRONTEND_URL=https://safepsy.com"
+echo "   FRONTEND_URL=https://chat.safepsy.com"
 echo "   IP_HASHING_ENABLED=false"
 echo "   IP_SALT=\$(openssl rand -hex 32)"
-echo "   PLAUSIBLE_DOMAIN=safepsy.com"
+echo "   PLAUSIBLE_DOMAIN=chat.safepsy.com"
 echo "   ENABLE_CONFIRMATION_EMAIL=false"
 echo "   EOF"
 echo ""
 echo "   Create frontend/.env file:"
 echo "   cat > frontend/.env << 'EOF'"
-echo "   VITE_PLAUSIBLE_DOMAIN=safepsy.com"
-echo "   VITE_API_URL=https://safepsy.com/api"
+echo "   VITE_PLAUSIBLE_DOMAIN=chat.safepsy.com"
+echo "   VITE_API_URL=https://chat.safepsy.com/api"
 echo "   EOF"
 echo ""
 echo "6. Create data and logs directories:"
@@ -88,7 +92,7 @@ echo "   - Stop: docker-compose down"
 echo "   - Update: git pull && docker-compose up --build -d"
 echo ""
 echo "📝 Next steps after deployment:"
-echo "   1. Configure your domain (safepsy.com) to point to $SERVER_IP"
+echo "   1. Configure your domain (chat.safepsy.com) to point to $SERVER_IP"
 echo "   2. Set up SSL certificates for HTTPS"
 echo "   3. Configure firewall rules"
 echo "   4. Set up monitoring and backups"

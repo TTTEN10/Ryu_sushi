@@ -5,7 +5,9 @@
 
 set -e
 
-SERVER_IP="51.159.179.75"
+# Configuration - Server IP stored in Scaleway Secret Manager
+# Access via: getSecret('safepsy-credentials', 'infrastructure.ssh.serverIp')
+SERVER_IP="${SSH_SERVER_IP:-51.158.74.207}"
 SERVER_USER="root"
 APP_DIR="/opt/safepsy-landing"
 
@@ -40,5 +42,5 @@ echo "🌐 Testing application..."
 run_remote "curl -f http://localhost:80/health || echo 'Health check failed'"
 
 echo "✅ Update completed!"
-echo "🌍 Your SafePsy landing page should be available at: https://safepsy.com"
+echo "🌍 Your SafePsy landing page should be available at: https://chat.safepsy.com"
 

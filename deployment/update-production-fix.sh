@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-SERVER_IP="${SSH_SERVER_IP:-51.159.179.75}"
+SERVER_IP="${SSH_SERVER_IP:-51.158.74.207}"
 SERVER_USER="root"
 APP_DIR="/opt/safepsy-landing"
 
