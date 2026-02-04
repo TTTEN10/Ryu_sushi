@@ -29,12 +29,32 @@ copy_to_remote() {
 }
 
 echo "🔐 Checking server access..."
-# Verify we can connect securely
-if ! run_remote "echo 'Connection verified'" 2>/dev/null; then
-  echo "❌ ERROR: Cannot connect to server. Please ensure:"
-  echo "   1. SSH key is added to server: ssh-copy-id $SERVER_USER@$SERVER_IP"
-  echo "   2. Server user '$SERVER_USER' has sudo privileges"
-  echo "   3. SSH keys are properly configured"
+# Wait for SSH with retries
+MAX_RETRIES=60
+RETRY_COUNT=0
+SSH_READY=false
+
+echo "⏳ Waiting for instance to be ready (this may take a few minutes after Terraform update)..."
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if run_remote "echo 'Connection verified'" 2>/dev/null; then
+    SSH_READY=true
+    break
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  if [ $((RETRY_COUNT % 5)) -eq 0 ]; then
+    echo "   Attempt $RETRY_COUNT/$MAX_RETRIES - waiting 10 seconds..."
+  fi
+  sleep 10
+done
+
+if [ "$SSH_READY" = false ]; then
+  echo "❌ ERROR: Cannot connect to server after $MAX_RETRIES attempts."
+  echo "💡 The instance may still be initializing or SSH keys need configuration."
+  echo "   Please check:"
+  echo "   1. Instance is running in Scaleway Console"
+  echo "   2. Security group allows SSH (port 22)"
+  echo "   3. SSH key is added to instance: $SSH_KEY_ID"
+  echo "   4. Try manually: ssh root@$SERVER_IP"
   exit 1
 fi
 
@@ -48,7 +68,7 @@ echo "📁 Creating application directory..."
 run_remote "mkdir -p $APP_DIR"
 
 echo "📥 Cloning repository..."
-run_remote "cd $APP_DIR && git clone $REPO_URL . || (cd $APP_DIR && git pull)"
+run_remote "cd $APP_DIR && (git clone $REPO_URL . 2>/dev/null || (cd $APP_DIR && git pull origin main || true))"
 
 echo "🔧 Creating production environment files..."
 
