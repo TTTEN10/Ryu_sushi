@@ -34,7 +34,7 @@ COPY apps/api ./apps/api
 
 # Build frontend (skip type checking - use vite build directly)
 WORKDIR /app/apps/web
-RUN npm ci && vite build || echo "Frontend build completed"
+RUN npm ci && npx vite build || echo "Frontend build completed"
 
 # Build backend (ensure source files are available for tsx runtime)
 WORKDIR /app/apps/api
