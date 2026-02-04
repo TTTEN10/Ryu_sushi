@@ -10,12 +10,12 @@
   }
   
   body.light {
-    @apply bg-gradient-to-br from-purple-200 via-white to-green-200 min-h-screen;
+    @apply bg-white min-h-screen;
     color: #001515;
   }
   
   body.dark {
-    @apply bg-gradient-to-br from-[#352c55] via-black to-[#0f4d33] min-h-screen;
+    @apply bg-black min-h-screen;
     color: #EAE8FF; /* light neutral for better contrast */
   }
   
