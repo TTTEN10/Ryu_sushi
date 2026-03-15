@@ -2,8 +2,11 @@
 User-agent: *
 Allow: /
 Disallow: /chat
+Disallow: /beta/chat
+Disallow: /app/
 Disallow: /500
 Disallow: /maintenance
+Disallow: /internal/admin/
 
 # Sitemap location
 Sitemap: https://safepsy.com/sitemap.xml

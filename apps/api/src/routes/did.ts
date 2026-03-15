@@ -26,7 +26,7 @@ router.post(
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported',
+          message: 'Only Sepolia Testnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
@@ -84,7 +84,7 @@ router.post(
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported. Please switch networks.',
+          message: 'Only Sepolia Testnet is supported. Please switch networks.',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
@@ -161,7 +161,7 @@ router.get(
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported',
+          message: 'Only Sepolia Testnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
@@ -183,8 +183,8 @@ router.get(
         tokenId: didInfo.tokenId,
         encryptedDataExists: didInfo.encryptedDataExists,
         walletAddress: didInfo.walletAddress,
-        contractAddress: process.env.DID_IDENTITY_TOKEN_ADDRESS || null,
-        network: 'Ethereum Mainnet',
+        contractAddress: process.env.DID_REGISTRY_ADDRESS || process.env.DID_IDENTITY_TOKEN_ADDRESS || null,
+        network: 'Sepolia Testnet',
         chainId: ETHEREUM_MAINNET_CHAIN_ID,
       };
 
@@ -239,7 +239,7 @@ router.post(
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported',
+          message: 'Only Sepolia Testnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
@@ -293,6 +293,88 @@ router.post(
       });
     } catch (error: any) {
       logger.error('DID revoke error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/did/export
+ * Export all DID data for authenticated wallet
+ */
+router.get(
+  '/export',
+  authenticateWallet,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      // Validate chain ID
+      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+        return res.status(400).json({
+          success: false,
+          message: 'Only Sepolia Testnet is supported',
+          error: 'UNSUPPORTED_CHAIN',
+        });
+      }
+
+      const didService = DIDService.getInstance();
+      if (!didService) {
+        return res.status(503).json({
+          success: false,
+          message: 'DID service not configured',
+          error: 'SERVICE_UNAVAILABLE',
+        });
+      }
+
+      const didInfo = await didService.getDIDInfo(req.wallet.walletAddress);
+
+      if (!didInfo.hasDid) {
+        return res.status(404).json({
+          success: false,
+          message: 'DID not found',
+          error: 'DID_NOT_FOUND',
+        });
+      }
+
+      // Build export data
+      const exportData = {
+        walletAddress: didInfo.walletAddress,
+        tokenId: didInfo.tokenId,
+        contractAddress: process.env.DID_REGISTRY_ADDRESS || process.env.DID_IDENTITY_TOKEN_ADDRESS || null,
+        network: 'Sepolia Testnet',
+        chainId: ETHEREUM_MAINNET_CHAIN_ID,
+        isRevoked: didInfo.isRevoked || false,
+        encryptedDataExists: didInfo.encryptedDataExists,
+        profile: didInfo.profile ? {
+          owner: didInfo.profile.owner,
+          createdAt: didInfo.profile.createdAt.toString(),
+          lastUpdatedAt: didInfo.profile.lastUpdatedAt.toString(),
+          chatDataReference: didInfo.profile.chatDataReference,
+          encryptedKeyMetadata: didInfo.profile.encryptedKeyMetadata,
+          encryptedKeyMetadataLength: didInfo.profile.encryptedKeyMetadata.length,
+          hasChatReference: didInfo.profile.chatDataReference !== '0x0000000000000000000000000000000000000000000000000000000000000000',
+        } : null,
+        exportedAt: new Date().toISOString(),
+        exportedBy: req.wallet.walletAddress,
+      };
+
+      logger.info(`DID export requested for ${req.wallet.walletAddress}`);
+
+      res.json({
+        success: true,
+        data: exportData,
+      });
+    } catch (error: any) {
+      logger.error('DID export error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',

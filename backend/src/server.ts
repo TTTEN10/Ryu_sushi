@@ -14,11 +14,65 @@ dotenv.config()
 const app = express()
 const prisma = new PrismaClient()
 
-// Security middleware
-app.use(helmet())
+// Trust proxy for accurate IP addresses (important for rate limiting)
+app.set('trust proxy', 1);
+
+// Security middleware - Enhanced Helmet configuration
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true,
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin',
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  permittedCrossDomainPolicies: false,
+  originAgentCluster: true,
+}));
+
+// Enhanced CORS configuration
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
+  : process.env.NODE_ENV === 'production'
+    ? ['https://safepsy.com', 'https://www.safepsy.com', 'https://chat.safepsy.com']
+    : ['http://localhost:3000', 'http://localhost:3001'];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.) in development only
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: [],
 }))
 
 // Rate limiting for general API endpoints
@@ -43,9 +97,9 @@ const subscriptionLimiter = rateLimit({
 app.use('/api', generalLimiter)
 app.use('/api/subscribe', subscriptionLimiter)
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true }))
+// Body parsing middleware with security limits
+app.use(express.json({ limit: '1mb' })) // Reduced from 10mb for security
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 // Static file serving
 app.use(express.static(path.join(__dirname, '../public')))
@@ -239,12 +293,19 @@ app.post('/api/contact', async (req, res) => {
   }
 })
 
-// Error handling middleware
+// Error handling middleware - Don't leak error details in production
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err)
+  
+  // Don't leak error details in production
+  const isDevelopment = process.env.NODE_ENV !== 'production'
+  const errorMessage = isDevelopment ? err.message : 'Internal server error'
+  const errorStack = isDevelopment ? err.stack : undefined
+  
   res.status(500).json({
     success: false,
     message: 'Internal server error',
+    ...(isDevelopment && { error: errorMessage, stack: errorStack }),
   })
 })
 
@@ -258,17 +319,33 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 3001
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Shutting down gracefully...')
+  console.log('SIGINT received, shutting down gracefully...')
+  server.close(() => {
+    console.log('Server closed')
+  })
   await prisma.$disconnect()
   process.exit(0)
 })
 
 process.on('SIGTERM', async () => {
-  console.log('Shutting down gracefully...')
+  console.log('SIGTERM received, shutting down gracefully...')
+  server.close(() => {
+    console.log('Server closed')
+  })
   await prisma.$disconnect()
   process.exit(0)
+})
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error)
+  process.exit(1)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+  process.exit(1)
 })
 
 app.listen(PORT, () => {

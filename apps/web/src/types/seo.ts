@@ -12,4 +12,5 @@ export interface SEOConfig {
   twitterCard?: 'summary' | 'summary_large_image' | 'app' | 'player';
   canonical?: string;
   type?: 'website' | 'article' | 'profile';
+  noindex?: boolean; // When true, adds noindex, nofollow to robots meta tag
 }

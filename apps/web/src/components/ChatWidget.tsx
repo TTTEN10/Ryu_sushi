@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, Wifi, WifiOff, MessageSquare } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useChatEncryption } from '../hooks/useChatEncryption';
 import { encryptChatMessage, decryptChatMessage } from '../utils/did-encryption';
@@ -36,7 +37,6 @@ interface PaywallData {
         USDT: string;
         USDC: string;
       };
-      stripe: string | null;
     };
   };
   paymentRecipient: string | null;
@@ -48,10 +48,14 @@ const MAX_MESSAGE_LENGTH = 2000;
 const EDIT_WINDOW_MS = 30000; // 30 seconds
 
 export default function ChatWidget() {
+  const [searchParams] = useSearchParams();
   const { wallet, signer } = useWallet();
   const { symmetricKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
+  
+  // Check if withContext query parameter is set
+  const withContext = searchParams.get('withContext') === 'true';
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -62,9 +66,69 @@ export default function ChatWidget() {
   const [editContent, setEditContent] = useState('');
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [requestInProgress, setRequestInProgress] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const concurrencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check concurrency status
+  const checkConcurrencyStatus = useCallback(async (): Promise<boolean> => {
+    if (!wallet?.address) return false;
+
+    try {
+      const token = localStorage.getItem('walletSessionToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      headers['x-wallet-address'] = wallet.address;
+      headers['x-chain-id'] = wallet.chainId.toString();
+
+      const response = await fetch(`${API_BASE_URL}/api/chat/concurrency`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const inProgress = data.data.requestInProgress || false;
+          setRequestInProgress(inProgress);
+          return inProgress;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking concurrency status:', error);
+      // Don't show error to user, just log it
+      return false;
+    }
+  }, [wallet?.address, wallet?.chainId]);
+
+  // Poll concurrency status periodically when wallet is connected
+  useEffect(() => {
+    if (wallet?.address && symmetricKey && !encryptionLoading) {
+      // Check immediately
+      checkConcurrencyStatus();
+
+      // Then poll every 2 seconds
+      concurrencyCheckIntervalRef.current = setInterval(() => {
+        checkConcurrencyStatus();
+      }, 2000);
+
+      return () => {
+        if (concurrencyCheckIntervalRef.current) {
+          clearInterval(concurrencyCheckIntervalRef.current);
+        }
+      };
+    } else {
+      // Reset requestInProgress when wallet disconnects
+      setRequestInProgress(false);
+    }
+  }, [wallet?.address, symmetricKey, encryptionLoading, checkConcurrencyStatus]);
 
   // Load chat history when encryption is ready
   useEffect(() => {
@@ -98,11 +162,6 @@ export default function ChatWidget() {
       setIsLoadingHistory(false);
     }
   }, [symmetricKey, encryptionLoading, loadChat, showToast]);
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
 
   // Encrypt message content using DID encryption
   const encryptMessage = async (content: string): Promise<string> => {
@@ -225,10 +284,17 @@ export default function ChatWidget() {
 
   // Handle sending a message
   const handleSend = async () => {
-    if (!input.trim() || isStreaming || !symmetricKey || input.length > MAX_MESSAGE_LENGTH) return;
+    if (!input.trim() || isStreaming || !symmetricKey || input.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
 
     if (isOffline) {
       showToast('error', 'Cannot send messages while offline. Please check your connection.');
+      return;
+    }
+
+    // Check concurrency status one more time before sending
+    const isInProgress = await checkConcurrencyStatus();
+    if (isInProgress) {
+      showToast('error', 'Please wait for the chatbot to respond before sending another message.');
       return;
     }
 
@@ -292,8 +358,14 @@ export default function ChatWidget() {
         headers['x-chain-id'] = wallet.chainId.toString();
       }
 
+      // Build URL with withContext query parameter if needed
+      const chatUrl = new URL(`${API_BASE_URL}/api/chat/completions`);
+      if (withContext) {
+        chatUrl.searchParams.set('withContext', 'true');
+      }
+
       // Stream response from API
-      const response = await fetch(`${API_BASE_URL}/api/chat/completions`, {
+      const response = await fetch(chatUrl.toString(), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -625,7 +697,7 @@ export default function ChatWidget() {
                 }
               }}
               placeholder={editingMessageId ? "Edit your message..." : "Type your message..."}
-              disabled={isStreaming || !symmetricKey || encryptionLoading || isOffline}
+              disabled={isStreaming || !symmetricKey || encryptionLoading || isOffline || requestInProgress}
               maxLength={MAX_MESSAGE_LENGTH}
               className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-black/30 text-heading placeholder:text-body placeholder:opacity-50"
             />
@@ -666,9 +738,10 @@ export default function ChatWidget() {
           ) : (
             <button
               onClick={handleSend}
-              disabled={!input.trim() || !symmetricKey || encryptionLoading || isOffline || input.length > MAX_MESSAGE_LENGTH}
+              disabled={!input.trim() || !symmetricKey || encryptionLoading || isOffline || input.length > MAX_MESSAGE_LENGTH || requestInProgress || isStreaming}
               className="px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center min-h-[44px] min-w-[44px]"
               aria-label="Send message"
+              title={requestInProgress ? "Please wait for the chatbot to respond before sending another message" : ""}
             >
               <ArrowUp className="w-5 h-5" />
             </button>

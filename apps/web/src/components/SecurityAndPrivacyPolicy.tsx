@@ -34,10 +34,15 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                   Security Overview
                 </span>
               </h2>
-              <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-8 sm:mb-12 px-4">
+              <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-6 px-4">
                 SafePsy implements comprehensive security measures to protect user data, ensure privacy, 
-                and maintain system integrity. Our multi-layer security model provides enterprise-grade 
-                protection for your sensitive mental health information.
+                and maintain system integrity. Our multi-layer security model is aligned with ISO/IEC 27001:2022 
+                and provides enterprise-grade protection for your sensitive mental health information. We record 
+                security-relevant events (e.g. authentication) in audit logs with redacted identifiers for incident 
+                response and compliance.
+              </p>
+              <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-8 sm:mb-12 px-4 font-medium text-heading">
+                A key differentiator: you own your data. We do not store it with third parties or use it to train AI models.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
@@ -112,8 +117,8 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <div className="flex items-start gap-3">
                       <CheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
                       <div>
-                        <h4 className="text-lg text-heading">PBKDF2 Key Derivation</h4>
-                        <p className="text-body">100,000 iterations for secure key generation from user passwords</p>
+                        <h4 className="text-lg text-heading">Wallet-Based Key Derivation</h4>
+                        <p className="text-body">Encryption keys derived from wallet signatures using SHA-256 hash. PBKDF2 available for password-based derivation if needed.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -140,7 +145,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       <CheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
                       <div>
                         <h4 className="text-lg text-heading">User-Controlled Keys</h4>
-                        <p className="text-body">Users maintain control over their encryption keys (never stored on servers)</p>
+                        <p className="text-body">Users maintain control over their encryption keys (never stored on servers). Chat data is encrypted client-side before transmission and stored as ciphertext only. Server-side AI processing requires temporary decryption in memory.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -154,7 +159,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       <CheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
                       <div>
                         <h4 className="text-lg text-heading">Audit Logging</h4>
-                        <p className="text-body">Complete access logging and audit trails for all data operations</p>
+                        <p className="text-body">Access and data operation logs, plus security event logging (e.g. authentication success and failure) for incident response and compliance. Audit logs use redacted identifiers (e.g. partial wallet address) and do not store full PII or secrets.</p>
                       </div>
                     </div>
                   </div>
@@ -247,15 +252,15 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <CheckCircle className="w-10 h-10 text-green-600" />
                   </div>
                   <h3 className="text-xl text-heading">GDPR</h3>
-                  <p className="text-body">General Data Protection Regulation compliance with all data subject rights</p>
+                  <p className="text-body">Measures aimed at GDPR compliance: data subject rights (access, rectification, erasure, portability, restriction), lawful bases, and minimization</p>
                 </div>
                 
                 <div className="text-center space-y-4">
                   <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
                     <CheckCircle className="w-10 h-10 text-blue-600" />
                   </div>
-                  <h3 className="text-xl text-heading">HIPAA</h3>
-                  <p className="text-body">Health Insurance Portability and Accountability Act compliance</p>
+                  <h3 className="text-xl text-heading">HIPAA-style safeguards</h3>
+                  <p className="text-body">Technical and organizational safeguards supporting HIPAA-style security. We are not a HIPAA-covered entity and do not hold HIPAA certification.</p>
                 </div>
                 
                 <div className="text-center space-y-4">
@@ -263,7 +268,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <CheckCircle className="w-10 h-10 text-purple-600" />
                   </div>
                   <h3 className="text-xl text-heading">ISO 27001</h3>
-                  <p className="text-body">Information Security Management System certification</p>
+                  <p className="text-body">Security controls and documentation aligned with ISO/IEC 27001:2022. Not certified; certification requires an accredited audit.</p>
                 </div>
                 
                 <div className="text-center space-y-4">
@@ -271,7 +276,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <CheckCircle className="w-10 h-10 text-orange-600" />
                   </div>
                   <h3 className="text-xl text-heading">APA/EFPA</h3>
-                  <p className="text-body">American Psychological Association and European Federation compliance</p>
+                  <p className="text-body">Alignment with APA and EFPA professional ethics and guidelines for psychological services</p>
                 </div>
               </div>
 
@@ -328,11 +333,11 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                 </div>
               </div>
 
-              {/* HIPAA Compliance Details */}
+              {/* HIPAA-style safeguards */}
               <div className="mb-12">
                 <h3 className="text-2xl text-heading mb-6 text-center">
                   <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                    HIPAA Compliance
+                    HIPAA-style safeguards
                   </span>
                 </h3>
                 <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
@@ -391,7 +396,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-body font-medium">Transmission Security</p>
-                        <p className="text-sm text-body">End-to-end encryption for all data transmission</p>
+                        <p className="text-sm text-body">Encrypted at rest with client-side key management. Server-side AI processing requires temporary decryption in memory.</p>
                       </div>
                     </div>
                   </div>
@@ -402,7 +407,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
               <div className="mb-12">
                 <h3 className="text-2xl text-heading mb-6 text-center">
                   <span className="bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">
-                    ISO 27001 Information Security Management System
+                    ISO/IEC 27001:2022 Information Security Management System
                   </span>
                 </h3>
                 <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
@@ -410,20 +415,20 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <h4 className="text-lg text-heading font-semibold">Information Security Management</h4>
                     <div className="space-y-3">
                       <div className="text-center">
-                        <p className="text-body font-medium">ISMS Implementation</p>
-                        <p className="text-sm text-body">Comprehensive Information Security Management System</p>
+                        <p className="text-body font-medium">ISMS Alignment</p>
+                        <p className="text-sm text-body">Documented scope, policy, and Statement of Applicability aligned with ISO 27001:2022</p>
                       </div>
                       <div className="text-center">
                         <p className="text-body font-medium">Risk Management</p>
-                        <p className="text-sm text-body">Regular risk assessments and mitigation strategies</p>
+                        <p className="text-sm text-body">Risk assessment and treatment process with a risk register</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-body font-medium">Security Controls</p>
-                        <p className="text-sm text-body">114 security controls implemented and monitored</p>
+                        <p className="text-body font-medium">Annex A Controls</p>
+                        <p className="text-sm text-body">93 controls across four domains (Organizational, People, Physical, Technological) with applicability and implementation status</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-body font-medium">Continuous Improvement</p>
-                        <p className="text-sm text-body">Regular review and improvement of security measures</p>
+                        <p className="text-body font-medium">Security Event Logging</p>
+                        <p className="text-sm text-body">Audit trails for authentication and security-relevant events; logs use redacted identifiers and no PII or secrets</p>
                       </div>
                     </div>
                   </div>
@@ -431,20 +436,20 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <h4 className="text-lg text-heading font-semibold">Security Control Categories</h4>
                     <div className="space-y-3">
                       <div className="text-center">
-                        <p className="text-body font-medium">Access Control (A.9)</p>
-                        <p className="text-sm text-body">Comprehensive access management and authentication</p>
+                        <p className="text-body font-medium">Access Control (A.5.15–5.18)</p>
+                        <p className="text-sm text-body">Wallet/DID authentication, identity management, least privilege</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-body font-medium">Cryptography (A.10)</p>
-                        <p className="text-sm text-body">Strong cryptographic controls for data protection</p>
+                        <p className="text-body font-medium">Cryptography (A.5.35, 8.24)</p>
+                        <p className="text-sm text-body">TLS, AES-256, hashing, and secure key management</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-body font-medium">Operations Security (A.12)</p>
-                        <p className="text-sm text-body">Secure operations and change management</p>
+                        <p className="text-body font-medium">Operations Security (A.8.15–8.16)</p>
+                        <p className="text-sm text-body">Event logging, monitoring, and secure operations</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-body font-medium">Incident Management (A.16)</p>
-                        <p className="text-sm text-body">Comprehensive incident response and management</p>
+                        <p className="text-body font-medium">Secure Development (A.5.36, 8.25–8.28)</p>
+                        <p className="text-sm text-body">Secure SDLC, input validation, and secure coding</p>
                       </div>
                     </div>
                   </div>
@@ -511,8 +516,9 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     <h3 className="text-lg text-heading dark:text-white mb-2">Privacy by Design</h3>
                     <p className="text-body dark:text-white">
                       SafePsy implements privacy-by-design principles throughout our platform. We minimize data collection, 
-                      use end-to-end encryption, provide granular consent controls, and ensure users maintain control 
-                      over their personal information. Our architecture is built from the ground up to protect your privacy.
+                      use encrypted at rest with client-side key management (server stores ciphertext only), provide granular consent controls, 
+                      and ensure users maintain control over their personal information. Our architecture is built from the ground up to protect your privacy. 
+                      Note: Server-side AI processing (Scaleway) requires temporary decryption in memory for chat completions.
                     </p>
                   </div>
                 </div>
@@ -800,7 +806,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       </tr>
                       <tr>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Technical Data</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Platform security and optimization</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Platform security, optimization, and security audit logs (redacted identifiers only)</td>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">12 months</td>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Legitimate Interests</td>
                       </tr>

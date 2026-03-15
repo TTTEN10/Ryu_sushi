@@ -1,8 +1,7 @@
-import { PrismaClient, SubscriptionTier, SubscriptionStatus, PaymentMethod } from '@prisma/client';
+import { SubscriptionTier, SubscriptionStatus, PaymentMethod } from '@prisma/client';
 import logger from './logger';
 import { DIDService } from './did.service';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 /**
  * Subscription tier limits
@@ -13,8 +12,8 @@ export const SUBSCRIPTION_LIMITS = {
     monthlyLimit: 100,
   },
   PREMIUM: {
-    dailyLimit: 125,
-    monthlyLimit: 1250,
+    dailyLimit: 100,
+    monthlyLimit: 1000,
   },
 };
 
@@ -120,9 +119,6 @@ export class SubscriptionService {
     tier: SubscriptionTier,
     paymentMethod: PaymentMethod,
     metadata?: {
-      stripeCustomerId?: string;
-      stripeSubscriptionId?: string;
-      stripePriceId?: string;
       cryptoTxHash?: string;
       currentPeriodStart?: Date;
       currentPeriodEnd?: Date;
@@ -140,9 +136,6 @@ export class SubscriptionService {
           tier,
           paymentMethod,
           status: SubscriptionStatus.ACTIVE,
-          stripeCustomerId: metadata?.stripeCustomerId || subscription.stripeCustomerId,
-          stripeSubscriptionId: metadata?.stripeSubscriptionId || subscription.stripeSubscriptionId,
-          stripePriceId: metadata?.stripePriceId || subscription.stripePriceId,
           cryptoPaymentTxHash: metadata?.cryptoTxHash || subscription.cryptoPaymentTxHash,
           currentPeriodStart: metadata?.currentPeriodStart || subscription.currentPeriodStart,
           currentPeriodEnd: metadata?.currentPeriodEnd || subscription.currentPeriodEnd,

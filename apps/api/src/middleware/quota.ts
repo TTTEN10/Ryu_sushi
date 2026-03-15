@@ -54,7 +54,6 @@ export const quotaMiddleware = async (
             USDT: premiumPricing.USDT,
             USDC: premiumPricing.USDC,
           },
-          stripe: process.env.STRIPE_PRICE_PREMIUM || null,
         },
       };
 

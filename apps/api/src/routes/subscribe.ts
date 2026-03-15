@@ -3,6 +3,9 @@ import { prisma } from "../lib/prisma";
 import { ipHash } from "../lib/crypto";
 import { subscriptionRateLimitMiddleware } from "../lib/ratelimit";
 import { safetyMiddleware, safetyResponseInterceptor } from "../middleware/safety";
+import { createEmailService } from "../lib/emailService";
+import { createGoogleSheetsService } from "../lib/googleSheets";
+import { emailSubscriptionsTotal } from "../lib/metrics";
 
 const router = Router();
 
@@ -71,6 +74,34 @@ router.post("/", async (req, res) => {
       },
       update: {}
     });
+    
+    // Track metrics for Prometheus
+    emailSubscriptionsTotal.inc({
+      role: role || 'unknown',
+      consent_given: consentGiven ? 'true' : 'false'
+    });
+    
+    // Send confirmation email (non-blocking)
+    const emailService = createEmailService();
+    emailService.sendConfirmationEmail(email).catch((error) => {
+      console.error('Failed to send confirmation email:', error);
+      // Don't throw - email failures shouldn't break the subscription flow
+    });
+
+    // Log to Google Sheets (non-blocking)
+    const googleSheetsService = createGoogleSheetsService();
+    if (googleSheetsService.isEnabled()) {
+      googleSheetsService.logSubscription({
+        email,
+        fullName,
+        role,
+        consentGiven,
+        timestamp: new Date(),
+      }).catch((error) => {
+        console.error('Failed to log to Google Sheets:', error);
+        // Don't throw - Google Sheets failures shouldn't break the subscription flow
+      });
+    }
     
     // Return success message matching the expected format
     res.json({ 

@@ -2,10 +2,31 @@
  * AES-256-GCM Encryption Utility for Frontend
  * Uses Web Crypto API for browser-compatible encryption
  * 
+ * KEY LIFECYCLE & MANAGEMENT (WALLET-GATED)
+ * 
+ * Access Model:
+ * - Wallet authentication is the sole recovery/access mechanism
+ * - No wallet → no access
+ * - Revoked token → no access
+ * - SP does not provide key escrow, recovery phrases, or key backups
+ * 
+ * Key Derivation:
+ * - Wallet-based keys: Derived from wallet signature using SHA-256 hash
+ *   (NOT PBKDF2 - see did-encryption.ts for wallet-based key derivation)
+ * - PBKDF2 functions: Available for password-based derivation if needed,
+ *   but NOT used for wallet-based encryption in current implementation
+ * 
+ * Storage:
+ * - Client-side: Keys stored in memory only during active session
+ * - Server-side: Never stores keys (only encrypted blobs)
+ * - Backups: Store ciphertext only, cannot restore access without wallet
+ * 
  * Security Policy Compliance:
  * - AES-256-GCM encryption (as per security policy)
  * - Secure key derivation
  * - Authentication tag for integrity verification
+ * 
+ * DO NOT LOG: Keys, plaintext, or sensitive data
  */
 
 /**
@@ -99,6 +120,14 @@ export async function decrypt(encryptedData: string, key: Uint8Array): Promise<s
 
 /**
  * Derives an encryption key from a password using PBKDF2
+ * 
+ * IMPORTANT: This function is NOT used for wallet-based key derivation.
+ * Wallet-based keys are derived using SHA-256 hash of wallet signature
+ * (see did-encryption.ts for wallet-based key derivation).
+ * 
+ * This function is available for password-based key derivation if needed
+ * in the future, but is NOT part of the current wallet-gated encryption model.
+ * 
  * @param password - Password string
  * @param salt - Salt (should be random, 16+ bytes)
  * @returns Derived key (32 bytes for AES-256)

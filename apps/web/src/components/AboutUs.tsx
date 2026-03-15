@@ -1,11 +1,13 @@
-import React from 'react'
-import { Shield, Heart, Users, Brain, Lock, Globe } from 'lucide-react'
+import React, { useState } from 'react'
+import { Shield, Heart, Users, Brain, Lock, Globe, ChevronDown, ChevronUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
+import { FAQ_ITEMS } from '../data/faq'
 
 const AboutUs: React.FC = () => {
   const navigate = useNavigate()
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
   return (
     <div className="min-h-screen flex flex-col">
       <Header showBackButton={true} />
@@ -24,16 +26,29 @@ const AboutUs: React.FC = () => {
               </h1>
             </div>
 
-            {/* Mission Section */}
+            {/* Mission Section (aligned with draft landing) */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 xl:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-12 sm:mb-16 fade-in card-hover">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 sm:mb-12 text-center px-2">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                   Our Mission
                 </span>
               </h2>
-              <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-8 sm:mb-12 px-4">
-                SafePsy is building a global ecosystem of safe mental health care compliant with APA and HIPAA standards. We aim to make psychotherapy accessible to everyone, everywhere, without compromising on privacy or quality.
-              </p>
+              <div className="text-center max-w-4xl mx-auto space-y-4 text-[1.2em] px-4">
+                <p className="text-body leading-relaxed">
+                  Mental health support safer, more private, and globally accessible.
+                </p>
+                <p className="text-body leading-relaxed text-[1.1em]">
+                  <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold">SafePsy</span> combines:
+                </p>
+                <p className="text-body leading-relaxed">
+                  <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold text-xl sm:text-2xl lg:text-3xl">
+                    Ethical AI assistance. Blockchain-secured identity. End-to-end encrypted.
+                  </span>
+                </p>
+                <p className="text-body leading-relaxed pt-2 font-medium text-heading">
+                  You own your data. We do not store it with third parties or use it to train AI models.
+                </p>
+              </div>
             </div>
 
             {/* Values Grid */}
@@ -44,7 +59,7 @@ const AboutUs: React.FC = () => {
                 </div>
                 <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">Secure</h3>
                 <p className="text-body">
-                  Security is the foundation of SafePsy's ecosystem: Every session, transaction, and data exchange is encrypted and verified. Users maintain full control of their personal information, no third party can access private data.
+                  Security is the foundation of SafePsy's ecosystem: Data is encrypted at rest and in transit, and encryption keys are controlled by you (derived from your wallet). Message content is processed by our AI provider to generate responses; we do not log or persistently store plaintext.
                 </p>
               </div>
               
@@ -97,7 +112,7 @@ const AboutUs: React.FC = () => {
                   </div>
                   <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-secondary-600">Blockchain Security</h3>
                   <p className="text-body">
-                    The backbone of our security: it guarantees transparency and trust with Decentralized identity and ensures users own and control their data.
+                    The backbone of our security: decentralized identity on the blockchain provides transparency and trust, and ensures users own and control their identity and encryption keys.
                   </p>
                 </div>
                 
@@ -112,6 +127,48 @@ const AboutUs: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* FAQ Section */}
+            <section id="faq" className="mb-12 sm:mb-16">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 sm:mb-12 text-center px-2">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Frequently asked questions
+                </span>
+              </h2>
+              <div className="max-w-3xl mx-auto space-y-1">
+                {FAQ_ITEMS.map((item, i) => (
+                  <div key={i} className="border-b border-neutral-200 dark:border-white/20">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
+                      className="w-full py-3 sm:py-4 flex items-center justify-between gap-3 text-left min-h-[44px] hover:bg-neutral-50 dark:hover:bg-white/5 rounded-lg transition-colors"
+                      aria-expanded={openFaqIndex === i}
+                      aria-controls={`faq-answer-${i}`}
+                      id={`faq-question-${i}`}
+                    >
+                      <span className="text-heading font-medium text-sm sm:text-base">{item.q}</span>
+                      {openFaqIndex === i ? (
+                        <ChevronUp className="w-4 h-4 text-body flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-body flex-shrink-0" />
+                      )}
+                    </button>
+                    <div
+                      id={`faq-answer-${i}`}
+                      role="region"
+                      aria-labelledby={`faq-question-${i}`}
+                      className={`overflow-hidden transition-all duration-200 ease-out ${
+                        openFaqIndex === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      <p className="text-body text-sm sm:text-base pb-4 pl-0 pr-8 whitespace-pre-line">
+                        {item.a}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             {/* Call to Action */}
             <div className="text-center px-4 fade-in">

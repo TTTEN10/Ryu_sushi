@@ -59,9 +59,9 @@ const TermsOfService: React.FC = () => {
                   </h2>
                   <div className="space-y-4 text-body">
                     <p>
-                      Welcome to SafePsy ("we," "our," or "us"). SafePsy is a Web3.0 decentralized identity-based therapy and mental health platform 
-                      that combines blockchain technology with AI-powered therapy assistance. By accessing or using our services, you agree to be bound 
-                      by these Terms of Service ("Terms").
+                      Welcome to SafePsy (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). SafePsy is a Web3.0 decentralized identity-based therapy and mental health platform 
+                      that combines blockchain technology with AI-powered therapy assistance. A key differentiator: you own your data—we do not store it with third parties or use it to train AI models. By accessing or using our services, you agree to be bound 
+                      by these Terms of Service (&quot;Terms&quot;).
                     </p>
                     <p>
                       These Terms constitute a legally binding agreement between you and SafePsy. Please read these Terms carefully before using our 
@@ -326,11 +326,30 @@ const TermsOfService: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Information Security and Compliance */}
+                <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
+                    <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                      6. Information Security and Compliance
+                    </span>
+                  </h2>
+                  <div className="space-y-4 text-body">
+                    <p>
+                      SafePsy maintains an Information Security Management System (ISMS) aligned with ISO/IEC 27001:2022. 
+                      Our security practices include risk-based controls, secure development, encryption, access control, and 
+                      regular security reviews. We record security-relevant events (such as authentication attempts) in audit 
+                      logs for incident response and compliance; these logs do not contain full personal identifiers (e.g. wallet 
+                      addresses are redacted). By using our services, you acknowledge that we apply industry-standard 
+                      information security measures to protect your data.
+                    </p>
+                  </div>
+                </div>
+
                 {/* User Responsibilities */}
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      6. User Responsibilities
+                      7. User Responsibilities
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -354,7 +373,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      7. Blockchain Risks
+                      8. Blockchain Risks
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -376,7 +395,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      8. Intellectual Property
+                      9. Intellectual Property
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -396,7 +415,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      9. Limitations of Liability
+                      10. Limitations of Liability
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -436,7 +455,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      10. Dispute Resolution
+                      11. Dispute Resolution
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -454,7 +473,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      11. Applicable Law
+                      12. Applicable Law
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -469,7 +488,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      12. Changes to Terms
+                      13. Changes to Terms
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">
@@ -485,7 +504,7 @@ const TermsOfService: React.FC = () => {
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
                     <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      13. Contact Information
+                      14. Contact Information
                     </span>
                   </h2>
                   <div className="space-y-4 text-body">

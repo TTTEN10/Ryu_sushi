@@ -39,17 +39,17 @@ router.post(
         });
       }
 
-      // Validate chain ID
+      // Validate chain ID - Sepolia Testnet
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported',
+          message: 'Only Sepolia Testnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
 
       // Generate a nonce for signature verification
-      const nonce = ethers.randomBytes(32).toString('hex');
+      const nonce = ethers.hexlify(ethers.randomBytes(32));
       const message = `SafePsy Wallet Verification\n\nAddress: ${req.wallet.address}\nNonce: ${nonce}\n\nThis signature proves you own this wallet.`;
 
       logger.info(`Wallet connection request from ${req.wallet.address}`);

@@ -6,7 +6,7 @@
   <!-- Homepage -->
   <url>
     <loc>https://safepsy.com/</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -14,7 +14,7 @@
   <!-- About Us -->
   <url>
     <loc>https://safepsy.com/about-us</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -22,7 +22,7 @@
   <!-- Security & Privacy Policy -->
   <url>
     <loc>https://safepsy.com/sap-policy</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -30,7 +30,15 @@
   <!-- Contact Us -->
   <url>
     <loc>https://safepsy.com/contact-us</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- FAQ -->
+  <url>
+    <loc>https://safepsy.com/faq</loc>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -38,7 +46,7 @@
   <!-- Terms of Service -->
   <url>
     <loc>https://safepsy.com/tos</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -46,7 +54,7 @@
   <!-- Cookies Policy -->
   <url>
     <loc>https://safepsy.com/cookies</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -54,7 +62,7 @@
   <!-- DPIA -->
   <url>
     <loc>https://safepsy.com/dpia</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -62,7 +70,7 @@
   <!-- About Me -->
   <url>
     <loc>https://safepsy.com/about-me</loc>
-    <lastmod>2024-01-01</lastmod>
+    <lastmod>2025-12-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

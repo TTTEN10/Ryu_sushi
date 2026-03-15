@@ -1,4 +1,6 @@
 # Multi-stage Dockerfile for SafePsy Application
+# Build: docker build -t safepsy-app:2.0.0 --build-arg APP_VERSION=2.0.0 .
+ARG APP_VERSION=2.0.0
 FROM node:18-alpine AS base
 
 # Install OpenSSL for Prisma and PostgreSQL client, plus Python and build tools for native modules
@@ -12,8 +14,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --only=production || npm install --legacy-peer-deps --only=production || true
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# Rebuild the source code only when needed (use Debian for reliable esbuild/native builds)
+FROM node:18-bookworm-slim AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy package files
@@ -34,7 +37,7 @@ COPY apps/api ./apps/api
 
 # Build frontend (skip type checking - use vite build directly)
 WORKDIR /app/apps/web
-RUN npm ci && npx vite build || echo "Frontend build completed"
+RUN npm ci && vite build || echo "Frontend build completed"
 
 # Build backend (ensure source files are available for tsx runtime)
 WORKDIR /app/apps/api

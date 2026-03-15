@@ -1,18 +1,26 @@
-import "dotenv/config";
-import "@nomicfoundation/hardhat-toolbox";
-import "@nomicfoundation/hardhat-verify";
+require("dotenv/config");
+// Load plugins conditionally to avoid HardhatContext errors
+// Only load when Hardhat context is available
+if (typeof extendEnvironment !== 'undefined') {
+  require("@nomicfoundation/hardhat-toolbox");
+  require("@openzeppelin/hardhat-upgrades");
+} else {
+  // Defer plugin loading
+  const originalRequire = require;
+  process.once('hardhat:context:ready', () => {
+    require("@nomicfoundation/hardhat-toolbox");
+    require("@openzeppelin/hardhat-upgrades");
+  });
+}
 
 /** @type import('hardhat/config').HardhatUserConfig */
-export default {
+module.exports = {
   solidity: {
     version: "0.8.20",
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1, // Optimize for smaller bytecode size (lower = smaller contract, higher gas per call)
-        // runs: 1 = smallest bytecode, higher gas costs per function call
-        // runs: 200 = balanced (default)
-        // runs: 10000+ = optimized for gas efficiency, larger bytecode
+        runs: 1,
       },
     },
   },
@@ -33,12 +41,11 @@ export default {
       gasPrice: "auto",
     },
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "",
-      accounts: process.env.DID_BACKEND_SIGNER_PRIVATE_KEY
-        ? [process.env.DID_BACKEND_SIGNER_PRIVATE_KEY]
+      url: process.env.SEPOLIA_RPC_URL || process.env.RPC_URL || "",
+      accounts: process.env.DID_BACKEND_SIGNER_PRIVATE_KEY || process.env.PRIVATE_KEY
+        ? [process.env.DID_BACKEND_SIGNER_PRIVATE_KEY || process.env.PRIVATE_KEY]
         : [],
       chainId: 11155111,
-      gasPrice: "auto",
     },
   },
   etherscan: {
@@ -57,4 +64,3 @@ export default {
     timeout: 40000,
   },
 };
-

@@ -1,0 +1,67 @@
+# Scaleway Configuration
+scaleway_region     = "fr-par"
+scaleway_zone       = "fr-par-1"
+scaleway_access_key = "YOUR_SCALEWAY_ACCESS_KEY"
+scaleway_secret_key = "YOUR_SCALEWAY_SECRET_KEY_UUID"
+scaleway_project_id = "YOUR_SCALEWAY_PROJECT_ID"
+
+# Project Configuration
+project_name = "safepsy"
+environment  = "dev" # Options: dev, staging, prod
+
+# GPU Configuration (Scaleway)
+gpu_instance_type     = "GP1-LPS"  # Options: GP1-LPS, GP1-L, GPU-LPS, or GPU-L
+gpu_instance_count    = 1
+gpu_zone              = "fr-par-1"
+gpu_root_volume_size  = 100
+gpu_data_volume_size  = 500
+gpu_enable_public_ip  = true
+
+# SSH Key Configuration
+# Get your SSH key ID from: scw account ssh-key list
+# Or in Scaleway Console: Account > SSH Keys > Copy the ID (UUID format)
+gpu_ssh_key_ids = ["YOUR_SSH_KEY_ID_UUID"]
+
+# AI Service GPU Configuration
+# Enable AI service GPU instances
+ai_service_enabled = false  # Set to true to enable AI service
+
+ai_service_instance_type  = "GPU-LPS"  # Options: GPU-LPS, GPU-L, GP1-LPS, GP1-L
+ai_service_instance_count = 1
+ai_service_zone           = "fr-par-1"
+ai_service_root_volume_size = 100
+
+# Container configuration
+ai_service_container_image     = "registry.scaleway.com/my-org/ai-service"
+ai_service_container_image_tag = "latest"
+ai_service_container_port      = 8000
+
+# Environment variables for the container
+ai_service_container_env = {
+  MODEL_NAME = "llama-3-70b"
+  PORT       = "8000"
+  # Add other environment variables as needed
+}
+
+# SSH configuration for AI service
+ai_service_ssh_key_ids = ["YOUR_SSH_KEY_ID_UUID"]  # Optional, can use cloud-init instead
+ai_service_enable_ssh  = true
+ai_service_allowed_ips = []  # Empty means all IPs, or specify ["1.2.3.4/32"]
+
+# Scaleway Object Storage Configuration
+object_storage_bucket_names = [
+  "chat-summaries",
+  "logs",
+  "backups"
+]
+object_storage_enable_versioning = true
+object_storage_enable_cors       = false
+object_storage_expiration_days    = 0
+object_storage_prevent_destroy   = false
+
+# Additional Tags
+tags = {
+  Owner       = "DevOps"
+  CostCenter  = "Engineering"
+  Application = "SafePsy"
+}

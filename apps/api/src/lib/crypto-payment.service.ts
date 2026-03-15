@@ -1,10 +1,8 @@
 import { ethers } from 'ethers';
-import { PrismaClient } from '@prisma/client';
 import logger from './logger';
 import { ETHEREUM_MAINNET_CHAIN_ID } from './constants';
 import { priceOracleService } from './price-oracle.service';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 /**
  * Crypto Payment Service
@@ -69,7 +67,7 @@ export class CryptoPaymentService {
       // Verify chain ID
       const network = await this.provider.getNetwork();
       if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
-        throw new Error('Transaction not on Ethereum Mainnet');
+        throw new Error('Transaction not on supported network (Sepolia Testnet)');
       }
 
       // Get transaction details

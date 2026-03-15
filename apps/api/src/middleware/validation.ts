@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import logger from '../lib/logger';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 
 /**
  * Validation middleware factory
@@ -76,9 +77,9 @@ export const commonSchemas = {
   // Nonce validation
   nonce: Joi.string().min(1).max(100).required(),
 
-  // Chain ID validation - only Ethereum Mainnet (1) is supported
-  chainId: Joi.number().integer().valid(1).messages({
-    'any.only': 'Only Ethereum Mainnet (Chain ID: 1) is supported',
+  // Chain ID validation - only supported network (Sepolia) is allowed
+  chainId: Joi.number().integer().valid(SUPPORTED_CHAIN_ID).messages({
+    'any.only': `Only Sepolia Testnet (Chain ID: ${SUPPORTED_CHAIN_ID}) is supported`,
   }),
 
   // Email validation

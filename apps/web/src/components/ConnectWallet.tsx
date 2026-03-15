@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Info, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { ETHEREUM_MAINNET_CHAIN_ID } from '../contexts/WalletContext';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
@@ -113,7 +113,7 @@ export default function ConnectWallet() {
           <div className="max-w-xs">
             <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1">Please switch to Ethereum Mainnet</span>
+              <span className="flex-1">Please switch to Sepolia Testnet</span>
               <button
                 onClick={() => setShowNetworkGuide(!showNetworkGuide)}
                 className="ml-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
@@ -128,18 +128,26 @@ export default function ConnectWallet() {
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>Open your wallet extension</li>
                   <li>Click the network dropdown (top of wallet)</li>
-                  <li>Select "Ethereum Mainnet"</li>
+                  <li>Select "Sepolia"</li>
                   <li>Return here and refresh</li>
                 </ol>
-                <p className="text-xs opacity-75 mt-2">Network ID: {ETHEREUM_MAINNET_CHAIN_ID}</p>
+                <p className="text-xs opacity-75 mt-2">Network ID: {ETHEREUM_MAINNET_CHAIN_ID} (Sepolia)</p>
               </div>
             )}
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          {/* Wallet Address & Verification Status */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <div className="relative flex items-center gap-2">
+          {/* Wallet Address & Verification Status - clickable for info when not verified */}
+          <div
+            role={!authState.isVerified ? "button" : undefined}
+            tabIndex={!authState.isVerified ? 0 : undefined}
+            onClick={!authState.isVerified ? () => setShowVerificationInfo(!showVerificationInfo) : undefined}
+            onKeyDown={!authState.isVerified ? (e) => e.key === 'Enter' && setShowVerificationInfo(!showVerificationInfo) : undefined}
+            className={`flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg ${!authState.isVerified ? 'cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30' : ''}`}
+            title={!authState.isVerified ? "Why verify? Click for info" : undefined}
+            aria-label={!authState.isVerified ? "Learn why verification is needed" : undefined}
+          >
             {authState.isVerified ? (
               <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
             ) : (
@@ -149,6 +157,25 @@ export default function ConnectWallet() {
               {formatAddress(wallet.address)}
             </span>
           </div>
+
+          {/* Verification Info Tooltip - drops down from wallet address */}
+          {showVerificationInfo && !authState.isVerified && (
+            <div className="absolute top-full left-0 mt-2 max-w-xs p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-800 dark:text-blue-300 z-50 shadow-lg">
+              <p className="font-semibold mb-2">Why verify your wallet?</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li>Proves you own the wallet</li>
+                <li>Enables secure authentication</li>
+                <li>Unlocks all platform features</li>
+                <li>Protects your account security</li>
+              </ul>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowVerificationInfo(false); }}
+                className="mt-2 text-blue-600 dark:text-blue-400 hover:underline text-xs"
+              >
+                Got it
+              </button>
+            </div>
+          )}
 
           {/* DID Status Badge */}
           {authState.isVerified && (
@@ -174,45 +201,16 @@ export default function ConnectWallet() {
             </div>
           )}
 
-          {/* Verify Button with Info */}
+          {/* Verify Button */}
           {!authState.isVerified && !isVerifying && !isWrongNetwork && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleVerify}
-                className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
-                title="Verify wallet signature to access full features"
-              >
-                <CheckCircle className="w-4 h-4 text-white" />
-                <span className="hidden sm:inline text-white">Verify</span>
-              </button>
-              <button
-                onClick={() => setShowVerificationInfo(!showVerificationInfo)}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                title="Why verify?"
-                aria-label="Learn why verification is needed"
-              >
-                <Info className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Verification Info Tooltip */}
-          {showVerificationInfo && !authState.isVerified && (
-            <div className="absolute top-full right-0 mt-2 max-w-xs p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-800 dark:text-blue-300 z-50 shadow-lg">
-              <p className="font-semibold mb-2">Why verify your wallet?</p>
-              <ul className="space-y-1 list-disc list-inside">
-                <li>Proves you own the wallet</li>
-                <li>Enables secure authentication</li>
-                <li>Unlocks all platform features</li>
-                <li>Protects your account security</li>
-              </ul>
-              <button
-                onClick={() => setShowVerificationInfo(false)}
-                className="mt-2 text-blue-600 dark:text-blue-400 hover:underline text-xs"
-              >
-                Got it
-              </button>
-            </div>
+            <button
+              onClick={handleVerify}
+              className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
+              title="Verify wallet signature to access full features"
+            >
+              <CheckCircle className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline text-white">Verify</span>
+            </button>
           )}
 
           {isVerifying && (
@@ -231,23 +229,23 @@ export default function ConnectWallet() {
           >
             <LogOut className="w-4 h-4" />
           </button>
-        </div>
 
-        {/* Error Messages */}
-        {(verificationError || authState.error) && (
-          <div className="px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs space-y-1">
-            <p className="font-semibold">Verification Failed</p>
-            <p>{verificationError || authState.error}</p>
-            {verificationError && !verificationError.includes('network') && (
-              <button
-                onClick={handleVerify}
-                className="mt-2 text-xs underline hover:no-underline"
-              >
-                Try again
-              </button>
-            )}
-          </div>
-        )}
+          {/* Error Messages - dropdown overlay, does not affect header size */}
+          {(verificationError || authState.error) && (
+            <div className="absolute top-full right-0 mt-2 z-50 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs space-y-1 shadow-lg">
+              <p className="font-semibold">Verification Failed</p>
+              <p>{verificationError || authState.error}</p>
+              {verificationError && !verificationError.includes('network') && (
+                <button
+                  onClick={handleVerify}
+                  className="mt-2 text-xs underline hover:no-underline"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -269,7 +267,7 @@ export default function ConnectWallet() {
       {walletError && (
         <div className="absolute top-full mt-2 right-0 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs z-50">
           <p className="font-semibold mb-1">Connection Error</p>
-          <p>{getActionableErrorMessage(null, { originalMessage: walletError })}</p>
+          <p>{walletError || 'Something went wrong. Please try again.'}</p>
           <button
             onClick={handleConnect}
             className="mt-2 text-xs underline hover:no-underline"

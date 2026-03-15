@@ -1,0 +1,50 @@
+# Production Deployment Workflow
+# Deploys SafePsy app to scw-focused-dubinsky (51.159.176.62)
+# Requires GitHub secrets: SSH_PRIVATE_KEY (required), DATABASE_PASSWORD (optional)
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    env:
+      SSH_SERVER_IP: "51.159.176.62"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set env
+        run: |
+          # Use DATABASE_PASSWORD from secret or match docker-compose.prod.yml
+          echo "DATABASE_PASSWORD=${DATABASE_PASSWORD:-ceCS4EeuS3owaoFnAZYPvyLg6BrxvOYeeNTFzYed5EU=}" >> $GITHUB_ENV
+        env:
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 51.159.176.62 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy
+        run: |
+          chmod +x deployment/deploy-safepsy.sh
+          bash deployment/deploy-safepsy.sh
+
+      - name: Verify deployment
+        run: |
+          sleep 15
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -sf --connect-timeout 10 https://safepsy.com/healthz; then
+              echo "✅ Frontend, API, backend reachable"
+              exit 0
+            fi
+            echo "Attempt $i - retrying in 15s..."
+            sleep 15
+          done
+          echo "❌ Verification failed"
+          exit 1

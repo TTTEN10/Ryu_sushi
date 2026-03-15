@@ -170,8 +170,8 @@ const ContactUs: React.FC = () => {
                 </span>
               </h1>
               <p className="text-base sm:text-lg lg:text-xl text-body leading-relaxed max-w-3xl mx-auto stagger-item">
-                Have questions about SafePsy?<br className="hidden sm:block" />
-                <span className="sm:hidden"> </span>Reach out to us and we will get back to you.
+                Have questions about SafePsy? We&apos;re the privacy-first platform where you own your data—we don&apos;t store it with third parties or use it to train AI.<br className="hidden sm:block" />
+                <span className="sm:hidden"> </span>Reach out and we&apos;ll get back to you.
               </p>
             </div>
 

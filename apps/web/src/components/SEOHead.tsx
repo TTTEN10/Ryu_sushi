@@ -20,6 +20,7 @@ export default function SEOHead({ config }: SEOHeadProps) {
     twitterCard = 'summary_large_image',
     canonical,
     type = 'website',
+    noindex = false,
   } = config;
 
   const baseUrl = (typeof window !== 'undefined' && window.location) 
@@ -80,6 +81,32 @@ export default function SEOHead({ config }: SEOHeadProps) {
     ],
   };
 
+  const webPageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description: description,
+    url: fullCanonical,
+    inLanguage: 'en-US',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'SafePsy',
+      url: baseUrl,
+    },
+    about: {
+      '@type': 'Organization',
+      name: 'SafePsy',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'SafePsy',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${baseUrl}/Logotransparent.png`,
+      },
+    },
+  };
+
   return (
     <Helmet>
       {/* Basic Meta Tags */}
@@ -87,9 +114,9 @@ export default function SEOHead({ config }: SEOHeadProps) {
       <meta name="description" content={description} />
       {keywords && <meta name="keywords" content={keywords} />}
       <meta name="author" content="SafePsy" />
-      <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-      <meta name="googlebot" content="index, follow" />
-      <meta name="bingbot" content="index, follow" />
+      <meta name="robots" content={noindex ? "noindex, nofollow" : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"} />
+      <meta name="googlebot" content={noindex ? "noindex, nofollow" : "index, follow"} />
+      <meta name="bingbot" content={noindex ? "noindex, nofollow" : "index, follow"} />
       
       {/* Language and Locale */}
       <html lang="en" />
@@ -107,8 +134,10 @@ export default function SEOHead({ config }: SEOHeadProps) {
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:image:alt" content={ogTitle || title} />
+      <meta property="og:image:type" content="image/png" />
       <meta property="og:url" content={fullOgUrl} />
       <meta property="og:site_name" content="SafePsy" />
+      <meta property="og:updated_time" content={new Date().toISOString()} />
       
       {/* Twitter Card Meta Tags */}
       <meta name="twitter:card" content={twitterCard} />
@@ -116,6 +145,7 @@ export default function SEOHead({ config }: SEOHeadProps) {
       <meta name="twitter:description" content={twitterDescription || ogDescription || description} />
       <meta name="twitter:image" content={fullTwitterImage} />
       <meta name="twitter:image:alt" content={twitterTitle || ogTitle || title} />
+      <meta name="twitter:url" content={fullOgUrl} />
       {/* Add Twitter site handle when available */}
       {/* <meta name="twitter:site" content="@safepsy" /> */}
       {/* <meta name="twitter:creator" content="@safepsy" /> */}
@@ -123,6 +153,7 @@ export default function SEOHead({ config }: SEOHeadProps) {
       {/* Additional SEO Meta Tags */}
       <meta name="theme-color" content="#3B82F6" />
       <meta name="msapplication-TileColor" content="#3B82F6" />
+      <meta name="msapplication-config" content="/browserconfig.xml" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       <meta name="apple-mobile-web-app-title" content="SafePsy" />
@@ -130,6 +161,13 @@ export default function SEOHead({ config }: SEOHeadProps) {
       {/* Mobile Optimization */}
       <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
       <meta name="format-detection" content="telephone=no" />
+      
+      {/* Additional Meta Tags for SEO */}
+      <meta httpEquiv="x-ua-compatible" content="IE=edge" />
+      <meta name="referrer" content="no-referrer-when-downgrade" />
+      <meta name="rating" content="general" />
+      <meta name="distribution" content="global" />
+      <meta name="coverage" content="worldwide" />
       
       {/* Structured Data (JSON-LD) */}
       <script type="application/ld+json">
@@ -140,6 +178,9 @@ export default function SEOHead({ config }: SEOHeadProps) {
       </script>
       <script type="application/ld+json">
         {JSON.stringify(breadcrumbSchema)}
+      </script>
+      <script type="application/ld+json">
+        {JSON.stringify(webPageSchema)}
       </script>
     </Helmet>
   );

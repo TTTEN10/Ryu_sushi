@@ -14,10 +14,10 @@ import { ethers } from 'ethers';
 // ============================================================================
 
 /**
- * Ethereum Mainnet Chain ID
+ * Sepolia Testnet Chain ID (app network)
  */
-export const ETHEREUM_MAINNET_CHAIN_ID = 1;
-const ETHEREUM_MAINNET_CHAIN_ID_HEX = '0x1';
+export const ETHEREUM_MAINNET_CHAIN_ID = 11155111;
+const ETHEREUM_MAINNET_CHAIN_ID_HEX = '0xAA36A7';
 
 /**
  * Wallet provider type
@@ -212,7 +212,7 @@ export class SafePsyWeb3Client {
   }
 
   /**
-   * Validate network is Ethereum Mainnet
+   * Validate network is Sepolia Testnet
    */
   private async validateNetwork(): Promise<void> {
     const provider = await this.getProvider();
@@ -220,14 +220,14 @@ export class SafePsyWeb3Client {
     
     if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
       throw new NetworkError(
-        `Unsupported network. Please switch to Ethereum Mainnet (Chain ID: ${ETHEREUM_MAINNET_CHAIN_ID})`,
+        `Unsupported network. Please switch to Sepolia Testnet (Chain ID: ${ETHEREUM_MAINNET_CHAIN_ID})`,
         { currentChainId: Number(network.chainId) }
       );
     }
   }
 
   /**
-   * Request network switch to Ethereum Mainnet
+   * Request network switch to Sepolia Testnet
    */
   private async requestNetworkSwitch(): Promise<void> {
     if (typeof window === 'undefined' || !window.ethereum) {
@@ -249,21 +249,21 @@ export class SafePsyWeb3Client {
             method: 'wallet_addEthereumChain',
             params: [{
               chainId: ETHEREUM_MAINNET_CHAIN_ID_HEX,
-              chainName: 'Ethereum Mainnet',
+              chainName: 'Sepolia',
               nativeCurrency: {
-                name: 'Ether',
+                name: 'Sepolia Ether',
                 symbol: 'ETH',
                 decimals: 18,
               },
-              rpcUrls: [this.config.rpcUrl],
-              blockExplorerUrls: ['https://etherscan.io'],
+              rpcUrls: [this.config.rpcUrl || 'https://rpc.sepolia.org'],
+              blockExplorerUrls: ['https://sepolia.etherscan.io'],
             }],
           });
         } catch (addError) {
-          throw new NetworkError('Failed to add Ethereum Mainnet to wallet', addError);
+          throw new NetworkError('Failed to add Sepolia Testnet to wallet', addError);
         }
       } else {
-        throw new NetworkError('Failed to switch to Ethereum Mainnet', switchError);
+        throw new NetworkError('Failed to switch to Sepolia Testnet', switchError);
       }
     }
   }
@@ -288,8 +288,8 @@ export class SafePsyWeb3Client {
 
     // Add authentication headers if we have a session
     if (this.session) {
-      headers['x-wallet-address'] = this.session.walletAddress;
-      headers['x-chain-id'] = this.session.chainId.toString();
+      (headers as Record<string, string>)['x-wallet-address'] = this.session.walletAddress;
+      (headers as Record<string, string>)['x-chain-id'] = this.session.chainId.toString();
     }
 
     const response = await fetch(url, {

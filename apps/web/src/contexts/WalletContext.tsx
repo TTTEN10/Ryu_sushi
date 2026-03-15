@@ -36,15 +36,26 @@ interface WalletProviderProps {
   children: React.ReactNode;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use empty string when not set: same-origin requests use Vite proxy (dev) or Caddy (prod)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
 /**
- * Ethereum Mainnet Chain ID
- * Decimal: 1
- * Hex: 0x1
+ * Sepolia Testnet Chain ID (app network)
+ * Decimal: 11155111
+ * Hex: 0xAA36A7
  */
-export const ETHEREUM_MAINNET_CHAIN_ID = 1; // Only Ethereum Mainnet is supported
-const ETHEREUM_MAINNET_CHAIN_ID_HEX = '0x1'; // Hex format for wallet operations
+export const SUPPORTED_CHAIN_ID = 11155111; // Sepolia Testnet
+export const ETHEREUM_MAINNET_CHAIN_ID = 11155111; // Alias for backward compatibility
+const SUPPORTED_CHAIN_ID_HEX = '0xAA36A7'; // Hex format for wallet operations
+
+/** Sepolia chain params for wallet_addEthereumChain (when chain not in wallet) */
+const SEPOLIA_CHAIN_PARAMS = {
+  chainId: SUPPORTED_CHAIN_ID_HEX,
+  chainName: 'Sepolia',
+  nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: ['https://rpc.sepolia.org'],
+  blockExplorerUrls: ['https://sepolia.etherscan.io'],
+};
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
@@ -68,7 +79,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         // The provider will be created on-demand when user clicks connect
         const provider = await EthereumProvider.init({
           projectId: WALLETCONNECT_PROJECT_ID,
-          chains: [ETHEREUM_MAINNET_CHAIN_ID], // Only Ethereum Mainnet
+          chains: [SUPPORTED_CHAIN_ID], // Sepolia Testnet
           optionalChains: [],
           showQrModal: true,
           metadata: {
@@ -99,9 +110,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 16) : chainId;
           console.log('Chain changed:', numericChainId);
           // Disconnect if user switches to a different chain
-          if (numericChainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+          if (numericChainId !== SUPPORTED_CHAIN_ID) {
             console.warn('Unsupported chain detected. Disconnecting wallet.');
-            setError('Please switch to Ethereum Mainnet to use SafePsy.');
+            setError('Please switch to Sepolia Testnet to use SafePsy.');
             disconnectWallet();
           } else {
             setWallet((prev) => prev ? { ...prev, chainId: numericChainId } : null);
@@ -142,8 +153,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             const network = await provider.getNetwork();
             const chainId = Number(network.chainId);
             
-            // Only allow Ethereum Mainnet
-            if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+            // Only allow Sepolia Testnet
+            if (chainId !== SUPPORTED_CHAIN_ID) {
               console.warn('Unsupported chain detected on existing connection. Chain ID:', chainId);
               return;
             }
@@ -168,8 +179,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           const accounts = walletConnectProvider.accounts;
           const chainId = walletConnectProvider.chainId;
           
-          // Only allow Ethereum Mainnet
-          if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+          // Only allow Sepolia Testnet
+          if (chainId !== SUPPORTED_CHAIN_ID) {
             console.warn('Unsupported chain detected on WalletConnect connection. Chain ID:', chainId);
             return;
           }
@@ -206,9 +217,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.log('MetaMask chain changed:', numericChainId);
       
       // Disconnect if user switches to a different chain
-      if (numericChainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (numericChainId !== SUPPORTED_CHAIN_ID) {
         console.warn('Unsupported chain detected. Disconnecting wallet.');
-        setError('Please switch to Ethereum Mainnet to use SafePsy.');
+        setError('Please switch to Sepolia Testnet to use SafePsy.');
         // Disconnect wallet
         if (walletConnectProvider && walletConnectProvider.session) {
           walletConnectProvider.disconnect();
@@ -257,8 +268,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               const chainId = (providerAfterWait as EthereumProviderType).chainId;
 
               // Validate chain ID
-              if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
-                throw new Error('Please switch to Ethereum Mainnet to use SafePsy. Unsupported network detected.');
+              if (chainId !== SUPPORTED_CHAIN_ID) {
+                throw new Error('Please switch to Sepolia Testnet to use SafePsy. Unsupported network detected.');
               }
 
               if (accounts.length > 0) {
@@ -298,8 +309,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             const chainId = providerToUse.chainId;
 
             // Validate chain ID
-            if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
-              throw new Error('Please switch to Ethereum Mainnet to use SafePsy. Unsupported network detected.');
+            if (chainId !== SUPPORTED_CHAIN_ID) {
+              throw new Error('Please switch to Sepolia Testnet to use SafePsy. Unsupported network detected.');
             }
 
             if (accounts.length > 0) {
@@ -337,27 +348,34 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         const network = await provider.getNetwork();
         const chainId = Number(network.chainId);
 
-        // Validate chain ID - only Ethereum Mainnet is supported
-        if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
-          // Try to switch to Ethereum Mainnet
+        // Validate chain ID - only Sepolia Testnet is supported
+        if (chainId !== SUPPORTED_CHAIN_ID) {
+          // Try to switch to Sepolia
           try {
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
-              params: [{ chainId: ETHEREUM_MAINNET_CHAIN_ID_HEX }],
+              params: [{ chainId: SUPPORTED_CHAIN_ID_HEX }],
             });
             // Re-fetch network after switch
             const updatedNetwork = await provider.getNetwork();
             const updatedChainId = Number(updatedNetwork.chainId);
-            if (updatedChainId !== ETHEREUM_MAINNET_CHAIN_ID) {
-              throw new Error('Please switch to Ethereum Mainnet to use SafePsy.');
+            if (updatedChainId !== SUPPORTED_CHAIN_ID) {
+              throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
             }
           } catch (switchError: any) {
-            // If switch fails, throw error
+            // If switch fails (4902 = chain not added), add Sepolia then switch
             if (switchError.code === 4902) {
-              // Chain not added, user needs to add it
-              throw new Error('Please add Ethereum Mainnet to your wallet and switch to it to use SafePsy.');
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [SEPOLIA_CHAIN_PARAMS],
+              });
+              const updatedNetwork = await provider.getNetwork();
+              const updatedChainId = Number(updatedNetwork.chainId);
+              if (updatedChainId !== SUPPORTED_CHAIN_ID) {
+                throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
+              }
             } else {
-              throw new Error('Please switch to Ethereum Mainnet to use SafePsy.');
+              throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
             }
           }
         }
@@ -368,12 +386,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         setSigner(signer);
         setWallet({
           address: accounts[0],
-          chainId: ETHEREUM_MAINNET_CHAIN_ID,
+          chainId: SUPPORTED_CHAIN_ID,
           isConnected: true,
         });
 
         // Request verification message from API
-        await requestVerificationMessage(accounts[0], ETHEREUM_MAINNET_CHAIN_ID);
+        await requestVerificationMessage(accounts[0], SUPPORTED_CHAIN_ID);
       } else if (!WALLETCONNECT_PROJECT_ID) {
         throw new Error('No Ethereum wallet found. Please install MetaMask or configure WalletConnect Project ID.');
       } else {

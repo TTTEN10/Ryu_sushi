@@ -56,7 +56,7 @@ export function validateNetwork(chainId: number): { valid: boolean; error?: stri
   if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
     return {
       valid: false,
-      error: 'Only Ethereum Mainnet (Chain ID: 1) is supported',
+      error: `Only Sepolia Testnet (Chain ID: ${ETHEREUM_MAINNET_CHAIN_ID}) is supported`,
     };
   }
   return { valid: true };

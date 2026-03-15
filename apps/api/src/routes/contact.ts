@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { ipHash } from "../lib/crypto";
 import { subscriptionRateLimitMiddleware } from "../lib/ratelimit";
 import { safetyMiddleware, safetyResponseInterceptor } from "../middleware/safety";
+import { contactMessagesTotal } from "../lib/metrics";
 
 const router = Router();
 
@@ -75,6 +76,9 @@ router.post("/", async (req, res) => {
         ipHash: ipHash(ip)
       }
     });
+    
+    // Track metrics for Prometheus
+    contactMessagesTotal.inc();
     
     res.json({ 
       success: true, 

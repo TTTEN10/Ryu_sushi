@@ -1,8 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import Hero from "./components/Hero";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
 import AboutUs from "./components/AboutUs";
 import SecurityAndPrivacyPolicy from "./components/SecurityAndPrivacyPolicy";
 import ContactUs from "./components/ContactUs";
@@ -16,6 +13,10 @@ import Testing from "./components/Testing";
 import DPIA from "./components/DPIA";
 import AboutMe from "./components/AboutMe";
 import TermsOfService from "./components/TermsOfService";
+import HiddenPage from "./components/HiddenPage";
+import Status from "./components/Status";
+import DraftLanding from "./components/DraftLanding";
+import FAQ from "./components/FAQ";
 import { useSEO } from "./hooks/useSEO";
 import { useCookieConsent } from "./hooks/useCookieConsent";
 import { useFocusManagement, useKeyboardNavigation } from "./hooks/useFocusManagement";
@@ -62,15 +63,7 @@ export default function App() {
           <Routes>
           <Route path="/" element={
             <RouteWithSEO>
-              <div className="min-h-screen flex flex-col">
-                <Header showTagline={true} />
-
-                <main id="main-content" className="flex-1" role="main" aria-label="Main content" tabIndex={-1}>
-                  <Hero />
-                </main>
-
-                <Footer />
-              </div>
+              <DraftLanding />
             </RouteWithSEO>
           } />
           <Route path="/about-us" element={
@@ -98,9 +91,15 @@ export default function App() {
               <Cookies />
             </RouteWithSEO>
           } />
-          <Route path="/chat" element={
+          <Route path="/beta/chat" element={
             <RouteWithSEO>
               <Testing />
+            </RouteWithSEO>
+          } />
+          <Route path="/chat" element={<Navigate to="/beta/chat" replace />} />
+          <Route path="/app/about-me" element={
+            <RouteWithSEO>
+              <AboutMe />
             </RouteWithSEO>
           } />
           <Route path="/dpia" element={
@@ -116,6 +115,21 @@ export default function App() {
           <Route path="/tos" element={
             <RouteWithSEO>
               <TermsOfService />
+            </RouteWithSEO>
+          } />
+          <Route path="/internal/admin/7x9k2m4p8q1r5t3v6w0y2z4a6b8c0d2e4f6" element={
+            <RouteWithSEO>
+              <HiddenPage />
+            </RouteWithSEO>
+          } />
+          <Route path="/status" element={
+            <RouteWithSEO>
+              <Status />
+            </RouteWithSEO>
+          } />
+          <Route path="/faq" element={
+            <RouteWithSEO>
+              <FAQ />
             </RouteWithSEO>
           } />
           <Route path="/500" element={

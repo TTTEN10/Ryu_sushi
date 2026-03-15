@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../lib/logger';
+import { redactLogObject } from './log-redaction';
 
 /**
  * Global error handler middleware
  * Sanitizes error messages to prevent information leakage in production
+ * Redacts sensitive data from error logs (prompts, messages, keys, etc.)
  */
 export function errorHandlerMiddleware(
   err: Error,
@@ -14,18 +16,23 @@ export function errorHandlerMiddleware(
   const requestId = req.id || 'unknown';
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  // Log detailed error server-side only
-  logger.error('Error occurred', {
+  // Prepare error log data with redaction
+  const errorLogData = redactLogObject({
     error: {
       name: err.name,
-      message: err.message,
-      stack: err.stack,
+      message: err.message, // May contain sensitive data - will be redacted
+      stack: isDevelopment ? err.stack : '<REDACTED: stack>', // Only log stack in dev
     },
     requestId,
     method: req.method,
     path: req.path,
-    ip: req.ip,
+    // IP address is hashed/redacted if IP_HASHING_ENABLED is true, otherwise logged
+    // For maximum privacy, consider redacting IP in production
+    ip: process.env.NODE_ENV === 'production' ? '<REDACTED: ip>' : req.ip,
   });
+
+  // Log detailed error server-side only (with redaction)
+  logger.error('Error occurred', errorLogData);
 
   // Don't expose internal errors in production
   const errorMessage = isDevelopment

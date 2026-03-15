@@ -1,0 +1,17 @@
+# FastAPI and server dependencies
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.9.0
+
+# vLLM for GPU inference (installed during Docker build for production)
+# Note: vLLM requires CUDA and specific PyTorch versions
+# vLLM will be installed during Docker build, with fallback to runtime install
+# vllm>=0.6.0
+
+# Optional: for better performance
+# torch>=2.4.0
+# transformers>=4.40.0
+
+# Utilities
+python-dotenv>=1.0.1
+

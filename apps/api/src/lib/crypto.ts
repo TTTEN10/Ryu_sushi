@@ -35,10 +35,31 @@ export const ipHash = (ip: string) => {
 /**
  * AES-256-GCM Encryption Utility for Backend
  * 
+ * KEY LIFECYCLE & MANAGEMENT (WALLET-GATED)
+ * 
+ * Server-Side Constraints:
+ * - Server MUST NOT store raw keys (DEK/KEK) in any form
+ * - Server MAY hold plaintext transiently in memory for AI processing
+ * - Server stores ciphertext blobs only (encrypted chat data)
+ * - Server never has access to wallet-based derived keys
+ * 
+ * Key Derivation:
+ * - Wallet-based keys: Derived client-side from wallet signature (SHA-256 hash)
+ *   Server never performs wallet-based key derivation
+ * - PBKDF2 functions: Available for password-based derivation if needed,
+ *   but NOT used for wallet-based encryption (wallet keys are client-side only)
+ * 
+ * Plaintext Handling:
+ * - Plaintext exists transiently in memory during AI processing
+ * - Plaintext is NEVER written to disk, logs, or database
+ * - Plaintext lifetime: Request duration only (seconds to minutes)
+ * 
  * Security Policy Compliance:
  * - AES-256-GCM encryption (as per security policy)
- * - Secure key derivation using PBKDF2
+ * - Secure key derivation using PBKDF2 (for password-based, if used)
  * - Authentication tag for integrity verification
+ * 
+ * DO NOT LOG: Keys, plaintext, prompts, or sensitive data
  */
 
 /**
@@ -109,6 +130,14 @@ export function decryptAES256GCM(encryptedData: string, key: Buffer): string {
 
 /**
  * Derives an encryption key from a password using PBKDF2
+ * 
+ * IMPORTANT: This function is NOT used for wallet-based key derivation.
+ * Wallet-based keys are derived client-side using SHA-256 hash of wallet signature.
+ * Server never performs wallet-based key derivation.
+ * 
+ * This function is available for password-based key derivation if needed
+ * in the future, but is NOT part of the current wallet-gated encryption model.
+ * 
  * @param password - Password string
  * @param salt - Salt (should be random, 16+ bytes)
  * @returns Derived key (32 bytes for AES-256)

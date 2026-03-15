@@ -1,0 +1,89 @@
+# SafePsy App Stack — Dev1-S instance
+# Frontend + Backend API + Postgres + Caddy (HTTPS)
+# Run from repo root: docker compose -f deploy/app/docker-compose.app.yml up -d
+
+services:
+  postgres:
+    container_name: new-postgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-safepsy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-safepsy}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-safepsy_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app
+
+  app:
+    container_name: new-app
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-2.0.0}
+    image: safepsy-app:${APP_VERSION:-2.0.0}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      FRONTEND_URL: ${FRONTEND_URL:-https://safepsy.com}
+      AI_GPU_BASE_URL: ${AI_GPU_BASE_URL:-}
+      AI_INTERNAL_API_KEY: ${AI_INTERNAL_API_KEY:-}
+      IP_SALT: ${IP_SALT:-}
+      IP_HASHING_ENABLED: ${IP_HASHING_ENABLED:-false}
+      PLAUSIBLE_DOMAIN: ${PLAUSIBLE_DOMAIN:-safepsy.com}
+      ENABLE_CONFIRMATION_EMAIL: ${ENABLE_CONFIRMATION_EMAIL:-false}
+      SCALEWAY_API_KEY: ${SCALEWAY_API_KEY:-}
+    volumes:
+      - app_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/healthz', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - app
+
+  caddy:
+    container_name: new-caddy
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1/healthz | grep -q ok || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+  app_logs:

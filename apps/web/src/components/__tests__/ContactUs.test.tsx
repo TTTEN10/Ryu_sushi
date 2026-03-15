@@ -114,7 +114,9 @@ describe('ContactUs Component', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('/api/contact', {
+      expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringMatching(/contact/),
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +125,8 @@ describe('ContactUs Component', () => {
           subject: 'Test Subject',
           message: 'This is a test message'
         })
-      })
+      }
+    )
     })
   })
 

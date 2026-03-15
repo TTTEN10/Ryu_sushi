@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
-import { User, Calendar, Clock, MessageSquare, Loader2, AlertCircle, RefreshCw, Download, Trash2, CheckCircle } from 'lucide-react';
+import { User, Calendar, Clock, MessageSquare, Loader2, AlertCircle, RefreshCw, Download, Trash2, CheckCircle, Key } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import DIDTokenVisualization from './DIDTokenVisualization';
 import { retrieveChatData, exportChatData } from '../utils/chat-retrieval';
-import { updateChatDataReference } from '../utils/did-contract';
+import { updateChatDataReference, getDIDProfile } from '../utils/did-contract';
+import { decryptSymmetricKey } from '../utils/did-encryption';
+import { ethers } from 'ethers';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -25,6 +27,12 @@ interface DIDInfo {
   profile?: DIDProfile;
 }
 
+interface DecryptedMetadata {
+  encryptedKey?: string;
+  updatedAt?: string;
+  [key: string]: any; // Allow for additional metadata fields
+}
+
 export default function AboutMe() {
   const { authState } = useAuth();
   const { wallet, signer } = useWallet();
@@ -34,6 +42,9 @@ export default function AboutMe() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [decryptedMetadata, setDecryptedMetadata] = useState<DecryptedMetadata | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+  const [decryptionError, setDecryptionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authState.isVerified && authState.walletAddress) {
@@ -44,8 +55,18 @@ export default function AboutMe() {
       }
     } else {
       setDidInfo(null);
+      setDecryptedMetadata(null);
     }
   }, [authState.isVerified, authState.walletAddress, wallet, signer]);
+
+  // Load and decrypt metadata when DID info is loaded and wallet is available
+  useEffect(() => {
+    if (didInfo?.hasDid && wallet && signer && authState.isVerified) {
+      loadAndDecryptMetadata();
+    } else {
+      setDecryptedMetadata(null);
+    }
+  }, [didInfo?.hasDid, wallet, signer, authState.isVerified]);
 
   const loadDIDInfo = async () => {
     if (!authState.isVerified || !authState.walletAddress) {
@@ -89,6 +110,114 @@ export default function AboutMe() {
       setError(err.message || 'Failed to load profile information');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Load encryptedKeyMetadata from contract and decrypt it
+   */
+  const loadAndDecryptMetadata = async () => {
+    if (!wallet || !signer || !authState.walletAddress) {
+      return;
+    }
+
+    try {
+      setIsDecrypting(true);
+      setDecryptionError(null);
+
+      // Get provider from signer
+      const provider = signer.provider;
+      if (!provider) {
+        throw new Error('Provider not available');
+      }
+
+      // Fetch profile from contract (includes encryptedKeyMetadata)
+      const profile = await getDIDProfile(provider, authState.walletAddress);
+
+      // Check if encryptedKeyMetadata exists and is not empty
+      if (!profile.encryptedKeyMetadata || profile.encryptedKeyMetadata === '0x' || profile.encryptedKeyMetadata.length === 0) {
+        setDecryptedMetadata(null);
+        return;
+      }
+
+      // Convert hex string to string
+      // The encryptedKeyMetadata is stored as bytes in the contract
+      // We need to convert it from hex to a readable string
+      let encryptedKeyString: string;
+      
+      // The encryptedKeyMetadata from contract is a hex string (0x...)
+      // We need to convert it to a regular string
+      if (profile.encryptedKeyMetadata && profile.encryptedKeyMetadata !== '0x') {
+        try {
+          // Convert hex bytes to string
+          // Remove '0x' prefix if present
+          const hexString = profile.encryptedKeyMetadata.startsWith('0x') 
+            ? profile.encryptedKeyMetadata.slice(2) 
+            : profile.encryptedKeyMetadata;
+          
+          // Convert hex to bytes, then to string
+          const bytes = ethers.getBytes('0x' + hexString);
+          encryptedKeyString = new TextDecoder().decode(bytes);
+          
+          // Remove null bytes and trim
+          encryptedKeyString = encryptedKeyString.replace(/\0/g, '').trim();
+        } catch (err) {
+          console.error('Error converting encryptedKeyMetadata to string:', err);
+          // Try as direct string if conversion fails
+          encryptedKeyString = profile.encryptedKeyMetadata;
+        }
+      } else {
+        encryptedKeyString = '';
+      }
+
+      // Check if the string is empty or just whitespace
+      if (!encryptedKeyString || encryptedKeyString.trim().length === 0) {
+        setDecryptedMetadata(null);
+        return;
+      }
+
+      // Decrypt the metadata using wallet signature
+      // The format is: signature:encryptedKey
+      const decryptedKey = await decryptSymmetricKey(
+        encryptedKeyString,
+        wallet.address,
+        signer
+      );
+
+      // The decrypted key is the symmetric key (32 bytes)
+      // We'll show information about the decrypted metadata
+      // The encryptedKeyMetadata typically contains the encrypted symmetric key
+      // After decryption, we have the actual symmetric key
+      const metadata: DecryptedMetadata = {
+        symmetricKeyStatus: 'Decrypted successfully',
+        keyLength: `${decryptedKey.length} bytes (AES-256)`,
+        keyType: 'Symmetric encryption key',
+        lastUpdated: profile.lastUpdatedAt 
+          ? formatDate(Number(profile.lastUpdatedAt) * 1000)
+          : 'Unknown',
+      };
+
+      // Try to parse as JSON if it contains additional metadata
+      try {
+        const metadataString = new TextDecoder().decode(decryptedKey);
+        // Check if it looks like JSON
+        if (metadataString.trim().startsWith('{') || metadataString.trim().startsWith('[')) {
+          const parsed = JSON.parse(metadataString);
+          // Merge parsed JSON with basic info
+          setDecryptedMetadata({ ...metadata, ...parsed });
+        } else {
+          setDecryptedMetadata(metadata);
+        }
+      } catch {
+        // Not JSON, just show the key info
+        setDecryptedMetadata(metadata);
+      }
+    } catch (err: any) {
+      console.error('Error decrypting metadata:', err);
+      setDecryptionError(err.message || 'Failed to decrypt metadata. Make sure you are using the correct wallet.');
+      setDecryptedMetadata(null);
+    } finally {
+      setIsDecrypting(false);
     }
   };
 
@@ -506,6 +635,82 @@ export default function AboutMe() {
                           <p className="text-lg text-body italic">
                             No chat history yet
                           </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Decrypted Metadata */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Key className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-indigo-800 dark:text-indigo-200 mb-1 uppercase tracking-wide">
+                          Decrypted Metadata
+                        </h3>
+                        {isDecrypting ? (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                            <span className="text-sm text-body">Decrypting metadata...</span>
+                          </div>
+                        ) : decryptionError ? (
+                          <div className="mt-2">
+                            <p className="text-sm text-red-600 dark:text-red-400 mb-2">{decryptionError}</p>
+                            <button
+                              onClick={loadAndDecryptMetadata}
+                              disabled={isDecrypting}
+                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                            >
+                              Try again
+                            </button>
+                          </div>
+                        ) : decryptedMetadata ? (
+                          <div className="mt-2 space-y-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-indigo-600 dark:text-indigo-400">
+                                Metadata decrypted successfully
+                              </span>
+                              <button
+                                onClick={loadAndDecryptMetadata}
+                                disabled={isDecrypting}
+                                className="p-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 transition-colors disabled:opacity-50"
+                                title="Refresh metadata"
+                              >
+                                <RefreshCw className={`w-4 h-4 ${isDecrypting ? 'animate-spin' : ''}`} />
+                              </button>
+                            </div>
+                            {Object.entries(decryptedMetadata).map(([key, value]) => (
+                              <div key={key} className="text-sm border-b border-indigo-200 dark:border-indigo-800 pb-2 last:border-0 last:pb-0">
+                                <span className="font-semibold text-heading capitalize">
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                </span>{' '}
+                                <span className="text-body">
+                                  {typeof value === 'object' && value !== null ? (
+                                    <pre className="mt-1 p-2 bg-white/50 dark:bg-black/30 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">
+                                      {JSON.stringify(value, null, 2)}
+                                    </pre>
+                                  ) : (
+                                    String(value)
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-2">
+                            <p className="text-sm text-body italic mb-2">
+                              No encrypted metadata found in your DID profile
+                            </p>
+                            <button
+                              onClick={loadAndDecryptMetadata}
+                              disabled={isDecrypting}
+                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                            >
+                              Check again
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

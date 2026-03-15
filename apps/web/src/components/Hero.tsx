@@ -179,7 +179,7 @@ const Hero: React.FC = () => {
 
         {/* Waitlist Form Section */}
         <div className="mb-12 sm:mb-16 fade-in">
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 max-w-2xl mx-auto card-hover">
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 max-w-2xl mx-auto">
             <h2 className="text-xl sm:text-2xl lg:text-3xl text-heading mb-6 sm:mb-8 text-center px-2">
               <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                 Get early access and exclusive updates.
@@ -296,7 +296,7 @@ const Hero: React.FC = () => {
                   disabled={isLoading || isOffline}
                   aria-label={isLoading ? "Submitting your request" : "Join the SafePsy waitlist"}
                   aria-busy={isLoading}
-                  className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-base sm:text-lg px-8 sm:px-12 py-3 sm:py-4 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 mx-auto min-h-[44px] w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 mx-auto min-h-[44px] w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl font-medium text-sm sm:text-base transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {isLoading ? (
                     <>
@@ -351,7 +351,7 @@ const Hero: React.FC = () => {
                 </div>
                 <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">Secure</h3>
                 <p className="text-body">
-                  End-to-end encryption and blockchain technology ensure your privacy and data security
+                  You own your data—we don&apos;t store it with third parties or use it to train AI. End-to-end encryption and blockchain ensure your privacy.
                 </p>
               </div>
               

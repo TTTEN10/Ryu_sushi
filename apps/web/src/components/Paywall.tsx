@@ -21,7 +21,6 @@ interface Pricing {
       USDT: string;
       USDC: string;
     };
-    stripe: string | null;
   };
 }
 

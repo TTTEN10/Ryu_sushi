@@ -91,11 +91,14 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
   };
 
   if (!authState.didInfo?.hasDid) {
+    const message = !wallet?.address
+      ? 'Connect Wallet to start'
+      : 'No DID token found. Create your identity to get started.';
     return (
       <div className={`p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 ${className}`}>
         <div className="text-center py-8">
           <Shield className="w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-          <p className="text-gray-600 dark:text-gray-400">No DID token found. Create your identity to get started.</p>
+          <p className="text-gray-600 dark:text-gray-400">{message}</p>
         </div>
       </div>
     );

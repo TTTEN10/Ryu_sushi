@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
 import logger from '../lib/logger';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 import { walletAuthMiddleware, walletConnectionMiddleware, WalletAuthRequest } from '../middleware/wallet-auth';
 import { didVerifyMiddleware, didVerifyOptionalMiddleware, DIDVerifyRequest } from '../middleware/did-verify';
 import { validateWalletConnect, validateWalletSignature, validateDIDVerify } from '../middleware/validation';
@@ -47,7 +48,7 @@ router.post(
       }
 
       // Generate a nonce for signature verification
-      const nonce = ethers.randomBytes(32).toString('hex');
+      const nonce = ethers.hexlify(ethers.randomBytes(32));
       const message = `SafePsy Wallet Verification\n\nAddress: ${req.wallet.address}\nNonce: ${nonce}\n\nThis signature proves you own this wallet.`;
 
       logger.info(`Wallet connection request from ${req.wallet.address}`);
@@ -272,7 +273,7 @@ router.get(
       const config = {
         registryAddress,
         rpcUrl,
-        chainId: 1, // Ethereum Mainnet
+        chainId: SUPPORTED_CHAIN_ID, // Sepolia Testnet
       };
 
       // Try to get DIDs for this wallet

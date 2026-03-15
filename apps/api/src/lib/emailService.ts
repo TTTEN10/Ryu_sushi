@@ -2,7 +2,7 @@
  * Abstract email service interface for SafePsy landing page
  * 
  * This service provides a clean abstraction layer for email providers,
- * allowing easy switching between SendGrid, Resend, Mailgun, etc.
+ * allowing easy switching between SES, Postmark, SendGrid, Resend, Mailgun, etc.
  */
 
 export interface EmailProvider {
@@ -26,6 +26,81 @@ export class StubEmailProvider implements EmailProvider {
     
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 100))
+  }
+}
+
+/**
+ * AWS SES email provider - REMOVED
+ * AWS SDK has been removed. Use Postmark or Stub provider instead.
+ */
+
+/**
+ * Postmark email provider
+ * Requires: POSTMARK_API_TOKEN, EMAIL_FROM_ADDRESS
+ */
+export class PostmarkEmailProvider implements EmailProvider {
+  private postmarkClient: any
+  private fromAddress: string
+
+  constructor() {
+    this.fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.POSTMARK_FROM_ADDRESS || 'noreply@safepsy.com'
+  }
+
+  private async initializePostmark(): Promise<void> {
+    if (this.postmarkClient) {
+      return // Already initialized
+    }
+
+    try {
+      const postmark = await import('postmark')
+      const apiToken = process.env.POSTMARK_API_TOKEN
+      
+      if (!apiToken) {
+        throw new Error('POSTMARK_API_TOKEN is required')
+      }
+
+      this.postmarkClient = new postmark.ServerClient(apiToken)
+    } catch (error) {
+      console.error('[POSTMARK PROVIDER] Failed to initialize Postmark client:', error)
+      throw error
+    }
+  }
+
+  async sendConfirmationEmail(email: string): Promise<void> {
+    await this.initializePostmark()
+    
+    const emailSubject = 'Welcome to SafePsy - You\'re on the waitlist!'
+    const emailBodyHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to SafePsy!</h1>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-top: 0;">Thank you for joining our waitlist!</p>
+            <p style="font-size: 16px;">You've successfully signed up to get early access and exclusive updates about SafePsy.</p>
+            <p style="font-size: 16px;">We're building a privacy-first therapy platform that combines ethical AI with blockchain security to transform online therapy.</p>
+            <p style="font-size: 16px;">We'll keep you updated on our progress and let you know as soon as early access becomes available.</p>
+            <p style="font-size: 16px; margin-bottom: 0;">Best regards,<br>The SafePsy Team</p>
+          </div>
+        </body>
+      </html>
+    `
+    const emailBodyText = `Welcome to SafePsy!\n\nThank you for joining our waitlist! You've successfully signed up to get early access and exclusive updates about SafePsy.\n\nWe're building a privacy-first therapy platform that combines ethical AI with blockchain security to transform online therapy.\n\nWe'll keep you updated on our progress and let you know as soon as early access becomes available.\n\nBest regards,\nThe SafePsy Team`
+
+    await this.postmarkClient.sendEmail({
+      From: this.fromAddress,
+      To: email,
+      Subject: emailSubject,
+      HtmlBody: emailBodyHtml,
+      TextBody: emailBodyText,
+      MessageStream: 'outbound',
+    })
   }
 }
 
@@ -67,10 +142,33 @@ export class EmailService {
 
 /**
  * Factory function to create email service with environment configuration
+ * Supports: 'ses', 'postmark', or 'stub' (default)
  */
 export function createEmailService(): EmailService {
   const enabled = process.env.ENABLE_CONFIRMATION_EMAIL === 'true'
-  const provider = new StubEmailProvider()
+  const providerType = (process.env.EMAIL_PROVIDER || 'stub').toLowerCase()
+
+  let provider: EmailProvider
+
+  try {
+    switch (providerType) {
+      case 'ses':
+        // AWS SES removed - fallback to stub
+        console.warn('[EMAIL SERVICE] AWS SES provider removed, using stub instead')
+        provider = new StubEmailProvider()
+        break
+      case 'postmark':
+        provider = new PostmarkEmailProvider()
+        break
+      case 'stub':
+      default:
+        provider = new StubEmailProvider()
+        break
+    }
+  } catch (error) {
+    console.error(`[EMAIL SERVICE] Failed to initialize ${providerType} provider, falling back to stub:`, error)
+    provider = new StubEmailProvider()
+  }
 
   return new EmailService({
     provider,

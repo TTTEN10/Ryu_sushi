@@ -139,6 +139,13 @@ export class QuotaService {
   }
 
   /**
+   * Get concurrency lock key for a DID
+   */
+  private getConcurrencyLockKey(did: string): string {
+    return `concurrency:chat:${did}:lock`;
+  }
+
+  /**
    * Check if Redis is available
    */
   private isRedisAvailable(): boolean {
@@ -438,6 +445,68 @@ export class QuotaService {
     } catch (error) {
       logger.error(`Error getting DID from wallet ${walletAddress}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Acquire a concurrency lock for a DID
+   * Returns true if lock was acquired, false if already locked
+   * @param did DID token ID
+   * @param ttlSeconds Time to live in seconds (default: 300 = 5 minutes)
+   */
+  async acquireConcurrencyLock(did: string, ttlSeconds: number = 300): Promise<boolean> {
+    if (!this.isRedisAvailable()) {
+      logger.warn('Redis not available, allowing request (no concurrency control)');
+      return true; // Allow if Redis is down (fail open)
+    }
+
+    try {
+      const lockKey = this.getConcurrencyLockKey(did);
+      // Use SET with NX (only set if not exists) and EX (expiration)
+      const result = await this.redis!.set(lockKey, '1', 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+    } catch (error) {
+      logger.error(`Error acquiring concurrency lock for DID ${did}:`, error);
+      // Fail open - allow request if lock acquisition fails
+      return true;
+    }
+  }
+
+  /**
+   * Release a concurrency lock for a DID
+   * @param did DID token ID
+   */
+  async releaseConcurrencyLock(did: string): Promise<void> {
+    if (!this.isRedisAvailable()) {
+      return;
+    }
+
+    try {
+      const lockKey = this.getConcurrencyLockKey(did);
+      await this.redis!.del(lockKey);
+      logger.debug(`Concurrency lock released for DID ${did}`);
+    } catch (error) {
+      logger.error(`Error releasing concurrency lock for DID ${did}:`, error);
+      // Don't throw - lock will expire naturally
+    }
+  }
+
+  /**
+   * Check if a DID has an active concurrency lock
+   * @param did DID token ID
+   */
+  async hasConcurrencyLock(did: string): Promise<boolean> {
+    if (!this.isRedisAvailable()) {
+      return false;
+    }
+
+    try {
+      const lockKey = this.getConcurrencyLockKey(did);
+      const exists = await this.redis!.exists(lockKey);
+      return exists === 1;
+    } catch (error) {
+      logger.error(`Error checking concurrency lock for DID ${did}:`, error);
+      return false; // Fail closed - assume no lock if check fails
     }
   }
 

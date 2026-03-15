@@ -2,13 +2,13 @@ import ChatWidget from './ChatWidget';
 import Header from './Header';
 import Footer from './Footer';
 import DIDTokenVisualization from './DIDTokenVisualization';
-import DIDManager from './DIDManager';
+import DIDProfile from './DIDProfile';
+import BetaTutorial from './BetaTutorial';
 
 export default function Testing() {
-
-
   return (
     <div className="min-h-screen flex flex-col">
+      <BetaTutorial />
       <Header showBackButton={true} />
 
       {/* Main Content */}
@@ -24,14 +24,14 @@ export default function Testing() {
               </h1>
             </div>
 
+            {/* DID Profile */}
+            <div className="mb-8 sm:mb-12 fade-in">
+              <DIDProfile />
+            </div>
+
             {/* DID Token Visualization */}
             <div className="mb-8 sm:mb-12 fade-in">
               <DIDTokenVisualization />
-            </div>
-
-            {/* DID Manager */}
-            <div className="mb-8 sm:mb-12 fade-in">
-              <DIDManager />
             </div>
 
             {/* Chat Widget Section */}

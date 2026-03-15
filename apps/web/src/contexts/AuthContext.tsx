@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useWallet } from './WalletContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use empty string when not set: same-origin requests use Vite proxy (dev) or Caddy (prod)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 /**
  * DID Status types
@@ -99,7 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Request verification message from backend
    */
   const requestVerificationMessage = useCallback(async (address: string, chainId: number): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/wallet/connect`, {
+    const response = await fetch(`${API_BASE_URL}/api/testing/wallet/connect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const signature = await signMessage(message);
 
       // Verify signature with backend
-      const response = await fetch(`${API_BASE_URL}/api/auth/wallet/verify`, {
+      const response = await fetch(`${API_BASE_URL}/api/testing/wallet/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,7 +269,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = getSessionToken();
       if (token) {
         // Call logout endpoint
-        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        await fetch(`${API_BASE_URL}/api/testing/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

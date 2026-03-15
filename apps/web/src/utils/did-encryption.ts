@@ -3,16 +3,38 @@ import { ethers } from 'ethers';
 /**
  * DID-Based Encryption Utilities
  * 
+ * KEY LIFECYCLE & MANAGEMENT (WALLET-GATED)
+ * 
+ * Access Model:
+ * - Wallet authentication is the sole recovery/access mechanism
+ * - No wallet → no access
+ * - Revoked token → no access
+ * - SP does not provide key escrow, recovery phrases, or key backups
+ * 
  * Encryption Scheme:
- * 1. Generate AES-256-GCM symmetric key (client-side)
- * 2. Encrypt symmetric key using ECIES (wallet's public key)
- * 3. Store encrypted symmetric key in DID's encryptedData field
- * 4. Use symmetric key to encrypt/decrypt chat messages
+ * 1. Generate AES-256-GCM symmetric key (DEK) - client-side, random 32 bytes
+ * 2. Derive Key Encryption Key (KEK) from wallet signature (SHA-256 hash)
+ * 3. Encrypt DEK with KEK (AES-256-GCM)
+ * 4. Store encrypted DEK in DID's encryptedData field (on-chain)
+ * 5. Use DEK to encrypt/decrypt chat messages
+ * 
+ * Key Derivation (Wallet-Based):
+ * - Method: SHA-256 hash of (wallet signature + wallet address)
+ * - NOT PBKDF2: PBKDF2 is not used for wallet-based key derivation
+ * - Deterministic: Same wallet + same message = same KEK
+ * - Domain-separated: Message format prevents cross-application key reuse
  * 
  * Key Material Flow:
- * - Plaintext: Raw chat messages
- * - Ciphertext: AES-GCM encrypted messages
- * - Encrypted Key: ECIES encrypted symmetric key (stored in DID)
+ * - Plaintext: Raw chat messages (client-side only, transient)
+ * - Ciphertext: AES-GCM encrypted messages (stored in database)
+ * - Encrypted DEK: Wallet-encrypted symmetric key (stored in DID)
+ * 
+ * Storage:
+ * - DEK (plaintext): Browser memory only (during active session)
+ * - Encrypted DEK: DID's encryptedData field (on-chain, permanent)
+ * - Server: Never stores keys (only ciphertext blobs)
+ * 
+ * DO NOT LOG: Keys, plaintext, or sensitive data
  */
 
 /**
@@ -25,16 +47,27 @@ export function generateSymmetricKey(): Uint8Array {
 /**
  * Encrypt symmetric key using wallet-based encryption
  * 
- * Scheme:
- * 1. Create a deterministic message that proves wallet ownership
- * 2. Sign the message to get a signature (proves private key ownership)
- * 3. Derive encryption key from signature + wallet address
- * 4. Encrypt symmetric key with derived key
+ * Key Derivation Method: SHA-256 hash (NOT PBKDF2)
  * 
- * @param symmetricKey The AES key to encrypt
+ * Scheme:
+ * 1. Create a deterministic, domain-separated message that proves wallet ownership
+ *    Message format: "SafePsy Chat Encryption Key\nWallet: {address}\nPurpose: Encrypt symmetric key for chat history"
+ * 2. Sign the message to get a signature (proves private key ownership)
+ * 3. Derive Key Encryption Key (KEK) from signature + wallet address:
+ *    - Concatenate signature bytes + wallet address bytes
+ *    - SHA-256 hash the concatenated bytes
+ *    - Result: 32-byte KEK
+ * 4. Encrypt symmetric key (DEK) with derived KEK using AES-256-GCM
+ * 
+ * Security Properties:
+ * - Deterministic: Same wallet + same message = same KEK
+ * - Non-replayable: Message format is domain-separated (includes "SafePsy" and purpose)
+ * - Verifiable: Signature can be verified to ensure wallet ownership
+ * 
+ * @param symmetricKey The AES key (DEK) to encrypt
  * @param walletAddress The wallet address
  * @param signer The ethers signer for signing
- * @returns Encrypted key as string (format: signature:encryptedKey)
+ * @returns Encrypted key as string (format: signature:iv:encryptedKey)
  */
 export async function encryptSymmetricKey(
   symmetricKey: Uint8Array,
@@ -50,7 +83,8 @@ export async function encryptSymmetricKey(
     // The signature is deterministic and can be verified
     const signature = await signer.signMessage(keyMessage);
     
-    // Derive encryption key from signature + wallet address
+    // Derive Key Encryption Key (KEK) from signature + wallet address
+    // Method: SHA-256 hash (NOT PBKDF2)
     // Only someone with the private key can produce this signature
     const encoder = new TextEncoder();
     const signatureBytes = encoder.encode(signature);
@@ -61,7 +95,8 @@ export async function encryptSymmetricKey(
     combined.set(signatureBytes, 0);
     combined.set(walletBytes, signatureBytes.length);
     
-    // Derive 32-byte key using SHA-256
+    // Derive 32-byte KEK using SHA-256 hash
+    // This is deterministic: same wallet + same message = same KEK
     const hash = await crypto.subtle.digest('SHA-256', combined);
     const derivedKey = new Uint8Array(hash);
     
@@ -116,7 +151,9 @@ export async function decryptSymmetricKey(
       throw new Error('Failed to verify encrypted key signature. The key may not belong to this wallet.');
     }
     
-    // Derive decryption key from signature + wallet address
+    // Derive Key Encryption Key (KEK) from signature + wallet address
+    // Method: SHA-256 hash (NOT PBKDF2)
+    // This re-derives the same KEK used during encryption
     const encoder = new TextEncoder();
     const signatureBytes = encoder.encode(signature);
     const walletBytes = encoder.encode(walletAddress.toLowerCase());
@@ -125,6 +162,7 @@ export async function decryptSymmetricKey(
     combined.set(signatureBytes, 0);
     combined.set(walletBytes, signatureBytes.length);
     
+    // SHA-256 hash to derive KEK (deterministic: same inputs = same KEK)
     const hash = await crypto.subtle.digest('SHA-256', combined);
     const derivedKey = new Uint8Array(hash);
     

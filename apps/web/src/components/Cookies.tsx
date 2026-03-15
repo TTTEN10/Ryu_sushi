@@ -22,7 +22,7 @@ const Cookies: React.FC = () => {
                 </span>
               </h1>
               <p className="text-xl text-body leading-relaxed max-w-3xl mx-auto">
-                How SafePsy uses cookies and similar technologies to enhance your experience while protecting your privacy
+                How SafePsy uses cookies and similar technologies to enhance your experience while protecting your privacy. You own your data; we don&apos;t store it with third parties or use it to train AI models.
               </p>
             </div>
 

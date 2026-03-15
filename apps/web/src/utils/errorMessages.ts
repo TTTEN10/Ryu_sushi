@@ -10,7 +10,7 @@ interface ErrorContext {
 }
 
 export function getActionableErrorMessage(error: unknown, context: ErrorContext = {}): string {
-  const { status, code, originalMessage, endpoint } = context;
+  const { status, code, originalMessage } = context;
 
   // Network/Connection errors
   if (error instanceof TypeError && error.message.includes('fetch')) {

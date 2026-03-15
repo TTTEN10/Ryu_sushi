@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import Joi from 'joi';
 import logger from '../lib/logger';
 import { authenticateWallet, optionalAuthenticateWallet, AuthenticatedRequest } from '../middleware/auth';
@@ -11,12 +10,16 @@ import { aiGatewayService, ChatCompletionRequest } from '../lib/ai-gateway.servi
 import { safetyResponseInterceptor } from '../middleware/safety';
 import { chatRateLimitMiddleware } from '../lib/ratelimit';
 import { optionalQuotaMiddleware } from '../middleware/quota';
+import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { QuotaService } from '../lib/quota.service';
 import { subscriptionService } from '../lib/subscription.service';
 import { priceOracleService } from '../lib/price-oracle.service';
+import { storageService } from '../lib/storage.service';
+import { encryptAES256GCM, generateEncryptionKey } from '../lib/crypto';
+import { prisma } from '../lib/prisma';
+import { getRetrieverService } from '../lib/retriever.service';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Apply safety middleware to all chat routes
 router.use(safetyResponseInterceptor);
@@ -27,7 +30,157 @@ router.use(safetyResponseInterceptor);
 const chatSaveSchema = Joi.object({
   encryptedChatBlob: Joi.string().required(),
   didTokenId: Joi.string().allow(null).optional(),
+  generateSummary: Joi.boolean().optional().default(true), // Generate and store encrypted summary
+  messages: Joi.array().items(
+    Joi.object({
+      role: Joi.string().valid('user', 'assistant', 'system').required(),
+      content: Joi.string().required(),
+    })
+  ).optional(), // Optional: messages for summary generation (if not provided, summary will be basic)
 });
+
+/**
+ * Retrieve relevant FAQs/ToS context for a query
+ * Returns empty string if retrieval fails (non-blocking)
+ */
+async function retrieveRelevantContext(query: string): Promise<string> {
+  try {
+    const retrieverService = getRetrieverService();
+    
+    // Search for FAQs and ToS content
+    const result = await retrieverService.retrieve(query, {
+      limit: 3, // Get top 3 most relevant documents
+      minScore: 0.5, // Minimum similarity score
+      source: undefined, // Search both FAQs and ToS
+    });
+
+    if (result.documents.length === 0) {
+      return '';
+    }
+
+    // Format retrieved documents as context
+    const contextSections = result.documents.map((doc, index) => {
+      const sourceType = doc.source === 'faq' ? 'FAQ' : 'Terms of Service';
+      return `[${sourceType} - Reference ${index + 1}]\n${doc.text}`;
+    });
+
+    return `\n\nRelevant information from SafePsy FAQs and Terms of Service:\n${contextSections.join('\n\n')}`;
+  } catch (error: any) {
+    // Non-blocking: log error but don't fail the request
+    logger.warn('RAG retrieval failed, continuing without context:', error.message);
+    return '';
+  }
+}
+
+/**
+ * Enhance chat request with RAG context
+ * Extracts user query and injects relevant FAQs/ToS into system message
+ */
+async function enhanceWithRAG(request: ChatCompletionRequest): Promise<ChatCompletionRequest> {
+  try {
+    // Extract user messages to find the query
+    const userMessages = request.messages.filter((msg) => msg.role === 'user');
+    if (userMessages.length === 0) {
+      return request; // No user query to enhance
+    }
+
+    // Use the last user message as the query
+    const lastUserMessage = userMessages[userMessages.length - 1];
+    const query = lastUserMessage.content;
+
+    // Retrieve relevant context (non-blocking)
+    const context = await retrieveRelevantContext(query);
+
+    if (!context) {
+      return request; // No relevant context found
+    }
+
+    // Find or create system message
+    let systemMessage = request.messages.find((msg) => msg.role === 'system');
+    const baseSystemPrompt = 'You are a helpful AI assistant for SafePsy, a Web3.0 decentralized identity-based therapy and mental health platform. Provide accurate, helpful information while emphasizing that you are not a substitute for professional mental health care.';
+
+    if (systemMessage) {
+      // Append context to existing system message
+      systemMessage = {
+        ...systemMessage,
+        content: `${systemMessage.content}${context}`,
+      };
+    } else {
+      // Create new system message with context
+      systemMessage = {
+        role: 'system',
+        content: `${baseSystemPrompt}${context}`,
+      };
+      // Insert at the beginning
+      request.messages.unshift(systemMessage);
+      return request;
+    }
+
+    // Update the system message in the messages array
+    const systemIndex = request.messages.findIndex((msg) => msg.role === 'system');
+    if (systemIndex >= 0) {
+      request.messages[systemIndex] = systemMessage;
+    }
+
+    return request;
+  } catch (error: any) {
+    // Non-blocking: log error but return original request
+    logger.warn('Failed to enhance with RAG, using original request:', error.message);
+    return request;
+  }
+}
+
+/**
+ * Generate a chat summary from messages
+ */
+async function generateChatSummary(messages: any[]): Promise<string> {
+  try {
+    // Filter out system messages and create a summary prompt
+    const conversationMessages = messages
+      .filter((msg) => msg.role !== 'system')
+      .map((msg) => `${msg.role}: ${msg.content}`)
+      .join('\n');
+
+    if (!conversationMessages || conversationMessages.length < 50) {
+      // Too short to summarize meaningfully
+      return conversationMessages || 'Empty conversation';
+    }
+
+    const summaryPrompt = `Please provide a concise summary of the following conversation. Focus on key topics, concerns, and any important information discussed. Keep it under 200 words.
+
+Conversation:
+${conversationMessages}
+
+Summary:`;
+
+    const completion = await aiGatewayService.generateCompletion({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a helpful assistant that creates concise summaries of conversations.',
+        },
+        {
+          role: 'user',
+          content: summaryPrompt,
+        },
+      ],
+      model: 'llama-3-70b-instruct', // Scaleway default model
+      temperature: 0.3,
+      maxTokens: 300,
+      stream: false,
+    });
+
+    return completion.content || conversationMessages;
+  } catch (error: any) {
+    logger.error('Error generating chat summary:', error);
+    // Fallback: return first 500 chars of conversation
+    const conversationMessages = messages
+      .filter((msg) => msg.role !== 'system')
+      .map((msg) => `${msg.role}: ${msg.content}`)
+      .join('\n');
+    return conversationMessages.substring(0, 500);
+  }
+}
 
 /**
  * POST /api/chat/save
@@ -60,12 +213,12 @@ router.post(
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported',
+          message: 'Only Sepolia Testnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
 
-      const { encryptedChatBlob, didTokenId } = req.body;
+      const { encryptedChatBlob, didTokenId, generateSummary = true, messages } = req.body;
       const walletAddress = req.wallet.walletAddress.toLowerCase();
 
       // Verify DID ownership if DID exists
@@ -96,6 +249,46 @@ router.post(
       const hash = await crypto.subtle.digest('SHA-256', blobBytes);
       const blobHash = ethers.hexlify(new Uint8Array(hash));
 
+      // Generate and encrypt chat summary if requested
+      let encryptedSummaryRef: string | null = null;
+      let encryptedSummaryKey: Buffer | null = null;
+
+      if (generateSummary) {
+        try {
+          // Generate a summary key for encrypting the summary
+          encryptedSummaryKey = generateEncryptionKey();
+          
+          // Generate chat summary from messages if provided, otherwise create basic metadata summary
+          let summaryText: string;
+          if (messages && Array.isArray(messages) && messages.length > 0) {
+            // Generate AI-powered summary from actual messages
+            summaryText = await generateChatSummary(messages);
+          } else {
+            // Fallback: create a basic metadata summary
+            summaryText = `Chat summary for wallet ${walletAddress}. Last updated: ${new Date().toISOString()}. Hash: ${blobHash.substring(0, 16)}...`;
+          }
+          
+          // Encrypt the summary locally using AES-256-GCM
+          const encryptedSummary = encryptAES256GCM(summaryText, encryptedSummaryKey);
+          
+          // Upload encrypted summary to S3/IPFS gateway
+          const storageResult = await storageService.uploadEncryptedSummary(
+            Buffer.from(encryptedSummary, 'base64'),
+            walletAddress
+          );
+          
+          if (storageResult.success && storageResult.reference) {
+            encryptedSummaryRef = storageResult.reference;
+            logger.info(`Chat summary encrypted and stored: ${encryptedSummaryRef} (${storageResult.storageType})`);
+          } else {
+            logger.warn('Failed to store encrypted chat summary:', storageResult.error);
+          }
+        } catch (summaryError: any) {
+          logger.error('Error generating/storing chat summary:', summaryError);
+          // Continue without summary - don't fail the whole request
+        }
+      }
+
       // Store or update encrypted chat in database
       const encryptedChat = await prisma.encryptedChat.upsert({
         where: { walletAddress },
@@ -103,6 +296,7 @@ router.post(
           encryptedBlob: encryptedChatBlob,
           encryptedBlobHash: blobHash,
           didTokenId: didTokenId || null,
+          encryptedSummaryRef: encryptedSummaryRef || null,
           updatedAt: new Date(),
         },
         create: {
@@ -110,57 +304,78 @@ router.post(
           encryptedBlob: encryptedChatBlob,
           encryptedBlobHash: blobHash,
           didTokenId: didTokenId || null,
+          encryptedSummaryRef: encryptedSummaryRef || null,
         },
       });
 
       // Update DID's chat reference with hash
       // The chat reference is stored as bytes32 (hash) in the DID profile
       if (didService) {
-        const didInfo = await didService.getDIDInfo(walletAddress);
-        if (didInfo?.hasDid) {
-          // Get existing profile to preserve encrypted key metadata
-          const profile = await didService.getProfile(walletAddress);
-          
-          // Convert blob hash to bytes32 format (remove 0x prefix if present, ensure 32 bytes)
-          const hashBytes = ethers.getBytes(blobHash);
-          const hashBytes32 = ethers.zeroPadValue(ethers.hexlify(hashBytes.slice(0, 32)), 32);
-          
-          // Use the hash as the chat reference (string format for frontend)
-          const chatReference = blobHash;
+        try {
+          const didInfo = await didService.getDIDInfo(walletAddress);
+          if (didInfo?.hasDid) {
+            // Get existing profile to preserve encrypted key metadata
+            const profile = await didService.getProfile(walletAddress);
+            
+            // Convert blob hash to bytes32 format (remove 0x prefix if present, ensure 32 bytes)
+            const hashBytes = ethers.getBytes(blobHash);
+            const hashBytes32 = ethers.zeroPadValue(ethers.hexlify(hashBytes.slice(0, 32)), 32);
+            
+            // Use the hash as the chat reference (string format for frontend)
+            const chatReference = blobHash;
 
-          logger.info(`Chat saved for ${walletAddress}, hash: ${blobHash}`);
+            // Log with hashed wallet address for privacy (wallet address is public but hash for logs)
+            const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+            logger.info(`Chat saved for wallet ${hashedWallet}..., hash: ${blobHash.substring(0, 16)}...`);
 
-          res.json({
-            success: true,
-            message: 'Chat saved successfully',
-            data: {
-              chatId: encryptedChat.id,
-              blobHash,
-              didTokenId: didInfo.tokenId,
-              // Return the chat reference that should be stored in DID
-              chatReference,
-              // Preserve existing encrypted key metadata if it exists
-              preserveEncryptedKeyMetadata: profile?.encryptedKeyMetadata || null,
-              // Indicates frontend should call updateChatReference
-              requiresDidUpdate: true,
-            },
-          });
-          } catch (didError) {
-            logger.error('Error updating DID data:', didError);
-            // Still return success for chat save, but note DID update failed
             res.json({
               success: true,
-              message: 'Chat saved, but DID update may be needed',
+              message: 'Chat saved successfully',
               data: {
                 chatId: encryptedChat.id,
                 blobHash,
                 didTokenId: didInfo.tokenId,
+                // Return the chat reference that should be stored in DID
+                chatReference,
+                // Encrypted summary reference (S3 key or IPFS CID)
+                encryptedSummaryRef: encryptedSummaryRef || null,
+                // Encrypted summary key (base64 encoded, client should encrypt this with user's key)
+                encryptedSummaryKey: encryptedSummaryKey ? encryptedSummaryKey.toString('base64') : null,
+                // Preserve existing encrypted key metadata if it exists
+                preserveEncryptedKeyMetadata: profile?.encryptedKeyMetadata || null,
+                // Indicates frontend should call storeEncryptedChatSummary or updateChatReference
                 requiresDidUpdate: true,
-                warning: 'DID update should be performed by wallet owner',
+              },
+            });
+          } else {
+            // DID exists but hasDid is false - just save chat without DID update
+            res.json({
+              success: true,
+              message: 'Chat saved successfully',
+              data: {
+                chatId: encryptedChat.id,
+                blobHash,
+                didTokenId: null,
+                requiresDidUpdate: false,
               },
             });
           }
-        } else {
+        } catch (didError) {
+          logger.error('Error updating DID data:', didError);
+          // Still return success for chat save, but note DID update failed
+          res.json({
+            success: true,
+            message: 'Chat saved, but DID update may be needed',
+            data: {
+              chatId: encryptedChat.id,
+              blobHash,
+              didTokenId: null,
+              requiresDidUpdate: true,
+              warning: 'DID update should be performed by wallet owner',
+            },
+          });
+        }
+      } else {
         // No DID yet, just save chat
         res.json({
           success: true,
@@ -178,6 +393,94 @@ router.post(
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to save chat',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/chat/summary
+ * Retrieve encrypted chat summary for authenticated wallet
+ * 
+ * Auth: Required (wallet session)
+ * 
+ * Flow:
+ * 1. Validate authenticated wallet session
+ * 2. Get summary reference from database (or DID contract)
+ * 3. Download encrypted summary from IPFS/S3 storage
+ * 4. Return encrypted summary blob (frontend will decrypt)
+ */
+router.get(
+  '/summary',
+  authenticateWallet,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      // Validate chain ID
+      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+        return res.status(400).json({
+          success: false,
+          message: 'Only Sepolia Testnet is supported',
+          error: 'UNSUPPORTED_CHAIN',
+        });
+      }
+
+      const walletAddress = req.wallet.walletAddress.toLowerCase();
+
+      // Get summary reference from database
+      const encryptedChat = await prisma.encryptedChat.findUnique({
+        where: { walletAddress },
+        select: {
+          encryptedSummaryRef: true,
+        },
+      });
+
+      if (!encryptedChat || !encryptedChat.encryptedSummaryRef) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chat summary not found',
+          error: 'SUMMARY_NOT_FOUND',
+        });
+      }
+
+      // Download encrypted summary from storage (IPFS/S3)
+      const encryptedSummaryBuffer = await storageService.downloadEncryptedSummary(
+        encryptedChat.encryptedSummaryRef
+      );
+
+      if (!encryptedSummaryBuffer) {
+        return res.status(404).json({
+          success: false,
+          message: 'Failed to download chat summary from storage',
+          error: 'STORAGE_ERROR',
+        });
+      }
+
+      // Convert buffer to base64 for transmission
+      const encryptedSummaryBase64 = encryptedSummaryBuffer.toString('base64');
+
+      // Log with hashed wallet address for privacy
+      const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+      logger.info(`Chat summary retrieved for wallet ${hashedWallet}...`);
+
+      res.json({
+        success: true,
+        data: {
+          encryptedSummary: encryptedSummaryBase64,
+          reference: encryptedChat.encryptedSummaryRef,
+        },
+      });
+    } catch (error: any) {
+      logger.error('Chat summary retrieval error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to retrieve chat summary',
       });
     }
   }
@@ -210,7 +513,7 @@ router.get(
       if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Ethereum Mainnet is supported',
+          message: 'Only Sepolia Testnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
@@ -248,7 +551,9 @@ router.get(
                 const storedHash = encryptedChat.encryptedBlobHash.toLowerCase();
                 const refHash = chatRefHex.toLowerCase();
                 if (refHash !== storedHash && !storedHash.startsWith(refHash.slice(0, 10))) {
-                  logger.warn(`Chat hash mismatch for ${walletAddress}`);
+                  // Log with hashed wallet address for privacy
+                  const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+                  logger.warn(`Chat hash mismatch for wallet ${hashedWallet}...`);
                   // Still return chat, but note the mismatch
                 }
               }
@@ -260,7 +565,9 @@ router.get(
         }
       }
 
-      logger.info(`Chat loaded for ${walletAddress}`);
+      // Log with hashed wallet address for privacy
+      const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+      logger.info(`Chat loaded for wallet ${hashedWallet}...`);
 
       res.json({
         success: true,
@@ -269,6 +576,7 @@ router.get(
           encryptedChatBlob: encryptedChat.encryptedBlob,
           blobHash: encryptedChat.encryptedBlobHash,
           didTokenId: encryptedChat.didTokenId,
+          encryptedSummaryRef: encryptedChat.encryptedSummaryRef,
           updatedAt: encryptedChat.updatedAt.toISOString(),
         },
       });
@@ -315,6 +623,7 @@ router.post(
   '/completions',
   chatRateLimitMiddleware,
   optionalAuthenticateWallet,
+  chatConcurrencyMiddleware, // Enforce one-chat-at-a-time per DID
   optionalQuotaMiddleware, // Check quota but allow if not authenticated
   validate(chatCompletionSchema),
   async (req: AuthenticatedRequest, res: Response) => {
@@ -341,7 +650,6 @@ router.post(
                 USDT: premiumPricing.USDT,
                 USDC: premiumPricing.USDC,
               },
-              stripe: process.env.STRIPE_PRICE_PREMIUM || null,
             },
           };
 
@@ -377,6 +685,14 @@ router.post(
         }
       }
 
+      // Check if withContext query parameter is set
+      const withContext = req.query.withContext === 'true' || req.query.withContext === true;
+      
+      // Enhance request with RAG context only if withContext=true (non-blocking)
+      const enhancedRequest = withContext 
+        ? await enhanceWithRAG(request)
+        : request;
+
       if (shouldStream) {
         // Set SSE headers
         res.setHeader('Content-Type', 'text/event-stream');
@@ -389,8 +705,8 @@ router.post(
         res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
 
         try {
-          // Stream completion
-          for await (const sseMessage of aiGatewayService.generateCompletionStream(request)) {
+          // Stream completion with enhanced context
+          for await (const sseMessage of aiGatewayService.generateCompletionStream(enhancedRequest)) {
             const eventLine = `event: ${sseMessage.event}\n`;
             const dataLine = `data: ${sseMessage.data}\n`;
             const idLine = sseMessage.id ? `id: ${sseMessage.id}\n` : '';
@@ -406,8 +722,8 @@ router.post(
           res.end();
         }
       } else {
-        // Non-streaming response
-        const completion = await aiGatewayService.generateCompletion(request);
+        // Non-streaming response with enhanced context
+        const completion = await aiGatewayService.generateCompletion(enhancedRequest);
         res.json(completion);
       }
     } catch (error: any) {
@@ -484,6 +800,61 @@ router.get(
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to get quota status',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/chat/concurrency
+ * Check if a chat request is currently in progress for authenticated DID
+ * 
+ * Auth: Required (wallet session)
+ */
+router.get(
+  '/concurrency',
+  authenticateWallet,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const walletAddress = req.wallet.walletAddress.toLowerCase();
+      const quotaService = QuotaService.getInstance();
+
+      // Get DID from wallet address
+      const did = await quotaService.getDIDFromWallet(walletAddress);
+
+      if (!did) {
+        return res.json({
+          success: true,
+          data: {
+            hasDid: false,
+            requestInProgress: false,
+          },
+        });
+      }
+
+      // Check if there's an active concurrency lock
+      const hasLock = await quotaService.hasConcurrencyLock(did);
+
+      res.json({
+        success: true,
+        data: {
+          hasDid: true,
+          did,
+          requestInProgress: hasLock,
+        },
+      });
+    } catch (error: any) {
+      logger.error('Concurrency status error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get concurrency status',
       });
     }
   }

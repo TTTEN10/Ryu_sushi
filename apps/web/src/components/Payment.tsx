@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
-import { CreditCard, Wallet, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Wallet, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { ethers } from 'ethers';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -11,7 +11,6 @@ interface PricingTier {
   dailyLimit: number;
   monthlyLimit: number;
   price: {
-    stripe: string | null;
     crypto: {
       ETH?: string;
       USDT?: string;
@@ -83,47 +82,6 @@ export default function Payment() {
       }
     } catch (err) {
       console.error('Error loading subscription:', err);
-    }
-  };
-
-  const handleStripeCheckout = async (tier: 'PREMIUM') => {
-    if (!authState.isVerified || !wallet) {
-      setError('Please connect and verify your wallet first');
-      return;
-    }
-
-    setProcessing(`stripe-${tier}`);
-    setError(null);
-
-    try {
-      const successUrl = `${window.location.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${window.location.origin}/payment/cancel`;
-
-      const response = await fetch(`${API_BASE_URL}/api/payment/stripe/checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-wallet-address': wallet.address,
-          'x-chain-id': wallet.chainId.toString(),
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          tier,
-          successUrl,
-          cancelUrl,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success && data.data.url) {
-        // Redirect to Stripe checkout
-        window.location.href = data.data.url;
-      } else {
-        throw new Error(data.message || 'Failed to create checkout session');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to start payment');
-      setProcessing(null);
     }
   };
 
@@ -295,7 +253,7 @@ export default function Payment() {
               <h3 className="text-xl font-bold mb-2">{tierData.name}</h3>
               <div className="mb-4">
                 <div className="text-2xl font-bold">
-                  {tier === 'FREE' ? 'Free' : tierData.price.stripe || 'Premium'}
+                  {tier === 'FREE' ? 'Free' : 'Premium'}
                 </div>
                 {tier !== 'FREE' && typeof tierData.price.crypto === 'object' && (
                   <div className="text-sm text-gray-600 mt-1">
@@ -320,25 +278,6 @@ export default function Payment() {
               )}
               {isUpgrade && (
                 <div className="space-y-2">
-                  {tierData.price.stripe && (
-                    <button
-                      onClick={() => handleStripeCheckout(tier as 'PREMIUM')}
-                      disabled={processing !== null || !authState.isVerified}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {processing === `stripe-${tier}` ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          Pay with Card
-                        </>
-                      )}
-                    </button>
-                  )}
                   {tierData.price.crypto && typeof tierData.price.crypto === 'object' && (
                     <div className="space-y-2">
                       {tierData.price.crypto.ETH && (

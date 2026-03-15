@@ -44,6 +44,7 @@ model EncryptedChat {
   encryptedBlob     String // Encrypted chat history (JSON)
   encryptedBlobHash String // SHA-256 hash for on-chain storage
   encryptedKey      String? // Encrypted symmetric key (stored in DID)
+  encryptedSummaryRef String? // Storage reference (IPFS CID or S3 key) for encrypted chat summary
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -125,4 +126,49 @@ enum PaymentStatus {
   FAILED
   REFUNDED
   CANCELLED
+}
+
+model RAGAuditLog {
+  id              String   @id @default(cuid())
+  operation       RAGOperation
+  walletAddress   String?  // Wallet address if authenticated
+  documentId      String?
+  source          String?
+  documentSize    Int?     // Size in bytes
+  success         Boolean
+  errorMessage    String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  @@index([operation])
+  @@index([walletAddress])
+  @@index([documentId])
+  @@index([source])
+  @@index([createdAt])
+  @@map("rag_audit_logs")
+}
+
+enum RAGOperation {
+  INDEX
+  DELETE
+  BATCH_INDEX
+}
+
+// ISO 27001 A.12.4.1 / 8.15: Security event audit trail (auth, access, critical actions)
+model SecurityAuditLog {
+  id          String   @id @default(cuid())
+  eventType   String   // e.g. AUTH_SUCCESS, AUTH_FAILURE, ACCESS_DENIED
+  actor       String?  // hashed or redacted identifier (e.g. wallet prefix 0x1234...abcd)
+  resource    String?  // endpoint or resource (e.g. /api/auth/wallet)
+  success     Boolean
+  ipAddress   String?
+  userAgent   String?
+  details     String?  // JSON; no PII or secrets
+  createdAt   DateTime @default(now())
+
+  @@index([eventType])
+  @@index([actor])
+  @@index([createdAt])
+  @@map("security_audit_logs")
 }

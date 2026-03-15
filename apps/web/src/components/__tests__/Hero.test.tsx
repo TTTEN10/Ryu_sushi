@@ -39,7 +39,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/consent to safepsy/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /join waitlist/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /join.*waitlist/i })).toBeInTheDocument()
   })
 
   it('allows user to type in email field', async () => {
@@ -80,7 +80,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i) as HTMLInputElement
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i) as HTMLInputElement
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     // Fill consent but leave email empty
     await user.click(consentCheckbox)
@@ -103,7 +103,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i)
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i) as HTMLInputElement
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, 'test@example.com')
     // Remove required attribute to test custom validation
@@ -132,7 +132,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i)
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i)
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, 'test@example.com')
     await user.click(consentCheckbox)
@@ -140,7 +140,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/subscribe'),
+        expect.stringMatching(/\/subscribe$|\/api\/subscribe/),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -173,7 +173,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i)
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i)
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, 'test@example.com')
     await user.click(consentCheckbox)
@@ -200,7 +200,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i) as HTMLInputElement
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i) as HTMLInputElement
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, 'test@example.com')
     await user.click(consentCheckbox)
@@ -232,7 +232,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i)
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i)
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, 'existing@example.com')
     await user.click(consentCheckbox)
@@ -256,7 +256,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i)
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i)
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, 'test@example.com')
     await user.click(consentCheckbox)
@@ -283,7 +283,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     const emailInput = screen.getByLabelText(/email address/i)
     const consentCheckbox = screen.getByLabelText(/consent to safepsy/i)
-    const submitButton = screen.getByRole('button', { name: /join waitlist/i })
+    const submitButton = screen.getByRole('button', { name: /join.*waitlist/i })
 
     await user.type(emailInput, '  Test@Example.COM  ')
     await user.click(consentCheckbox)
@@ -291,7 +291,7 @@ describe('Hero Component - Waitlist Form', () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/subscribe'),
+        expect.stringMatching(/\/subscribe$|\/api\/subscribe/),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

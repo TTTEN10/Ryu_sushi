@@ -50,7 +50,7 @@ export async function updateChatReference(
   // Verify network
   const network = await signer.provider.getNetwork();
   if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
-    throw new Error('Please switch to Ethereum Mainnet to update DID data');
+    throw new Error('Please switch to Sepolia Testnet to update DID data');
   }
 
   // Get wallet address
@@ -113,7 +113,7 @@ export async function updateEncryptedKeyMetadata(
   // Verify network
   const network = await signer.provider.getNetwork();
   if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
-    throw new Error('Please switch to Ethereum Mainnet to update DID data');
+    throw new Error('Please switch to Sepolia Testnet to update DID data');
   }
 
   // Get wallet address
@@ -174,7 +174,7 @@ export async function updateChatDataReference(
   // Verify network
   const network = await signer.provider.getNetwork();
   if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
-    throw new Error('Please switch to Ethereum Mainnet to update DID data');
+    throw new Error('Please switch to Sepolia Testnet to update DID data');
   }
 
   // Get wallet address

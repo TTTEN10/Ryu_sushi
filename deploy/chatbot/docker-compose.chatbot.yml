@@ -1,0 +1,30 @@
+# SafePsy Chatbot — scw-nostalgic-cannon (POP2-2C-8G)
+# Run from repo root: docker compose -f deploy/chatbot/docker-compose.chatbot.yml up -d
+
+version: "3.8"
+
+services:
+  chatbot:
+    container_name: new-chatbot
+    build:
+      context: ../..
+      dockerfile: deploy/chatbot/Dockerfile
+      args:
+        CHATBOT_VERSION: ${CHATBOT_VERSION:-2.0.0}
+    image: safepsy-chatbot:${CHATBOT_VERSION:-2.0.0}
+    environment:
+      PORT: 8000
+      USE_GPU: ${USE_GPU:-false}
+      MODEL_NAME: ${MODEL_NAME:-grmenon/grmenon-7b}
+      MODEL_REVISION: ${MODEL_REVISION:-main}
+      AI_INTERNAL_API_KEY: ${AI_INTERNAL_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
