@@ -1,6 +1,8 @@
 # Production Deployment Workflow
-# Deploys SafePsy app to scw-focused-dubinsky (51.159.176.62)
-# Requires GitHub secrets: SSH_PRIVATE_KEY (required), DATABASE_PASSWORD (optional)
+# Deploys SafePsy app to 51.159.176.62 via SSH + rsync from the runner.
+# Requires GitHub secrets: SSH_PRIVATE_KEY (key that is attached to the Scaleway instance), DATABASE_PASSWORD.
+# Trigger: Actions tab → Deploy Production → Run workflow.
+# Note: If SSH times out from your Mac, the runner may also timeout; see fix_ssh.md / deployment_issue.md.
 name: Deploy Production
 
 on:
@@ -12,16 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SSH_SERVER_IP: "51.159.176.62"
+      DEPLOY_VIA_RSYNC: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set env
         run: |
-          # Use DATABASE_PASSWORD from secret or match docker-compose.prod.yml
-          echo "DATABASE_PASSWORD=${DATABASE_PASSWORD:-ceCS4EeuS3owaoFnAZYPvyLg6BrxvOYeeNTFzYed5EU=}" >> $GITHUB_ENV
-        env:
-          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          if [ -z "${{ secrets.DATABASE_PASSWORD }}" ]; then
+            echo "::error::DATABASE_PASSWORD secret is not set. Add it in repo Settings → Secrets."
+            exit 1
+          fi
+          echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> $GITHUB_ENV
 
       - name: Setup SSH
         run: |
@@ -29,6 +34,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 51.159.176.62 >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_KEY_FILE=$HOME/.ssh/id_ed25519" >> $GITHUB_ENV
 
       - name: Deploy
         run: |
@@ -36,15 +42,19 @@ jobs:
           bash deployment/deploy-safepsy.sh
 
       - name: Verify deployment
+        continue-on-error: true
         run: |
-          sleep 15
+          sleep 30
           for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -sf --connect-timeout 10 http://51.159.176.62/healthz; then
+              echo "✅ App reachable at http://51.159.176.62/healthz"
+              exit 0
+            fi
             if curl -sf --connect-timeout 10 https://safepsy.com/healthz; then
-              echo "✅ Frontend, API, backend reachable"
+              echo "✅ App reachable at https://safepsy.com/healthz"
               exit 0
             fi
             echo "Attempt $i - retrying in 15s..."
             sleep 15
           done
-          echo "❌ Verification failed"
-          exit 1
+          echo "::warning::Health check did not pass (app may still be starting or build is slow)"

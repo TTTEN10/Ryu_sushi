@@ -8,11 +8,11 @@ const defaultImage = `${baseUrl}/Logotransparent.png`;
 
 export const seoConfig: Record<string, SEOConfig> = {
   '/': {
-    title: 'Mental Health, Rebuilt on Privacy',
-    description: 'Privacy-first mental health platform: ethical AI, blockchain-secured identity, end-to-end encryption. Who we are, how we work, use cases, and waitlist.',
-    keywords: 'SafePsy, online therapy, mental health, privacy, waitlist, beta, ethical AI, blockchain',
-    ogTitle: 'Mental Health, Rebuilt on Privacy',
-    ogDescription: 'Privacy-first mental health platform: ethical AI, blockchain-secured identity, end-to-end encryption.',
+    title: 'SafePsy | Safe Psychological Support With Dr. Safe',
+    description: 'A safe, inclusive and research-backed mental health product experience. Chat with Dr. Safe, reduce anxiety, and keep control of your data.',
+    keywords: 'SafePsy, Dr. Safe, mental health support, AI therapy support, privacy-first therapy, beta',
+    ogTitle: 'SafePsy | Safe Psychological Support With Dr. Safe',
+    ogDescription: 'A safe, inclusive and research-backed mental health product experience with trust-first design.',
     ogImage: defaultImage,
     ogUrl: baseUrl,
     twitterTitle: 'Mental Health, Rebuilt on Privacy',
@@ -20,6 +20,20 @@ export const seoConfig: Record<string, SEOConfig> = {
     twitterImage: defaultImage,
     twitterCard: 'summary_large_image',
     canonical: baseUrl,
+  },
+  '/feedback': {
+    title: 'Beta Feedback - SafePsy',
+    description: 'Share your feedback on SafePsy beta experience and help improve Dr. Safe.',
+    keywords: 'SafePsy feedback, beta feedback, Dr. Safe feedback',
+    ogTitle: 'Beta Feedback - SafePsy',
+    ogDescription: 'Share your feedback on SafePsy beta experience and help improve Dr. Safe.',
+    ogImage: defaultImage,
+    ogUrl: `${baseUrl}/feedback`,
+    twitterTitle: 'Beta Feedback - SafePsy',
+    twitterDescription: 'Share your feedback on SafePsy beta experience and help improve Dr. Safe.',
+    twitterImage: defaultImage,
+    twitterCard: 'summary',
+    canonical: `${baseUrl}/feedback`,
   },
   '/about-us': {
     title: 'About Us - SafePsy | Privacy-First Mental Health Platform',
@@ -62,6 +76,24 @@ export const seoConfig: Record<string, SEOConfig> = {
     twitterImage: defaultImage,
     twitterCard: 'summary',
     canonical: `${baseUrl}/contact-us`,
+  },
+  '/support': {
+    title: 'Support - SafePsy | Help & Common Issues',
+    description:
+      'Get help with SafePsy: login and account, onboarding, billing, privacy, and deleting or exporting your data. Contact us if you need more assistance.',
+    keywords:
+      'SafePsy support, help, account login, onboarding, billing, privacy, delete account, export data, GDPR',
+    ogTitle: 'Support - SafePsy',
+    ogDescription:
+      'Help with login, onboarding, billing, privacy, and data deletion or export for SafePsy.',
+    ogImage: defaultImage,
+    ogUrl: `${baseUrl}/support`,
+    twitterTitle: 'Support - SafePsy',
+    twitterDescription:
+      'Help with login, onboarding, billing, privacy, and data deletion or export.',
+    twitterImage: defaultImage,
+    twitterCard: 'summary',
+    canonical: `${baseUrl}/support`,
   },
   '/faq': {
     title: 'FAQ - SafePsy | Frequently Asked Questions',

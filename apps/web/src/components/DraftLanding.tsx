@@ -1,12 +1,13 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Shield, Heart, Users, AlertCircle, CheckCircle, Loader2, Zap, Lock, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react'
+import { Shield, Heart, Users, AlertCircle, CheckCircle, Loader2, ArrowRight, Sparkles, CalendarCheck, Brain, BadgeCheck, MessageSquareHeart } from 'lucide-react'
 import Header from './Header'
 import Footer from './Footer'
 import { useOffline } from '../hooks/useOffline'
 import { useToast } from '../hooks/useToast'
 import { getActionableErrorMessage, fetchWithErrorHandling } from '../utils/errorMessages'
 import { FAQ_ITEMS } from '../data/faq'
+import FAQAccordion from './FAQAccordion'
 
 interface SignupResponse {
   success: boolean
@@ -16,13 +17,14 @@ interface SignupResponse {
 export default function DraftLanding() {
   const { isOffline } = useOffline()
   const { showToast, ToastContainer } = useToast()
-  const [formData, setFormData] = useState({ email: '', consentGiven: false })
+  const [formData, setFormData] = useState({ email: '', preference: 'individual', consentGiven: false })
   const [isLoading, setIsLoading] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const ctaLabel = useMemo(() => (isOffline ? 'Queue chat request' : 'Chat with Dr. Safe'), [isOffline])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value }))
   }
@@ -46,7 +48,11 @@ export default function DraftLanding() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email.trim().toLowerCase(), consentGiven: formData.consentGiven }),
+          body: JSON.stringify({
+            email: formData.email.trim().toLowerCase(),
+            preference: formData.preference,
+            consentGiven: formData.consentGiven,
+          }),
         }
       )
       const data: SignupResponse = await response.json()
@@ -54,7 +60,7 @@ export default function DraftLanding() {
         setStatus('success')
         setMessage(data.message)
         showToast('success', data.message)
-        setFormData({ email: '', consentGiven: false })
+        setFormData({ email: '', preference: 'individual', consentGiven: false })
       } else {
         setStatus('error')
         setMessage(getActionableErrorMessage(null, { status: response.status, originalMessage: data.message }))
@@ -71,150 +77,176 @@ export default function DraftLanding() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main id="main-content" className="flex-1" role="main" aria-label="Draft landing" tabIndex={-1}>
-        <div className="container-max section-padding py-8 lg:py-12 space-y-16 lg:space-y-24">
-          {/* 1. Hero: who / what / why now */}
-          <section className="mb-12">
-            <div className="text-center max-w-4xl mx-auto space-y-6">
+        <div className="container-max section-padding py-8 lg:py-12 space-y-14 lg:space-y-20 relative overflow-hidden">
+          <div className="pointer-events-none absolute -top-28 -left-20 w-72 h-72 rounded-full bg-primary-400/20 blur-3xl animate-pulse" />
+          <div className="pointer-events-none absolute top-64 -right-24 w-72 h-72 rounded-full bg-secondary-400/20 blur-3xl animate-pulse" />
+
+          <section className="mb-6">
+            <div className="max-w-5xl mx-auto bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-3xl border border-neutral-dark/20 dark:border-white/20 p-6 sm:p-8 lg:p-12">
+              <p className="inline-flex items-center gap-2 text-sm sm:text-base text-heading mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 rounded-full px-4 py-2">
+                <Sparkles className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                Psychological support with a safe approach
+              </p>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl text-heading leading-tight font-normal fade-in">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold">
-                  Private mental wellness support—you keep control of your data.
+                  A safe, inclusive and research-backed space to understand yourself.
                 </span>
               </h1>
-              <p className="text-xl sm:text-2xl text-body leading-relaxed">
-                <strong className="text-heading">Who:</strong> People in or considering therapy, and anyone who wants AI-assisted reflection without giving up data ownership.
+              <p className="text-lg sm:text-xl text-body leading-relaxed mt-6 max-w-3xl">
+                For people who feel emotionally overloaded, stuck in overthinking, or disconnected in relationships.
+                Chat with Dr. Safe for structured reflection between sessions, while keeping control of your data.
               </p>
-              <p className="text-lg sm:text-xl text-body leading-relaxed">
-                <strong className="text-heading">What:</strong> SafePsy is a privacy-first platform. Connect your wallet, create your on-chain identity (DID), and chat with Dr. Safe—our ethical AI assistant for between-session support.
-              </p>
-              <p className="text-lg sm:text-xl text-body leading-relaxed">
-                <strong className="text-heading">Why now:</strong> Mental health support should be safer and more private. We don’t use your chats to train AI, we don’t store your data with third parties, and your encryption keys stay in your control.
-              </p>
-              <div className="pt-2">
-                <Link
-                  to="/about-us"
-                  className="inline-flex items-center gap-2 text-primary-600 dark:text-primary-400 font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
-                  aria-label="Learn more about SafePsy"
-                >
-                  Learn more
+              <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                <Link to="/beta/chat" className="btn-primary inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6">
+                  Chat with Dr. Safe
+                  <ArrowRight className="w-5 h-5" />
                 </Link>
+                <a href="#journey" className="btn-secondary inline-flex items-center justify-center text-base sm:text-lg px-6">
+                  Explore
+                </a>
               </div>
             </div>
           </section>
 
-          {/* 2. Problem → cost of problem */}
-          <section className="mb-12 sm:mb-16">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6">
-                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                  The problem
-                </span>
+          <section id="journey">
+            <div className="max-w-5xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Do you feel like this?</span>
               </h2>
-              <p className="text-body text-lg leading-relaxed mb-4">
-                Most mental-health tools and AI chatbots hold your data on their servers, use it for analytics or model training, and leave you with no real ownership. That creates risk for stigma, breaches, and loss of control when you’re at your most vulnerable.
-              </p>
-              <p className="text-body text-lg leading-relaxed font-medium text-heading">
-                The cost: you either skip digital support, or you accept that your reflections and conversations are no longer fully yours.
-              </p>
-            </div>
-          </section>
-
-          {/* 3. What SP does (3 steps) */}
-          <section>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-10 text-center">
-              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                How SafePsy works
-              </span>
-            </h2>
-            <div className="grid sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <div className="text-center space-y-4">
-                <div className="w-14 h-14 mx-auto bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center border border-primary-200 dark:border-primary-700">
-                  <Lock className="w-7 h-7 text-primary-600 dark:text-primary-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-heading">1. Connect & create your identity</h3>
-                <div className="text-body text-sm sm:text-base space-y-2 text-left">
-                  <p>Connect your wallet and create your DID (on-chain identity). Your identity is cryptographically secured and tied to you—SafePsy does not hold custody of it.</p>
-                </div>
-              </div>
-              <div className="text-center space-y-4">
-                <div className="w-14 h-14 mx-auto bg-secondary-100 dark:bg-secondary-900/30 rounded-full flex items-center justify-center border border-secondary-200 dark:border-secondary-700">
-                  <MessageSquare className="w-7 h-7 text-secondary-600 dark:text-secondary-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-heading">2. Chat with Dr. Safe</h3>
-                <div className="text-body text-sm sm:text-base space-y-2 text-left">
-                  <p>Have a private conversation with our ethical AI assistant. Prepare for sessions, reflect, practice coping strategies, or organize your thoughts. Dr. Safe is not a substitute for a therapist—it complements licensed care.</p>
-                </div>
-              </div>
-              <div className="text-center space-y-4">
-                <div className="w-14 h-14 mx-auto bg-accent-100 dark:bg-accent-900/30 rounded-full flex items-center justify-center border border-accent-200 dark:border-accent-700">
-                  <Shield className="w-7 h-7 text-accent-600 dark:text-accent-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-heading">3. Your data stays yours</h3>
-                <div className="text-body text-sm sm:text-base space-y-2 text-left">
-                  <p>Chat and summary data are encrypted at rest (AES-256-GCM). Keys are derived from your wallet and are not stored on our servers. We do not use your chat content to train models. You can export, manage, or delete your data.</p>
-                </div>
+              <div className="grid sm:grid-cols-3 gap-4">
+                {[
+                  'You feel stuck but do not know why',
+                  'You overthink everything and feel exhausted',
+                  'Your relationships feel heavy lately',
+                ].map((pain) => (
+                  <div key={pain} className="p-5 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                    <p className="text-body text-base sm:text-lg">{pain}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
 
-          {/* 4. Trust section (accurate, non-hype) */}
           <section>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 text-center">
-              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                Trust & transparency
-              </span>
+              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Services simplified</span>
             </h2>
-            <div className="max-w-3xl mx-auto space-y-6 text-body text-sm sm:text-base">
-              <p><strong className="text-heading">Encryption:</strong> Chat and summary data are encrypted at rest using AES-256-GCM; only ciphertext is stored. Data is transmitted over TLS 1.3. Sensitive content is encrypted client-side before sending. To provide AI responses, message content is decrypted temporarily in server memory only during the request; plaintext is not written to disk, logs, or database.</p>
-              <p><strong className="text-heading">Keys:</strong> Encryption keys are derived from your wallet and are not stored on SafePsy servers. You control your keys.</p>
-              <p><strong className="text-heading">Privacy:</strong> We do not log chat message content. We do not use your chat content to train our models. We do not send user identifiers or DID information to the AI service—only message content as required for responses. Chat content is processed by a third-party AI provider; their data-handling policies apply to that content.</p>
-              <p><strong className="text-heading">Identity:</strong> DID operations run on Sepolia Testnet (check the app for current network). DID identifiers and metadata are on-chain and public; chat content is not stored on-chain.</p>
-              <p><strong className="text-heading">Compliance:</strong> We implement measures aimed at GDPR compliance and support HIPAA-style safeguards. We are not HIPAA certified. We aim to operate in line with APA guidelines for professional ethics; we do not certify compliance with any specific body.</p>
-              <p><strong className="text-heading">AI:</strong> The AI assistant is not a substitute for professional mental health care. It does not provide medical advice, diagnosis, or treatment. Always consult licensed professionals for clinical decisions.</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              <article className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <p className="text-sm text-body mb-2">Need</p>
+                <h3 className="text-xl text-heading mb-2">I feel overwhelmed</h3>
+                <p className="text-body mb-4">Outcome: clearer emotions and practical coping structure.</p>
+                <p className="text-body text-sm mb-4">Solution: individual support flow with Dr. Safe + therapist preparation prompts.</p>
+                <Link to="/beta/chat" className="text-primary-600 dark:text-primary-400 font-semibold inline-flex items-center gap-2">Start now <ArrowRight className="w-4 h-4" /></Link>
+              </article>
+              <article className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <p className="text-sm text-body mb-2">Need</p>
+                <h3 className="text-xl text-heading mb-2">My relationship is struggling</h3>
+                <p className="text-body mb-4">Outcome: better communication and less emotional escalation.</p>
+                <p className="text-body text-sm mb-4">Solution: guided reflection prompts and journaling before difficult conversations.</p>
+                <Link to="/beta/chat" className="text-primary-600 dark:text-primary-400 font-semibold inline-flex items-center gap-2">Try chat preview <ArrowRight className="w-4 h-4" /></Link>
+              </article>
+              <article className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <p className="text-sm text-body mb-2">Need</p>
+                <h3 className="text-xl text-heading mb-2">I need clarity</h3>
+                <p className="text-body mb-4">Outcome: clearer pattern recognition before your next session.</p>
+                <p className="text-body text-sm mb-4">Solution: structured prompts, summaries, and exportable insights.</p>
+                <Link to="/beta/chat" className="text-primary-600 dark:text-primary-400 font-semibold inline-flex items-center gap-2">Open Dr. Safe <ArrowRight className="w-4 h-4" /></Link>
+              </article>
             </div>
           </section>
 
-          {/* 5. Use cases (2–3) */}
           <section>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 text-center">
-              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                Use cases
-              </span>
+              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">How it works</span>
             </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/50 dark:bg-black/20 text-center flex flex-col items-center">
-                <Zap className="w-10 h-10 text-primary-600 dark:text-primary-400 mb-3 flex-shrink-0" />
-                <h3 className="text-lg font-semibold text-heading mb-2">Between therapy sessions</h3>
-                <p className="text-body text-sm">Reflect, clarify thoughts, and prepare for appointments in a private space. Track patterns and practice coping strategies without leaving a trail on traditional platforms.</p>
+            <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-5">
+              {[
+                { icon: CalendarCheck, title: '1. Book or start chat', copy: 'Open chat in seconds or prepare for your next therapy session.' },
+                { icon: Brain, title: '2. Understand your situation', copy: 'Use prompts to map emotions, triggers, and relationship patterns.' },
+                { icon: MessageSquareHeart, title: '3. Work toward change', copy: 'Turn insights into small, realistic actions you can follow this week.' },
+              ].map((step) => (
+                <div key={step.title} className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                  <step.icon className="w-8 h-8 text-primary-600 dark:text-primary-400 mb-3" />
+                  <h3 className="text-lg text-heading mb-2">{step.title}</h3>
+                  <p className="text-body">{step.copy}</p>
+                </div>
+              ))}
+            </div>
+            <p className="max-w-3xl mx-auto text-center text-body mt-6">Expected timeline: first useful reflection in under 5 minutes, then a weekly routine between sessions.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 text-center">
+              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Why you can trust Dr. Safe</span>
+            </h2>
+            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-5">
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <BadgeCheck className="w-7 h-7 text-secondary-600 dark:text-secondary-400 mb-3" />
+                <p className="text-body text-sm sm:text-base"><strong className="text-heading">Privacy & security:</strong> AES-256-GCM at rest, TLS 1.3 in transit, and no chat-content logging. Keys are derived from your wallet and not stored on SafePsy servers.</p>
               </div>
-              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/50 dark:bg-black/20 text-center flex flex-col items-center">
-                <Heart className="w-10 h-10 text-secondary-600 dark:text-secondary-400 mb-3 flex-shrink-0" />
-                <h3 className="text-lg font-semibold text-heading mb-2">Taking the first step</h3>
-                <p className="text-body text-sm">A low-pressure, confidential entry point. Not ready to book a therapist? Use Dr. Safe to organize emotions and explore support—with keys and data in your control.</p>
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <Shield className="w-7 h-7 text-primary-600 dark:text-primary-400 mb-3" />
+                <p className="text-body text-sm sm:text-base"><strong className="text-heading">Clinical boundaries:</strong> Dr. Safe is not a substitute for licensed therapy and does not provide diagnosis or medical treatment.</p>
               </div>
-              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/50 dark:bg-black/20 sm:col-span-2 lg:col-span-1 text-center flex flex-col items-center">
-                <Users className="w-10 h-10 text-accent-600 dark:text-accent-400 mb-3 flex-shrink-0" />
-                <h3 className="text-lg font-semibold text-heading mb-2">Global, privacy-first access</h3>
-                <p className="text-body text-sm">Wallet-based authentication and transparent pricing. Access support regardless of geography, with privacy by design.</p>
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <Users className="w-7 h-7 text-accent-600 dark:text-accent-400 mb-3" />
+                <p className="text-body text-sm sm:text-base"><strong className="text-heading">Compliance language:</strong> we implement measures aimed at GDPR compliance and support HIPAA-style safeguards (no HIPAA certification claim).</p>
+              </div>
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <Heart className="w-7 h-7 text-secondary-600 dark:text-secondary-400 mb-3" />
+                <p className="text-body text-sm sm:text-base"><strong className="text-heading">Transparency:</strong> DID operations run on Sepolia Testnet; on-chain metadata is public, while chat content is off-chain and encrypted.</p>
               </div>
             </div>
           </section>
 
-          {/* 6. CTA + pricing / waitlist */}
-          <section className="mb-12 sm:mb-16 fade-in">
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 max-w-2xl mx-auto">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl text-heading mb-2 text-center px-2">
-                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                  Get early access
-                </span>
-              </h2>
-              <p className="text-body text-center mb-6 sm:mb-8">
-                We offer free-tier usage and premium options; pricing is transparent and shown in the app. Join the waitlist for early access and product updates.
-              </p>
+          <section>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 text-center">
+              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Case-style transformations</span>
+            </h2>
+            <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-5">
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <p className="text-sm text-body mb-2">Before</p>
+                <p className="text-body mb-4">"I freeze before difficult conversations."</p>
+                <p className="text-sm text-body mb-2">After several guided chats</p>
+                <p className="text-body">A user-prepared conversation outline with calmer language and clear boundaries to bring into therapy.</p>
+              </div>
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <p className="text-sm text-body mb-2">Before</p>
+                <p className="text-body mb-4">"My thoughts spin at night and I lose track."</p>
+                <p className="text-sm text-body mb-2">After consistent use</p>
+                <p className="text-body">A simple reflection routine: trigger -&gt; emotion -&gt; coping action, ready to discuss with a therapist.</p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6 text-center">
+              <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Pricing transparency</span>
+            </h2>
+            <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-5 mb-8">
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <h3 className="text-xl text-heading mb-2">Beta</h3>
+                <p className="text-body font-semibold mb-2">Free</p>
+                <p className="text-body text-sm">Start now and help shape the product through feedback.</p>
+              </div>
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <h3 className="text-xl text-heading mb-2">Premium</h3>
+                <p className="text-body font-semibold mb-2">$19/month (doc target)</p>
+                <p className="text-body text-sm">Extended quotas in the target model. Current implementation keeps a single premium path around $20.</p>
+              </div>
+              <div className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20">
+                <h3 className="text-xl text-heading mb-2">Gold</h3>
+                <p className="text-body font-semibold mb-2">$69/month (doc target)</p>
+                <p className="text-body text-sm">Unlimited quotas in the documented model, including wallet cashback when fully implemented.</p>
+              </div>
+            </div>
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-10 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 max-w-2xl mx-auto">
+              <h3 className="text-xl sm:text-2xl text-heading mb-2 text-center">Start in 2 steps</h3>
+              <p className="text-body text-center mb-6">Leave your email and your current priority. We keep it short to reduce friction.</p>
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" aria-label="Join waitlist form" noValidate>
                 <div className="space-y-2">
-                  <label htmlFor="draft-email" className="block text-base sm:text-lg font-medium text-heading">
-                    Email Address *
-                  </label>
+                  <label htmlFor="draft-email" className="block text-base sm:text-lg font-medium text-heading">Email *</label>
                   <input
                     type="email"
                     id="draft-email"
@@ -232,7 +264,7 @@ export default function DraftLanding() {
                         ? 'border-red-500 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
                         : 'border-neutral-300 focus:border-primary-500'
                     }`}
-                    placeholder="Enter your email address"
+                    placeholder="you@example.com"
                   />
                   <span id="draft-email-help" className="sr-only">Enter a valid email address to join our waitlist</span>
                   {status === 'error' && !formData.email.trim() && (
@@ -241,6 +273,20 @@ export default function DraftLanding() {
                       <span>Please enter your email address</span>
                     </div>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="draft-preference" className="block text-base sm:text-lg font-medium text-heading">Current priority *</label>
+                  <select
+                    id="draft-preference"
+                    name="preference"
+                    value={formData.preference}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 text-base sm:text-lg border-2 rounded-xl focus:ring-2 focus:ring-primary-200 focus:outline-none transition-all duration-300 bg-white/80 backdrop-blur-sm border-neutral-300 focus:border-primary-500 min-h-[44px]"
+                  >
+                    <option value="individual">I feel overwhelmed</option>
+                    <option value="relationship">My relationship is struggling</option>
+                    <option value="clarity">I need clarity</option>
+                  </select>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-start space-x-3">
@@ -257,7 +303,7 @@ export default function DraftLanding() {
                       className="mt-1 w-5 h-5 text-primary-600 border-2 border-neutral-300 rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50 min-w-[20px] min-h-[20px]"
                     />
                     <label htmlFor="draft-consent" className="text-xs sm:text-sm text-body leading-relaxed">
-                      I consent to SafePsy collecting and processing my personal data for the purpose of joining the waitlist and receiving product updates. I have read and agree to the{' '}
+                      I consent to SafePsy collecting and processing my personal data for beta access and updates. I have read and agree to the{' '}
                       <Link to="/tos" className="text-primary-600 hover:text-primary-700 underline font-medium break-words" target="_blank" rel="noopener noreferrer">
                         Terms of Service
                       </Link>
@@ -306,12 +352,12 @@ export default function DraftLanding() {
                     {isLoading ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-                        <span>Joining...</span>
+                        <span>Submitting...</span>
                       </>
                     ) : isOffline ? (
-                      'Queue for Later (Offline)'
+                      'Queue request'
                     ) : (
-                      'Join Waitlist'
+                      'Get beta access'
                     )}
                   </button>
                 </div>
@@ -319,49 +365,37 @@ export default function DraftLanding() {
             </div>
           </section>
 
-          {/* 7. FAQ (top 10) */}
           <section id="faq">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-8 text-center">
               <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                 Frequently asked questions
               </span>
             </h2>
-            <div className="max-w-3xl mx-auto space-y-1">
-              {FAQ_ITEMS.map((item, i) => (
-                <div key={i} className="border-b border-neutral-200 dark:border-white/20">
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
-                    className="w-full py-3 sm:py-4 flex items-center justify-between gap-3 text-left min-h-[44px] hover:bg-neutral-50 dark:hover:bg-white/5 rounded-lg transition-colors"
-                    aria-expanded={openFaqIndex === i}
-                    aria-controls={`faq-answer-${i}`}
-                    id={`faq-question-${i}`}
-                  >
-                    <span className="text-heading font-medium text-sm sm:text-base">{item.q}</span>
-                    {openFaqIndex === i ? (
-                      <ChevronUp className="w-4 h-4 text-body flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-body flex-shrink-0" />
-                    )}
-                  </button>
-                  <div
-                    id={`faq-answer-${i}`}
-                    role="region"
-                    aria-labelledby={`faq-question-${i}`}
-                    className={`overflow-hidden transition-all duration-200 ease-out ${
-                      openFaqIndex === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                  >
-                    <p className="text-body text-xs sm:text-sm pb-4 pl-0 pr-8 whitespace-pre-line">
-                      {item.a}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <FAQAccordion items={FAQ_ITEMS} answerClassName="text-xs sm:text-sm" />
+          </section>
+
+          <section className="mb-12">
+            <div className="max-w-5xl mx-auto text-center bg-white/70 dark:bg-black/30 border border-neutral-dark/20 dark:border-white/20 rounded-3xl p-8 sm:p-10">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-3">You do not have to figure this out alone.</h2>
+              <p className="text-body mb-6">Start with one safe conversation now, then move forward at your own pace.</p>
+              <Link to="/beta/chat" className="btn-primary inline-flex items-center gap-2 text-base sm:text-lg px-7">
+                Chat with Dr. Safe
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </div>
           </section>
         </div>
       </main>
+      <div className="fixed bottom-4 right-4 z-40">
+        <Link
+          to="/beta/chat"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-full shadow-xl bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold hover:scale-105 active:scale-95 transition-transform"
+          aria-label="Open chat with Dr. Safe"
+        >
+          {ctaLabel}
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
       <Footer />
       <ToastContainer />
     </div>

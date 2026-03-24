@@ -33,7 +33,20 @@ All new containers use names prefixed with `new`:
 
 ## Deploy and verify (from a host with SSH to Scaleway)
 
-1. **App (scw-focused-dubinsky)**  
+### Fresh app server (no repo on VM yet): bootstrap from your laptop
+
+**Do not** run `ssh root@51.159.176.62 'AUTO_GENERATE_DB_PASSWORD=1 bash -s'` **without** piping the script — it will **hang** (`bash -s` reads the script from stdin).
+
+```bash
+cd /path/to/SPappv1.1
+bash deployment/run-bootstrap-on-app-server.sh
+```
+
+Optional: `DATABASE_PASSWORD='…' bash deployment/run-bootstrap-on-app-server.sh` or `SSH_SERVER_IP=…` / `SSH_KEY_FILE=…`.
+
+First Docker build often takes **15–25+ minutes**.
+
+1. **App (scw-focused-dubinsky)** — existing clone / rsync deploy  
    From repo root, with `DATABASE_PASSWORD` set:
    ```bash
    export SSH_SERVER_IP=51.159.176.62

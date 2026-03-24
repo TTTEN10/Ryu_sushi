@@ -35,6 +35,14 @@
     <priority>0.8</priority>
   </url>
   
+  <!-- Support -->
+  <url>
+    <loc>https://safepsy.com/support</loc>
+    <lastmod>2026-03-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
   <!-- FAQ -->
   <url>
     <loc>https://safepsy.com/faq</loc>

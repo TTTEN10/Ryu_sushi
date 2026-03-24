@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Mail, Instagram, Linkedin, Settings, HelpCircle } from 'lucide-react'
+import { Mail, Instagram, Linkedin, Settings, HelpCircle, LifeBuoy } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import CookieManager from './CookieManager'
 
@@ -38,6 +38,16 @@ const Footer: React.FC = () => {
                 <Mail className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
                 <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300">
                   Contact
+                </span>
+              </button>
+              <button
+                onClick={() => navigate('/support')}
+                className="flex items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                aria-label="Support"
+              >
+                <LifeBuoy className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300">
+                  Support
                 </span>
               </button>
               <button
@@ -99,6 +109,14 @@ const Footer: React.FC = () => {
               >
                 <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
                   Cookie Policy
+                </span>
+              </button>
+              <button 
+                onClick={() => navigate('/feedback')}
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+              >
+                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                  Beta feedback
                 </span>
               </button>
               <button 

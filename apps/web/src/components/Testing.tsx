@@ -22,6 +22,22 @@ export default function Testing() {
                   Chat with Dr. Safe
                 </span>
               </h1>
+              <div className="max-w-3xl mx-auto mt-6">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+                  <div className="p-3 rounded-xl border border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20">
+                    <p className="text-heading font-semibold">Step 1</p>
+                    <p className="text-body">Set up profile</p>
+                  </div>
+                  <div className="p-3 rounded-xl border border-secondary-300 dark:border-secondary-700 bg-secondary-50 dark:bg-secondary-900/20">
+                    <p className="text-heading font-semibold">Step 2</p>
+                    <p className="text-body">Secure DID</p>
+                  </div>
+                  <div className="p-3 rounded-xl border border-accent-300 dark:border-accent-700 bg-accent-50 dark:bg-accent-900/20">
+                    <p className="text-heading font-semibold">Step 3</p>
+                    <p className="text-body">Start chat</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* DID Profile */}

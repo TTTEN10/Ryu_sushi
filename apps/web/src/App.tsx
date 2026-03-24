@@ -17,6 +17,8 @@ import HiddenPage from "./components/HiddenPage";
 import Status from "./components/Status";
 import DraftLanding from "./components/DraftLanding";
 import FAQ from "./components/FAQ";
+import Support from "./components/Support";
+import Feedback from "./components/Feedback";
 import { useSEO } from "./hooks/useSEO";
 import { useCookieConsent } from "./hooks/useCookieConsent";
 import { useFocusManagement, useKeyboardNavigation } from "./hooks/useFocusManagement";
@@ -130,6 +132,16 @@ export default function App() {
           <Route path="/faq" element={
             <RouteWithSEO>
               <FAQ />
+            </RouteWithSEO>
+          } />
+          <Route path="/support" element={
+            <RouteWithSEO>
+              <Support />
+            </RouteWithSEO>
+          } />
+          <Route path="/feedback" element={
+            <RouteWithSEO>
+              <Feedback />
             </RouteWithSEO>
           } />
           <Route path="/500" element={

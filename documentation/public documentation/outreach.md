@@ -210,6 +210,110 @@ SafePsy: on-chain identity (DID), wallet-controlled encryption, no central custo
 
 ---
 
+## 4. Targeted outreach (subject + body)
+
+Short and strong variants by audience. Replace `[First Name]`, `[Your Name]`, and `[Your LinkedIn or Website]` before sending. Cross-check body copy with [CLAIMS_AND_TRUST_LANGUAGE.md](./CLAIMS_AND_TRUST_LANGUAGE.md).
+
+### Targeting ALL
+
+**Short version**
+
+**Subject:** SafePsy – Ethical AI Therapy That Scales
+
+Hi [First Name],
+
+We're building SafePsy to make high-quality therapy accessible to all—combining ethical AI, decentralized infrastructure, and APA-aligned best practices.
+
+Our platform connects patients and professionals in a secure digital space, with end-to-end encrypted data stored on sovereign infrastructure. Think personalized, scalable, and privacy-first mental health support—built for the real world.
+
+We’re now looking for strategic partners to help us grow. Open to a quick call?
+
+Best,  
+[Your Name]  
+Cofounder, SafePsy  
+[Your LinkedIn or Website]
+
+**Strong version**
+
+*(To be drafted.)*
+
+---
+
+### Targeting VCs & Angel investors
+
+**Short version**
+
+**Subject:** SafePsy – Scalable AI Therapy Built with Privacy & Purpose
+
+Hi [First Name],
+
+We’re building SafePsy, a next-gen mental health platform at the intersection of AI and digital health—designed to scale therapy access while putting ethics, privacy, and personalization first.
+
+Using decentralized infrastructure and APA-aligned methodologies, we enable secure, wallet-based access to AI-powered therapeutic support—built to meet growing global demand.
+
+We’re now raising to accelerate growth and would love to explore alignment. Open to a quick intro call?
+
+Best,  
+[Your Name]  
+Cofounder, SafePsy  
+[Your LinkedIn or Website]
+
+**Strong version**
+
+*(To be drafted.)*
+
+---
+
+### Targeting Web-3.0 actors
+
+**Short version**
+
+**Subject:** SafePsy – Decentralized Mental Health Support Built on Web3
+
+Hi [First Name],
+
+We’re building SafePsy, a decentralized mental health platform that blends ethical AI therapy with Web3 principles—privacy, sovereignty, and interoperability.
+
+Users connect in a secure, encrypted environment, with data stored via decentralized storage and access managed through wallet-based identity. APA-compliant and privacy-by-design, SafePsy scales personalized care while respecting user autonomy.
+
+We’re now seeking Web3-aligned partners to help us grow. Would you be open to a quick call?
+
+Best regards,  
+[Your Name]  
+Cofounder, SafePsy  
+[Your LinkedIn or Website]
+
+**Strong version**
+
+*(To be drafted.)*
+
+---
+
+### Targeting mental-health specialized
+
+**Short version**
+
+**Subject:** SafePsy – Scalable, Ethical AI Therapy for Modern Mental Health
+
+Hi [First Name],
+
+At SafePsy, we’re reimagining access to mental health care—combining ethical AI with clinical integrity to deliver personalized, APA-aligned therapy at scale.
+
+Our platform connects users and professionals in a secure digital environment, with encrypted data stored on sovereign, decentralized infrastructure. We prioritize confidentiality, therapeutic effectiveness, and adaptability to diverse needs.
+
+We're now seeking mission-aligned partners to help expand our impact. Would you be open to a quick call?
+
+Warm regards,  
+[Your Name]  
+Cofounder, SafePsy  
+[Your LinkedIn or Website]
+
+**Strong version**
+
+*(To be drafted.)*
+
+---
+
 ## Usage notes
 
 - **Subject lines:** Short and specific, e.g. “SafePsy – [Referrer] intro” (warm), “Private mental wellness – wallet & DID” (cold).
