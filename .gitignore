@@ -40,9 +40,9 @@ build/
 ehthumbs.db
 Thumbs.db
 
-# Logs
-logs
+# Logs (root logs/ holds self-healing monitor logs; *.log ignores contents)
 *.log
+!/logs/.gitkeep
 
 # Runtime data
 pids
@@ -162,6 +162,10 @@ service-account*.json
 .aws/
 aws-credentials
 aws-config
+
+# Self-healing monitor runtime state (local clone; server uses /opt/spapp-monitor/state|lock)
+.lock/deploy.lock
+.lock/monitor_state
 
 # Scaleway credentials
 .scaleway/
