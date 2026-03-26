@@ -331,8 +331,8 @@
   }
   
   .progress-bar-fill {
-    @apply h-full bg-gradient-to-r from-primary-600 to-secondary-600 transition-all duration-300;
-    animation: progressShimmer 2s infinite;
+    @apply h-full bg-gradient-to-r from-primary-600 to-secondary-600 transition-all duration-500;
+    animation: progressShimmer 6s infinite;
   }
   
   @keyframes progressShimmer {

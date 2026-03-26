@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Push app-server self-healing monitor to production (no full repo on the host).
-# Installs under /opt/spapp-monitor: healthcheck.sh, monitor.sh, on-app-server-recover.sh
+# Installs under /opt/spapp-monitor: monitor.sh (includes healthcheck), on-app-server-recover.sh
 #
 # Env:
 #   APP_IP                default 51.159.117.169 (see deployment/deploy-app.sh)
@@ -32,7 +32,6 @@ printf 'Installing app-server monitor on root@%s -> %s\n' "${APP_IP}" "${MONITOR
 ssh "${SSH_OPTS[@]}" "root@${APP_IP}" "mkdir -p '${MONITOR_REMOTE_ROOT}/logs' '${MONITOR_REMOTE_ROOT}/state' '${MONITOR_REMOTE_ROOT}/lock'"
 
 scp "${SCP_OPTS[@]}" \
-  "${REPO_ROOT}/deployment/app-server-monitor/healthcheck.sh" \
   "${REPO_ROOT}/deployment/app-server-monitor/monitor.sh" \
   "root@${APP_IP}:${MONITOR_REMOTE_ROOT}/"
 
@@ -41,7 +40,7 @@ scp "${SCP_OPTS[@]}" \
   "root@${APP_IP}:${MONITOR_REMOTE_ROOT}/on-app-server-recover.sh"
 
 ssh "${SSH_OPTS[@]}" "root@${APP_IP}" \
-  "chmod +x '${MONITOR_REMOTE_ROOT}/healthcheck.sh' '${MONITOR_REMOTE_ROOT}/monitor.sh' '${MONITOR_REMOTE_ROOT}/on-app-server-recover.sh'"
+  "chmod +x '${MONITOR_REMOTE_ROOT}/monitor.sh' '${MONITOR_REMOTE_ROOT}/on-app-server-recover.sh'"
 
 ssh "${SSH_OPTS[@]}" "root@${APP_IP}" \
   "MONITOR_REMOTE_ROOT='${MONITOR_REMOTE_ROOT}' APP_USER='${APP_USER}' APP_SERVER_IP='${APP_IP}' bash -s" <<'REMOTE'
@@ -59,6 +58,6 @@ REMOTE
 
 printf '\nSmoke: healthcheck on server\n'
 ssh "${SSH_OPTS[@]}" "root@${APP_IP}" \
-  "MONITOR_ROOT='${MONITOR_REMOTE_ROOT}' APP_IP='${APP_IP}' '${MONITOR_REMOTE_ROOT}/healthcheck.sh' && echo healthcheck_ok"
+  "MONITOR_ROOT='${MONITOR_REMOTE_ROOT}' APP_IP='${APP_IP}' '${MONITOR_REMOTE_ROOT}/monitor.sh' && echo monitor_ok"
 
 printf '\nDone. Cron: monitor.sh -> logs/cron.log; events: %s/logs/monitor.log\n' "${MONITOR_REMOTE_ROOT}"

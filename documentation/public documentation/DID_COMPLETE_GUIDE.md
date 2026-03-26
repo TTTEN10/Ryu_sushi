@@ -126,7 +126,7 @@ Get all available metadata about user's DID.
 1. **Connect Wallet** → MetaMask/WalletConnect
 2. **Verify Wallet** → Sign verification message
 3. **Auto-Check DID** → System checks if DID exists
-4. **No DID Found** → Shows "Create my SafePsy Identity" button
+4. **No DID Found** → Shows "Create my Safe ID Token" button
 5. **User Clicks Create** → Backend mints DID token
 6. **DID Created** → Token ID assigned, status updated
 
@@ -756,14 +756,14 @@ authState.didInfo = { hasDid: false, ... };
 <div>
   <AlertCircle /> No identity yet
   <button onClick={handleCreateDID}>
-    Create my SafePsy Identity
+    Create my Safe ID Token
   </button>
 </div>
 ```
 
 ### Step 4: User Creates DID
 ```typescript
-// User clicks "Create my SafePsy Identity"
+// User clicks "Create my Safe ID Token"
 await fetch('/api/did/create', {
   method: 'POST',
   headers: { 'Authorization': `Bearer ${token}` }
@@ -960,7 +960,7 @@ if (!this.signer && !allowPublicMinting) {
 2. Connect wallet
 3. Verify wallet
 4. Should see "No identity yet"
-5. Click "Create my SafePsy Identity"
+5. Click "Create my Safe ID Token"
 6. Should see "Identity Active" with token ID
 
 ### Test Returning User

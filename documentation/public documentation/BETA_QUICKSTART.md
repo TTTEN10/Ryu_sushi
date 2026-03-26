@@ -19,9 +19,9 @@ Follow these steps to reach **first value**: a private chat with Dr. Safe using 
 - The app will ask you to **sign a one-time verification message** (no gas cost).
 - Sign in your wallet. This proves you control the address and creates your session.
 
-### 3. Create your SafePsy identity (DID)
+### 3. Create your Safe ID Token
 
-- If you don’t have a DID yet, you’ll see **“Create my SafePsy Identity”** (or similar).
+- If you don’t have a DID yet, you’ll see **“Create my Safe ID Token”** (or similar).
 - Click it. A **soulbound identity token** is minted on-chain (Sepolia). You may need a small amount of test ETH for gas.
 - When you see **“Identity active”** (and a token ID), you’re done with this step.
 

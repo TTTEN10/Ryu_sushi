@@ -12,7 +12,6 @@
 #   MONITOR_ROOT         default /opt/spapp-monitor (or parent of this script if named monitor.sh)
 #   APP_IP               default 51.159.117.169
 #   RECOVER_SCRIPT       default ${MONITOR_ROOT}/on-app-server-recover.sh
-#   HEALTHCHECK_SCRIPT   default ${MONITOR_ROOT}/healthcheck.sh
 #   DEPLOY_COOLDOWN_SEC  default 600
 
 set -euo pipefail
@@ -20,7 +19,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MONITOR_ROOT="${MONITOR_ROOT:-${SCRIPT_DIR}}"
 APP_IP="${APP_IP:-51.159.117.169}"
-HEALTHCHECK_SCRIPT="${HEALTHCHECK_SCRIPT:-${SCRIPT_DIR}/healthcheck.sh}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://${APP_IP}/api/healthz}"
+HEALTHCHECK_RETRIES="${HEALTHCHECK_RETRIES:-3}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-10}"
+CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-5}"
 
 RECOVER_SCRIPT="${RECOVER_SCRIPT:-}"
 if [[ -z "${RECOVER_SCRIPT}" ]]; then
@@ -79,20 +81,34 @@ write_last_deploy_epoch() {
   mv -f "${LAST_DEPLOY_FILE}.new" "${LAST_DEPLOY_FILE}"
 }
 
-run_healthcheck() {
-  export APP_IP MONITOR_ROOT
+healthcheck_run_once() {
+  local cerr code curl_ec
+  cerr="$(mktemp)"
   set +e
-  "${HEALTHCHECK_SCRIPT}" >/dev/null 2>&1
-  local ec=$?
+  code="$(curl -sS -o /dev/null -w '%{http_code}' \
+    --connect-timeout "${CURL_CONNECT_TIMEOUT}" \
+    --max-time "${CURL_MAX_TIME}" \
+    "${HEALTHCHECK_URL}" 2>"${cerr}")"
+  curl_ec=$?
   set -e
-  return "${ec}"
+  rm -f "${cerr}"
+  [[ ${curl_ec} -eq 0 && "${code}" == "200" ]]
+}
+
+run_healthcheck() {
+  local attempt
+  for ((attempt = 1; attempt <= HEALTHCHECK_RETRIES; attempt++)); do
+    if healthcheck_run_once; then
+      return 0
+    fi
+    if [[ "${attempt}" -lt "${HEALTHCHECK_RETRIES}" ]]; then
+      sleep 2
+    fi
+  done
+  return 1
 }
 
 main() {
-  if [[ ! -x "${HEALTHCHECK_SCRIPT}" ]]; then
-    log_mon "ERROR: HEALTHCHECK_SCRIPT missing or not executable: ${HEALTHCHECK_SCRIPT}"
-    exit 1
-  fi
   if [[ ! -f "${RECOVER_SCRIPT}" ]]; then
     log_mon "ERROR: RECOVER_SCRIPT missing: ${RECOVER_SCRIPT}"
     exit 1

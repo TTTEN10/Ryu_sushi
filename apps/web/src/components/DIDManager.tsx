@@ -131,7 +131,7 @@ export default function DIDManager() {
       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
         <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
           <AlertCircle className="w-5 h-5" />
-          <p className="text-sm font-medium">Please verify your wallet to manage your DID identity</p>
+          <p className="text-sm font-medium">Please verify your wallet to manage your Safe ID Token</p>
         </div>
       </div>
     );
@@ -155,7 +155,7 @@ export default function DIDManager() {
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            <h3 className="text-lg font-semibold text-heading">SafePsy Identity</h3>
+            <h3 className="text-lg font-semibold text-heading">Safe ID Token</h3>
           </div>
           <button
             onClick={loadDIDInfo}
@@ -216,7 +216,7 @@ export default function DIDManager() {
                   No identity yet
                 </p>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                  Create your SafePsy identity to get started
+                  Create your Safe ID Token to get started
                 </p>
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function DIDManager() {
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  <span>Create my SafePsy Identity</span>
+                  <span>Create my Safe ID Token</span>
                 </>
               )}
             </button>

@@ -15,7 +15,7 @@ import AboutMe from "./components/AboutMe";
 import TermsOfService from "./components/TermsOfService";
 import HiddenPage from "./components/HiddenPage";
 import Status from "./components/Status";
-import DraftLanding from "./components/DraftLanding";
+import Landing from "./components/Landing";
 import FAQ from "./components/FAQ";
 import Support from "./components/Support";
 import Feedback from "./components/Feedback";
@@ -65,7 +65,7 @@ export default function App() {
           <Routes>
           <Route path="/" element={
             <RouteWithSEO>
-              <DraftLanding />
+              <Landing />
             </RouteWithSEO>
           } />
           <Route path="/about-us" element={
