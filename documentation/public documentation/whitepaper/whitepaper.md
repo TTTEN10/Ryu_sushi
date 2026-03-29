@@ -690,8 +690,7 @@ With these fixes, SafePsy will be ready for health-grade production deployment a
 ## References
 
 ### Technical Documentation
-- SafePsy Technical Review (TECHNICAL_REVIEW.md)
-- Audit Technical Review (audit_technical_Review.md)
+- SafePsy Technical Review — `documentation/private documentation/TECHNICAL_REVIEW.md` (includes audit findings; former `audit_technical_Review.md` merged March 2026)
 - Contract Implementation Summary (CONTRACT_IMPLEMENTATION_SUMMARY.md)
 - RAG Implementation Guide (documentation/api/RAG_IMPLEMENTATION.md)
 - [Tokenomics](../TOKENOMICS.md) — $PSY token, tiers, cashback to user wallet (Gold)

@@ -172,6 +172,11 @@
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
+
+  /* Shared "Try beta" CTA — same shape, font stack, and spacing everywhere */
+  .btn-try-beta {
+    @apply btn-primary inline-flex items-center justify-center gap-2 text-base sm:text-lg min-h-[44px] shrink-0;
+  }
   
   .input-field {
     @apply w-full px-4 py-3 border border-neutral-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 font-titillium font-regular text-text-primary hover:border-primary-400/50;
@@ -305,6 +310,15 @@
   }
 
   .link-hover:hover::after {
+    @apply w-full;
+  }
+
+  /* Footer: hover anywhere on the row (icon or label) applies link-hover to the label */
+  footer .group:hover .link-hover {
+    @apply text-primary-600;
+  }
+
+  footer .group:hover .link-hover::after {
     @apply w-full;
   }
   

@@ -85,6 +85,8 @@ groups:
           summary: "High memory usage"
           description: "Memory usage is above 85% for 10 minutes."
 
+      # CI/CD (GitHub Actions) enforces a higher floor via .github/actions/ci-disk-guard
+      # (default 20% free after cleanup) so runners fail before approaching this threshold.
       - alert: LowDiskSpace
         expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
         for: 5m

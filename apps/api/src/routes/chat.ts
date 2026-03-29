@@ -3,7 +3,7 @@ import Joi from 'joi';
 import logger from '../lib/logger';
 import { authenticateWallet, optionalAuthenticateWallet, AuthenticatedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 import { DIDService } from '../lib/did.service';
 import { ethers } from 'ethers';
 import { aiGatewayService, ChatCompletionRequest } from '../lib/ai-gateway.service';
@@ -210,7 +210,7 @@ router.post(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',
@@ -423,7 +423,7 @@ router.get(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',
@@ -510,7 +510,7 @@ router.get(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',

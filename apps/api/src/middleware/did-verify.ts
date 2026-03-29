@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import logger from '../lib/logger';
 import { WalletAuthRequest } from './wallet-auth';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 
 /**
  * Interface for DID verification request
@@ -68,7 +68,7 @@ function getDIDVerifyConfig(): (DIDVerifyConfig & { useNewRegistry: boolean }) |
   const legacyAddress = process.env.DID_IDENTITY_TOKEN_ADDRESS;
   const contractAddress = registryAddress || legacyAddress;
   const rpcUrl = process.env.RPC_URL || process.env.ETH_RPC_URL;
-  const chainId = ETHEREUM_MAINNET_CHAIN_ID;
+  const chainId = SUPPORTED_CHAIN_ID;
 
   if (!contractAddress || !rpcUrl) {
     logger.warn('DID verification not configured: missing DID_REGISTRY_ADDRESS (or DID_IDENTITY_TOKEN_ADDRESS) or RPC_URL');

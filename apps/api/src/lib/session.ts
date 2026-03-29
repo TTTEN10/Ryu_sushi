@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import logger from './logger';
-import { ETHEREUM_MAINNET_CHAIN_ID } from './constants';
+import { SUPPORTED_CHAIN_ID } from './constants';
 
 /**
  * JWT payload structure for wallet authentication
@@ -50,7 +50,7 @@ export function verifyWalletToken(token: string): WalletSessionPayload | null {
     const decoded = jwt.verify(token, JWT_SECRET) as WalletSessionPayload;
     
     // Validate chain ID
-    if (decoded.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+    if (decoded.chainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`Invalid chain ID in token: ${decoded.chainId}`);
       return null;
     }

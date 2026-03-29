@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import logger from '../lib/logger';
-import { SUPPORTED_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../lib/constants';
 
 /**
  * Validation middleware factory
@@ -79,7 +79,7 @@ export const commonSchemas = {
 
   // Chain ID validation - only supported network (Sepolia) is allowed
   chainId: Joi.number().integer().valid(SUPPORTED_CHAIN_ID).messages({
-    'any.only': `Only Sepolia Testnet (Chain ID: ${SUPPORTED_CHAIN_ID}) is supported`,
+    'any.only': `Only ${SUPPORTED_NETWORK_NAME} (Chain ID: ${SUPPORTED_CHAIN_ID}) is supported`,
   }),
 
   // Email validation

@@ -29,6 +29,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: CI disk guard (stricter than production)
+        uses: ./.github/actions/ci-disk-guard
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -62,6 +65,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: CI disk guard (stricter than production)
+        uses: ./.github/actions/ci-disk-guard
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

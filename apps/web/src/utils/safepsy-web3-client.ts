@@ -8,16 +8,15 @@
  */
 
 import { ethers } from 'ethers';
+import {
+  SUPPORTED_CHAIN_ID,
+  SUPPORTED_CHAIN_ID_HEX,
+  SUPPORTED_NETWORK_NAME,
+} from '../config/supportedChain';
 
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
-
-/**
- * Sepolia Testnet Chain ID (app network)
- */
-export const ETHEREUM_MAINNET_CHAIN_ID = 11155111;
-const ETHEREUM_MAINNET_CHAIN_ID_HEX = '0xAA36A7';
 
 /**
  * Wallet provider type
@@ -218,9 +217,9 @@ export class SafePsyWeb3Client {
     const provider = await this.getProvider();
     const network = await provider.getNetwork();
     
-    if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
+    if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
       throw new NetworkError(
-        `Unsupported network. Please switch to Sepolia Testnet (Chain ID: ${ETHEREUM_MAINNET_CHAIN_ID})`,
+        `Unsupported network. Please switch to ${SUPPORTED_NETWORK_NAME} (Chain ID: ${SUPPORTED_CHAIN_ID})`,
         { currentChainId: Number(network.chainId) }
       );
     }
@@ -239,7 +238,7 @@ export class SafePsyWeb3Client {
     try {
       await ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: ETHEREUM_MAINNET_CHAIN_ID_HEX }],
+        params: [{ chainId: SUPPORTED_CHAIN_ID_HEX }],
       });
     } catch (switchError: any) {
       // If chain doesn't exist, add it
@@ -248,7 +247,7 @@ export class SafePsyWeb3Client {
           await ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId: ETHEREUM_MAINNET_CHAIN_ID_HEX,
+              chainId: SUPPORTED_CHAIN_ID_HEX,
               chainName: 'Sepolia',
               nativeCurrency: {
                 name: 'Sepolia Ether',
@@ -371,11 +370,11 @@ export class SafePsyWeb3Client {
         method: 'POST',
         headers: {
           'x-wallet-address': walletAddress,
-          'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
         },
         body: JSON.stringify({
           address: walletAddress,
-          chainId: ETHEREUM_MAINNET_CHAIN_ID,
+          chainId: SUPPORTED_CHAIN_ID,
         }),
       });
 
@@ -403,7 +402,7 @@ export class SafePsyWeb3Client {
           address: walletAddress,
           signature,
           message,
-          chainId: ETHEREUM_MAINNET_CHAIN_ID,
+          chainId: SUPPORTED_CHAIN_ID,
         }),
       });
 

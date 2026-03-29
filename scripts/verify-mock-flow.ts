@@ -11,13 +11,13 @@
 
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
+import { SUPPORTED_CHAIN_ID } from '../apps/api/src/lib/constants';
 
 // Load environment variables
 dotenv.config();
 
 const API_BASE_URL = process.env.API_URL || 'http://localhost:3001';
 const TEST_WALLET_PRIVATE_KEY = process.env.TEST_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // Default Hardhat account
-const ETHEREUM_MAINNET_CHAIN_ID = 1;
 
 interface TestResult {
   step: string;
@@ -80,11 +80,11 @@ class FlowVerifier {
         headers: {
           'Content-Type': 'application/json',
           'x-wallet-address': this.wallet.address,
-          'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
         },
         body: JSON.stringify({
           address: this.wallet.address,
-          chainId: ETHEREUM_MAINNET_CHAIN_ID,
+          chainId: SUPPORTED_CHAIN_ID,
         }),
         signal: AbortSignal.timeout(10000), // 10 second timeout
       });
@@ -116,13 +116,13 @@ class FlowVerifier {
         headers: {
           'Content-Type': 'application/json',
           'x-wallet-address': this.wallet.address,
-          'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
         },
         body: JSON.stringify({
           address: this.wallet.address,
           message: message,
           signature: signature,
-          chainId: ETHEREUM_MAINNET_CHAIN_ID,
+          chainId: SUPPORTED_CHAIN_ID,
         }),
       });
 
@@ -181,7 +181,7 @@ class FlowVerifier {
           'Content-Type': 'application/json',
           'Cookie': `walletSession=${this.sessionToken}`,
           'x-wallet-address': this.wallet.address,
-          'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
         },
       });
 
@@ -206,7 +206,7 @@ class FlowVerifier {
           'Cookie': `walletSession=${this.sessionToken}`,
           'x-wallet-address': this.wallet.address,
           'x-wallet-signature': '', // May not be needed if session token is valid
-          'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
         },
       });
 
@@ -280,7 +280,7 @@ class FlowVerifier {
           'Content-Type': 'application/json',
           'Cookie': `walletSession=${this.sessionToken}`,
           'x-wallet-address': this.wallet.address,
-          'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
         },
         body: JSON.stringify({
           messages: [
@@ -379,7 +379,7 @@ class FlowVerifier {
             'Content-Type': 'application/json',
             'Cookie': `walletSession=${this.sessionToken}`,
             'x-wallet-address': this.wallet.address,
-            'x-chain-id': ETHEREUM_MAINNET_CHAIN_ID.toString(),
+            'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
           },
           body: JSON.stringify({
             messages: [{ role: 'user', content: 'Test message' }],

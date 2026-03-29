@@ -34,6 +34,6 @@ Full **certification** requires an accredited certification body and an implemen
 ## Related Documentation
 
 - [Security Configuration Guide](../SECURITY_COMPLETE_GUIDE.md)
-- [Security Headers](../SECURITY_HEADERS_IMPLEMENTATION.md)
-- [WAF Configuration](../WAF_CONFIGURATION.md)
-- [Deployment & Operations](../DEPLOYMENT_README.md)
+- [Security implementation (headers & dependency review)](../private%20documentation/SECURITY_HEADERS_IMPLEMENTATION.md)
+- [WAF Configuration](../private%20documentation/WAF_CONFIGURATION.md)
+- [Deployment & Operations](../private%20documentation/DEPLOYMENT_README.md)

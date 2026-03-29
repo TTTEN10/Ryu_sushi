@@ -1,4 +1,5 @@
 import React from 'react'
+import { ArrowRight } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import ConnectWallet from './ConnectWallet'
@@ -25,10 +26,11 @@ const Header: React.FC<HeaderProps> = () => {
           {showTryBeta ? (
             <Link
               to="/beta/chat"
-              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl font-medium transition-all duration-300 shadow-lg hover:shadow-xl min-h-[44px] text-sm sm:text-base hover:scale-105 active:scale-95"
+              className="btn-try-beta"
               aria-label="Try SafePsy beta chat"
             >
               Try beta
+              <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
             </Link>
           ) : (
             <ConnectWallet />

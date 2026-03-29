@@ -79,7 +79,7 @@ const TermsOfService: React.FC = () => {
                   </h2>
                   <div className="space-y-4 text-body">
                     <p>
-                      SafePsy operates as a decentralized application (dApp) on the Ethereum Mainnet blockchain network. 
+                      SafePsy operates as a decentralized application (dApp) on Ethereum Sepolia Testnet for on-chain identity (DID) operations. Production use on Ethereum Mainnet may follow after readiness review.
                       Our services include:
                     </p>
                     <ul className="list-disc list-inside space-y-2 ml-4">

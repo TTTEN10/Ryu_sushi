@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import logger from './logger';
-import { ETHEREUM_MAINNET_CHAIN_ID } from './constants';
+import { SUPPORTED_CHAIN_ID } from './constants';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -152,7 +152,7 @@ function getDIDServiceConfig(): (DIDServiceConfig & { useNewRegistry: boolean })
   return {
     contractAddress,
     rpcUrl,
-    chainId: ETHEREUM_MAINNET_CHAIN_ID,
+      chainId: SUPPORTED_CHAIN_ID,
     backendSignerPrivateKey,
     useNewRegistry: !!registryAddress,
   };

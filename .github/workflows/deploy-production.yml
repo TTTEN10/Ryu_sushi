@@ -19,6 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: CI disk guard (stricter than production)
+        uses: ./.github/actions/ci-disk-guard
+
       - name: Set env
         run: |
           if [ -z "${{ secrets.DATABASE_PASSWORD }}" ]; then

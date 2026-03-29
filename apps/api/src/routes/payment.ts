@@ -4,7 +4,7 @@ import Joi from 'joi';
 import logger from '../lib/logger';
 import { authenticateWallet, AuthenticatedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 import { cryptoPaymentService } from '../lib/crypto-payment.service';
 import { subscriptionService } from '../lib/subscription.service';
 import { DIDService } from '../lib/did.service';
@@ -51,7 +51,7 @@ router.post(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',

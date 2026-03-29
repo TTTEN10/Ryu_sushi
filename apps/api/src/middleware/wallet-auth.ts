@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ethers } from 'ethers';
 import { SiweMessage } from 'siwe';
 import logger from '../lib/logger';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../lib/constants';
 import { logSecurityEvent, redactWalletForAudit } from '../lib/security-audit';
 
 /**
@@ -57,7 +57,7 @@ export function generateSIWEMessage(
   const uri = options?.uri || process.env.SIWE_URI || 'https://safepsy.com';
   const expirationTime = options?.expirationTime || new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours default
 
-  const chainId = ETHEREUM_MAINNET_CHAIN_ID;
+  const chainId = SUPPORTED_CHAIN_ID;
   const siweMessage = new SiweMessage({
     domain,
     address,
@@ -93,7 +93,7 @@ async function verifySIWESignature(
     const fields = await siweMessage.validate(signature);
     
     // Validate chain ID
-    if (fields.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+    if (fields.chainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`SIWE verification failed: invalid chain ID ${fields.chainId}`);
       return { address: fields.address, isValid: false };
     }
@@ -209,8 +209,8 @@ export const walletAuthMiddleware = async (
     }
 
     // Validate chain ID - Sepolia Testnet
-    const parsedChainId = chainId ? parseInt(chainId, 10) : ETHEREUM_MAINNET_CHAIN_ID;
-    if (parsedChainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+    const parsedChainId = chainId ? parseInt(chainId, 10) : SUPPORTED_CHAIN_ID;
+    if (parsedChainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`Wallet authentication failed: unsupported chain ID ${parsedChainId} for address ${address}`);
       await logSecurityEvent({
         eventType: 'AUTH_FAILURE',
@@ -222,7 +222,7 @@ export const walletAuthMiddleware = async (
       });
       res.status(400).json({
         success: false,
-        message: 'Only Sepolia Testnet (Chain ID: 11155111) is supported',
+        message: `Only ${SUPPORTED_NETWORK_NAME} (Chain ID: ${SUPPORTED_CHAIN_ID}) is supported`,
         error: 'UNSUPPORTED_CHAIN_ID',
       });
       return;
@@ -344,12 +344,12 @@ export const walletConnectionMiddleware = async (
     }
 
     // Validate chain ID - Sepolia Testnet
-    const parsedChainId = chainId ? parseInt(chainId, 10) : ETHEREUM_MAINNET_CHAIN_ID;
-    if (parsedChainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+    const parsedChainId = chainId ? parseInt(chainId, 10) : SUPPORTED_CHAIN_ID;
+    if (parsedChainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`Wallet connection failed: unsupported chain ID ${parsedChainId} for address ${address}`);
       res.status(400).json({
         success: false,
-        message: 'Only Sepolia Testnet (Chain ID: 11155111) is supported',
+        message: `Only ${SUPPORTED_NETWORK_NAME} (Chain ID: ${SUPPORTED_CHAIN_ID}) is supported`,
         error: 'UNSUPPORTED_CHAIN_ID',
       });
       return;

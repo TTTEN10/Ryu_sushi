@@ -10,7 +10,7 @@ import {
   walletAuthRateLimitMiddleware,
   testingRateLimitMiddleware 
 } from '../lib/ratelimit';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ router.post(
       }
 
       // Validate chain ID - Sepolia Testnet
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',

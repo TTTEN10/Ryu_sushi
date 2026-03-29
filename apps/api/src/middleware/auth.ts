@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyWalletToken, extractTokenFromRequest, WalletSessionPayload } from '../lib/session';
 import logger from '../lib/logger';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 
 /**
  * Extended request interface with authenticated wallet session
@@ -45,7 +45,7 @@ export const authenticateWallet = async (
     }
 
     // Validate chain ID
-    if (session.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+    if (session.chainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`Authentication failed: unsupported chain ID ${session.chainId}`);
       res.status(400).json({
         success: false,
@@ -94,7 +94,7 @@ export const optionalAuthenticateWallet = async (
 
     if (token) {
       const session = verifyWalletToken(token);
-      if (session && session.chainId === ETHEREUM_MAINNET_CHAIN_ID) {
+      if (session && session.chainId === SUPPORTED_CHAIN_ID) {
         req.wallet = session;
       }
     }

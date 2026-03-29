@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import logger from './logger';
-import { ETHEREUM_MAINNET_CHAIN_ID } from './constants';
+import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from './constants';
 
 /**
  * Standard API response format
@@ -53,10 +53,10 @@ export function sendError(
  * Validate network/chain ID
  */
 export function validateNetwork(chainId: number): { valid: boolean; error?: string } {
-  if (chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+  if (chainId !== SUPPORTED_CHAIN_ID) {
     return {
       valid: false,
-      error: `Only Sepolia Testnet (Chain ID: ${ETHEREUM_MAINNET_CHAIN_ID}) is supported`,
+      error: `Only ${SUPPORTED_NETWORK_NAME} (Chain ID: ${SUPPORTED_CHAIN_ID}) is supported`,
     };
   }
   return { valid: true };
@@ -82,7 +82,7 @@ export function asyncHandler(
 }
 
 /**
- * Get Web3 provider for Ethereum Mainnet
+ * Get Web3 RPC URL from environment (must match deployed network)
  */
 export function getWeb3Provider(): string {
   return process.env.RPC_URL || process.env.ETH_RPC_URL || '';

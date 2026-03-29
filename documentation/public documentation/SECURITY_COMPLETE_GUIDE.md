@@ -2,7 +2,7 @@
 
 This document outlines the security measures implemented in the SafePsy application.
 
-**Related guides:** [Security Headers (Caddyfile)](./SECURITY_HEADERS_IMPLEMENTATION.md) | [WAF Configuration](./WAF_CONFIGURATION.md)
+**Related guides:** [Security implementation — Caddy headers & dependency review](../private%20documentation/SECURITY_HEADERS_IMPLEMENTATION.md) (former `DEPENDENCY_SECURITY_REVIEW.md` merged here March 2026) | [WAF Configuration](../private%20documentation/WAF_CONFIGURATION.md)
 
 ## Security Updates Completed
 
@@ -129,7 +129,7 @@ If you discover a security vulnerability, please report it responsibly to the de
 
 ## Roadmap (Planned)
 
-- **Wazuh for threat detection**: Host-based intrusion detection and log analysis. See [Technical Roadmap](./TECHNICAL_ROADMAP.md) § Security & Infrastructure and [Programming Sprint](./programming_sprint.md) § Infrastructure item 10.
+- **Wazuh for threat detection**: Planned host-based intrusion detection and log analysis. Internal plan: [Programming sprint & technical roadmap](../private%20documentation/programming_sprint.md) (§ Technical roadmap → Security & infrastructure; § Next steps → Infrastructure item 10).
 
 # Security Fixes Summary
 

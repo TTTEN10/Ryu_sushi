@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import logger from './logger';
-import { ETHEREUM_MAINNET_CHAIN_ID } from './constants';
+import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from './constants';
 import { priceOracleService } from './price-oracle.service';
 import { prisma } from './prisma';
 
@@ -66,8 +66,8 @@ export class CryptoPaymentService {
 
       // Verify chain ID
       const network = await this.provider.getNetwork();
-      if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
-        throw new Error('Transaction not on supported network (Sepolia Testnet)');
+      if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
+        throw new Error(`Transaction not on supported network (${SUPPORTED_NETWORK_NAME})`);
       }
 
       // Get transaction details

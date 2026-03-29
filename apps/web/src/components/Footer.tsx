@@ -27,104 +27,110 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Contact Links */}
-          <div className="space-y-3 sm:space-y-4">
-            <h4 className="text-base sm:text-lg font-titillium font-semibold text-text-primary dark:text-white">Contact</h4>
-            <div className="space-y-2 sm:space-y-3">
+          <div className="space-y-1.5 sm:space-y-2">
+            <h4 className="text-base sm:text-lg font-titillium font-semibold text-text-primary dark:text-white leading-tight">Contact</h4>
+            <div className="space-y-0.5 sm:space-y-1">
               <button
+                type="button"
                 onClick={() => navigate('/contact-us')}
-                className="flex items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="flex w-full items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95 text-left"
                 aria-label="Contact us"
               >
                 <Mail className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300">
+                <span className="text-black dark:text-white link-hover block w-full min-w-0 flex-1 text-left">
                   Contact
                 </span>
               </button>
               <button
+                type="button"
                 onClick={() => navigate('/support')}
-                className="flex items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="flex w-full items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95 text-left"
                 aria-label="Support"
               >
                 <LifeBuoy className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300">
+                <span className="text-black dark:text-white link-hover block w-full min-w-0 flex-1 text-left">
                   Support
                 </span>
               </button>
               <button
+                type="button"
                 onClick={() => navigate('/faq')}
-                className="flex items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="flex w-full items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95 text-left"
                 aria-label="FAQ"
               >
                 <HelpCircle className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300">
+                <span className="text-black dark:text-white link-hover block w-full min-w-0 flex-1 text-left">
                   FAQ
                 </span>
               </button>
-              <a
-                href="https://instagram.com/safepsy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
-                aria-label="Follow us on Instagram"
+              <button
+                type="button"
+                onClick={() => window.open('https://instagram.com/safepsy', '_blank', 'noopener,noreferrer')}
+                className="flex w-full items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95 cursor-pointer text-left"
+                aria-label="Follow us on Instagram (opens in new tab)"
               >
-                <Instagram className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
-                <span className="dark:text-white">@safepsy</span>
-              </a>
-              <a
-                href="https://linkedin.com/company/safepsy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
-                aria-label="Connect with us on LinkedIn"
+                <Instagram className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                <span className="text-black dark:text-white link-hover block w-full min-w-0 flex-1 text-left">@safepsy</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open('https://linkedin.com/company/safepsy', '_blank', 'noopener,noreferrer')}
+                className="flex w-full items-center gap-2 sm:gap-3 text-text-primary hover:text-primary-600 transition-all duration-300 font-titillium font-regular min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95 cursor-pointer text-left"
+                aria-label="Connect with us on LinkedIn (opens in new tab)"
               >
                 <Linkedin className="w-5 h-5 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                <span className="dark:text-white">SafePsy</span>
-              </a>
+                <span className="text-black dark:text-white link-hover block w-full min-w-0 flex-1 text-left">SafePsy</span>
+              </button>
             </div>
           </div>
 
           {/* Legal */}
-          <div className="space-y-3 sm:space-y-4">
-            <h4 className="text-base sm:text-lg font-titillium font-semibold text-text-primary dark:text-white">Legal</h4>
-            <div className="space-y-2">
+          <div className="space-y-1.5 sm:space-y-2">
+            <h4 className="text-base sm:text-lg font-titillium font-semibold text-text-primary dark:text-white leading-tight">Legal</h4>
+            <div className="space-y-0.5 sm:space-y-1">
               <button 
+                type="button"
                 onClick={() => navigate('/tos')}
-                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                <span className="text-black dark:text-white link-hover block w-full text-left">
                   Terms of Service & Privacy Policy
                 </span>
               </button>
               <button 
+                type="button"
                 onClick={() => navigate('/sap-policy')}
-                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                <span className="text-black dark:text-white link-hover block w-full text-left">
                   Security and Privacy Policy
                 </span>
               </button>
               <button 
+                type="button"
                 onClick={() => navigate('/cookies')}
-                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                <span className="text-black dark:text-white link-hover block w-full text-left">
                   Cookie Policy
                 </span>
               </button>
               <button 
+                type="button"
                 onClick={() => navigate('/feedback')}
-                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                <span className="text-black dark:text-white link-hover block w-full text-left">
                   Beta feedback
                 </span>
               </button>
               <button 
+                type="button"
                 onClick={() => setIsCookieManagerOpen(true)}
-                className="flex items-center gap-2 text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left min-h-[44px] text-sm sm:text-base group hover:scale-105 active:scale-95"
+                className="flex w-full items-center gap-2 text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
                 <Settings className="w-4 h-4 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:rotate-90" />
-                <span className="text-black dark:text-white hover:text-primary-600 transition-all duration-300 link-hover">
+                <span className="text-black dark:text-white link-hover block w-full min-w-0 flex-1 text-left">
                   Cookie Preferences
                 </span>
               </button>

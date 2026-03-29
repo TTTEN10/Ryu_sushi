@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
+import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
 import { Wallet, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { ethers } from 'ethers';
 
@@ -73,7 +74,7 @@ export default function Payment() {
         credentials: 'include',
         headers: {
           'x-wallet-address': wallet?.address || '',
-          'x-chain-id': wallet?.chainId.toString() || '1',
+          'x-chain-id': wallet?.chainId?.toString() ?? String(SUPPORTED_CHAIN_ID),
         },
       });
       const data = await response.json();

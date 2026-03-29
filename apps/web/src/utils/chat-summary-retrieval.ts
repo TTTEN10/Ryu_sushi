@@ -6,6 +6,7 @@
  */
 
 import { decrypt } from './encryption';
+import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -23,11 +24,8 @@ function getWalletAuthHeaders(walletAddress: string, chainId?: number): HeadersI
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     'x-wallet-address': walletAddress,
+    'x-chain-id': (chainId ?? SUPPORTED_CHAIN_ID).toString(),
   };
-
-  if (chainId) {
-    headers['x-chain-id'] = chainId.toString();
-  }
 
   // Try to get session token if available
   const token = localStorage.getItem('walletSessionToken');
@@ -47,7 +45,7 @@ function getWalletAuthHeaders(walletAddress: string, chainId?: number): HeadersI
  * 
  * @param summaryKey - The AES-256-GCM encryption key for the summary (32 bytes)
  * @param walletAddress - The wallet address for authentication
- * @param chainId - Optional chain ID (defaults to Ethereum Mainnet)
+ * @param chainId - Optional chain ID (defaults to supported network / Sepolia when sent to API)
  * @returns Decrypted summary text
  */
 export async function retrieveChatSummary(
@@ -131,7 +129,7 @@ export async function retrieveChatSummary(
  * This is useful when you need to get the reference before downloading
  * 
  * @param walletAddress - The wallet address for authentication
- * @param chainId - Optional chain ID (defaults to Ethereum Mainnet)
+ * @param chainId - Optional chain ID (defaults to supported network / Sepolia when sent to API)
  * @returns Storage reference (IPFS CID or S3 key)
  */
 export async function getChatSummaryReference(

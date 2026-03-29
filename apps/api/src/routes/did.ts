@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import logger from '../lib/logger';
 import { authenticateWallet, AuthenticatedRequest } from '../middleware/auth';
 import { DIDService } from '../lib/did.service';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../lib/constants';
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.post(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',
@@ -81,7 +81,7 @@ router.post(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported. Please switch networks.',
@@ -158,7 +158,7 @@ router.get(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',
@@ -185,7 +185,7 @@ router.get(
         walletAddress: didInfo.walletAddress,
         contractAddress: process.env.DID_REGISTRY_ADDRESS || process.env.DID_IDENTITY_TOKEN_ADDRESS || null,
         network: 'Sepolia Testnet',
-        chainId: ETHEREUM_MAINNET_CHAIN_ID,
+        chainId: SUPPORTED_CHAIN_ID,
       };
 
       // Add revocation status
@@ -236,7 +236,7 @@ router.post(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',
@@ -318,7 +318,7 @@ router.get(
       }
 
       // Validate chain ID
-      if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
           message: 'Only Sepolia Testnet is supported',
@@ -351,7 +351,7 @@ router.get(
         tokenId: didInfo.tokenId,
         contractAddress: process.env.DID_REGISTRY_ADDRESS || process.env.DID_IDENTITY_TOKEN_ADDRESS || null,
         network: 'Sepolia Testnet',
-        chainId: ETHEREUM_MAINNET_CHAIN_ID,
+        chainId: SUPPORTED_CHAIN_ID,
         isRevoked: didInfo.isRevoked || false,
         encryptedDataExists: didInfo.encryptedDataExists,
         profile: didInfo.profile ? {

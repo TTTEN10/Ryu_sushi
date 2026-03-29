@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../contexts/WalletContext';
+import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
 
 /**
  * DID Identity Token ABI (ERC-721 Soulbound)
@@ -49,7 +49,7 @@ export async function updateChatReference(
 
   // Verify network
   const network = await signer.provider.getNetwork();
-  if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
+  if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
     throw new Error('Please switch to Sepolia Testnet to update DID data');
   }
 
@@ -112,7 +112,7 @@ export async function updateEncryptedKeyMetadata(
 
   // Verify network
   const network = await signer.provider.getNetwork();
-  if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
+  if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
     throw new Error('Please switch to Sepolia Testnet to update DID data');
   }
 
@@ -173,7 +173,7 @@ export async function updateChatDataReference(
 
   // Verify network
   const network = await signer.provider.getNetwork();
-  if (Number(network.chainId) !== ETHEREUM_MAINNET_CHAIN_ID) {
+  if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
     throw new Error('Please switch to Sepolia Testnet to update DID data');
   }
 

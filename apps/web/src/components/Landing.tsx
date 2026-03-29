@@ -117,9 +117,9 @@ export default function Landing() {
                 We don’t train on your conversations, and your messages are never stored in plain text.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Link to="/beta/chat" className="btn-primary btn-gentle-scale inline-flex items-center justify-center gap-2 text-base sm:text-lg px-6" aria-label="Try SafePsy beta chat">
+                <Link to="/beta/chat" className="btn-try-beta" aria-label="Try SafePsy beta chat">
                   Try beta
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
                 </Link>
                 <button
                   type="button"
@@ -196,9 +196,9 @@ export default function Landing() {
           <section className="scroll-reveal" data-reveal>
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 max-w-2xl mx-auto hover-soft-fade">
               <h2 className="text-xl sm:text-2xl lg:text-3xl text-heading mb-2 text-center px-2">
-                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Get early access</span>
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Join the waitlist</span>
               </h2>
-              <p className="text-body text-center mb-6 sm:mb-8">Join the waitlist for early access and product updates.</p>
+              <p className="text-body text-center mb-6 sm:mb-8">Secure your spot and receive insider updates.</p>
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" aria-label="Join waitlist form" noValidate>
                 <div className="space-y-2">
                   <label htmlFor="draft-email" className="block text-base sm:text-lg font-medium text-heading">
@@ -316,27 +316,16 @@ export default function Landing() {
             </h2>
             <FAQAccordion items={FAQ_ITEMS} answerClassName="text-xs sm:text-sm" />
           </section>
-
-          <section className="mb-12 scroll-reveal" data-reveal>
-            <div className="max-w-5xl mx-auto text-center bg-white/70 dark:bg-black/30 border border-neutral-dark/20 dark:border-white/20 rounded-3xl p-8 sm:p-10 hover-soft-fade">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-3">You do not have to figure this out alone.</h2>
-              <p className="text-body mb-6">Start with one safe conversation now, then move forward at your own pace.</p>
-              <Link to="/beta/chat" className="btn-primary btn-gentle-scale inline-flex items-center gap-2 text-base sm:text-lg px-7" aria-label="Try SafePsy beta chat">
-                Try beta
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-          </section>
         </div>
       </main>
       <div className="fixed bottom-4 right-4 z-40">
         <Link
           to="/beta/chat"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-full shadow-xl bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold btn-gentle-scale"
+          className="btn-try-beta"
           aria-label="Try SafePsy beta chat"
         >
           {ctaLabel}
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
         </Link>
       </div>
       <Footer />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { ETHEREUM_MAINNET_CHAIN_ID } from '../contexts/WalletContext';
+import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../config/supportedChain';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 
@@ -88,7 +88,7 @@ export default function ConnectWallet() {
   };
 
   // Show network error if on wrong network
-  const isWrongNetwork = wallet && wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID;
+  const isWrongNetwork = wallet && wallet.chainId !== SUPPORTED_CHAIN_ID;
 
   const getVerificationStepText = () => {
     switch (verificationStep) {
@@ -131,7 +131,7 @@ export default function ConnectWallet() {
                   <li>Select "Sepolia"</li>
                   <li>Return here and refresh</li>
                 </ol>
-                <p className="text-xs opacity-75 mt-2">Network ID: {ETHEREUM_MAINNET_CHAIN_ID} (Sepolia)</p>
+                <p className="text-xs opacity-75 mt-2">Network: {SUPPORTED_NETWORK_NAME} (chain ID {SUPPORTED_CHAIN_ID})</p>
               </div>
             )}
           </div>

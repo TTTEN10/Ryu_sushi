@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { EthereumProvider } from '@walletconnect/ethereum-provider';
+import {
+  SUPPORTED_CHAIN_ID,
+  SUPPORTED_CHAIN_ID_HEX,
+} from '../config/supportedChain';
 
 // Type for EthereumProvider instance
 type EthereumProviderType = Awaited<ReturnType<typeof EthereumProvider.init>>;
@@ -39,15 +43,6 @@ interface WalletProviderProps {
 // Use empty string when not set: same-origin requests use Vite proxy (dev) or Caddy (prod)
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
-/**
- * Sepolia Testnet Chain ID (app network)
- * Decimal: 11155111
- * Hex: 0xAA36A7
- */
-export const SUPPORTED_CHAIN_ID = 11155111; // Sepolia Testnet
-export const ETHEREUM_MAINNET_CHAIN_ID = 11155111; // Alias for backward compatibility
-const SUPPORTED_CHAIN_ID_HEX = '0xAA36A7'; // Hex format for wallet operations
-
 /** Sepolia chain params for wallet_addEthereumChain (when chain not in wallet) */
 const SEPOLIA_CHAIN_PARAMS = {
   chainId: SUPPORTED_CHAIN_ID_HEX,
