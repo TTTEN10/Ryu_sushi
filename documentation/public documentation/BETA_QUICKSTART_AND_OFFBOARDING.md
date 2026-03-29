@@ -8,6 +8,8 @@ This guide covers how to get to first value in about 10 minutes, what to do in y
 
 Follow these steps to reach **first value**: a private chat with Dr. Safe using your own identity and keys.
 
+**Optional:** Try the beta chat **without a wallet** (guest mode: five messages per session, not saved). Connect a wallet when you want encrypted, persistent history.
+
 ### 1. Open SafePsy and connect your wallet
 
 - Go to the SafePsy app and choose **Connect wallet** (e.g. MetaMask or WalletConnect).

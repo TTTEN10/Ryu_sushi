@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Shield, Heart, Users, AlertCircle, CheckCircle, Loader2, ArrowRight, Sparkles, Wallet, FilePenLine, BadgeCheck, MessageSquare } from 'lucide-react'
 import Header from './Header'
@@ -26,23 +26,6 @@ export default function Landing() {
   const ctaLabel = useMemo(() => (isOffline ? 'Queue for later' : 'Try beta'), [isOffline])
 
   useScrollReveal()
-
-  const slowScrollToId = useCallback((id: string, durationMs = 1100) => {
-    const el = document.getElementById(id)
-    if (!el) return
-    const start = window.scrollY || document.documentElement.scrollTop
-    const target = el.getBoundingClientRect().top + start - 16
-    const delta = target - start
-    const startTime = performance.now()
-    const ease = (t: number) => 1 - Math.pow(1 - t, 3)
-
-    const step = (now: number) => {
-      const t = Math.min(1, (now - startTime) / durationMs)
-      window.scrollTo(0, start + delta * ease(t))
-      if (t < 1) requestAnimationFrame(step)
-    }
-    requestAnimationFrame(step)
-  }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
@@ -112,23 +95,55 @@ export default function Landing() {
                 Reflect, prepare, and make sense of your thoughts with structured AI support—so every session goes deeper.
                 <br />
                 <br />
+                Try SafePsy instantly in guest mode, or connect a wallet to securely save your sessions with encryption you control.
+                <br />
+                <br />
                 Built for privacy-first users: your data stays yours.
                 <br />
-                We don’t train on your conversations, and your messages are never stored in plain text.
+                We don’t train on your conversations. Wallet mode stores ciphertext only; guest mode does not persist chats on our servers.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Link to="/beta/chat" className="btn-try-beta" aria-label="Try SafePsy beta chat">
                   Try beta
                   <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => slowScrollToId('how-it-works')}
+                <Link
+                  to="/explore"
                   className="btn-secondary btn-gentle-scale inline-flex items-center justify-center text-base sm:text-lg px-6"
                   aria-label="Explore SafePsy"
                 >
                   Explore
-                </button>
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="scroll-reveal" data-reveal aria-labelledby="guest-vs-wallet-heading">
+            <div className="max-w-5xl mx-auto bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-3xl border border-neutral-dark/20 dark:border-white/20 p-6 sm:p-10">
+              <h2 id="guest-vs-wallet-heading" className="text-2xl sm:text-3xl text-heading mb-6 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Guest mode vs wallet mode
+                </span>
+              </h2>
+              <div className="grid md:grid-cols-2 gap-6 text-body text-sm sm:text-base">
+                <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/20 p-5">
+                  <h3 className="text-heading font-semibold mb-2">Guest mode</h3>
+                  <ul className="space-y-2 list-disc pl-5">
+                    <li>No wallet required to try Dr. Safe</li>
+                    <li>Up to five messages per browser session</li>
+                    <li>Chats stay in memory only—refresh clears them</li>
+                    <li>We do not store guest conversations or link them to an identity</li>
+                  </ul>
+                </div>
+                <div className="rounded-2xl border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 p-5">
+                  <h3 className="text-heading font-semibold mb-2">Wallet mode</h3>
+                  <ul className="space-y-2 list-disc pl-5">
+                    <li>Connect and verify your wallet to unlock encrypted history</li>
+                    <li>AES-256-GCM encryption with keys derived from your wallet</li>
+                    <li>Persisted ciphertext and optional DID-backed references</li>
+                    <li>Quota and subscription rules apply per verified identity</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </section>
@@ -139,7 +154,7 @@ export default function Landing() {
                 {
                   icon: Wallet,
                   title: '1. Connect your wallet',
-                  copy: 'Use any decentralized wallet compatible with Wallet Connect (e.g. MetaMask, Trust Wallet, Ledger...).',
+                  copy: 'Optional for your first try—open the beta chat as a guest. When you are ready, use any decentralized wallet compatible with WalletConnect (e.g. MetaMask, Trust Wallet, Ledger…).',
                 },
                 {
                   icon: FilePenLine,

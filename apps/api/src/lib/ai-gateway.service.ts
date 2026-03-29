@@ -41,6 +41,8 @@ export interface ChatCompletionRequest {
   stream?: boolean;
   userId?: string;
   sessionId?: string;
+  /** When `guest`, the API must not persist or quota-link the request (see chat routes). */
+  mode?: 'guest' | 'authenticated';
 }
 
 /**

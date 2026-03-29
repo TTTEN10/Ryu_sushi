@@ -167,7 +167,7 @@ const Hero: React.FC = () => {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center stagger-item">
               <button 
-                onClick={() => navigate('/about-us')}
+                onClick={() => navigate('/explore')}
                 className="btn-secondary text-lg px-8 py-4 hover:scale-105 active:scale-95 transition-transform duration-200"
                 aria-label="Learn more about SafePsy"
               >

@@ -79,6 +79,23 @@ The chat routes are integrated into the main server:
 - Available at `/api/chat/*`
 - Uses existing middleware (validation, rate limiting, logging)
 
+## Guest mode (`mode: "guest"`)
+
+The web app sends `mode: "guest"` on `POST /api/chat/completions` when the user has **not** completed wallet verification.
+
+| Aspect | Guest | Authenticated (wallet verified) |
+|--------|-------|----------------------------------|
+| Client persistence | In-memory only (React state); lost on refresh | Encrypted blob via `/api/chat/save` + wallet keys |
+| Prompt cap | 5 user messages per browser session (enforced in UI) | Quota / subscription rules |
+| API `mode` | `"guest"` | `"authenticated"` (or omit; server treats as authenticated for quota) |
+| Server persistence | None for chat content; no quota increment for DID | Quota increment + encrypted storage on client-triggered save |
+
+**Server behavior for `mode: "guest"`:**
+
+- `optionalQuotaMiddleware` skips attaching DID quota when `body.mode === "guest"`.
+- The completions handler skips DID usage increment when `request.mode === "guest"`.
+- Message text must not be written to application logs; the AI gateway already sends only `role`/`content` to upstream providers.
+
 ## 📝 Usage Examples
 
 ### Streaming Request (without RAG context)

@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { useWallet } from './WalletContext';
 
 // Use empty string when not set: same-origin requests use Vite proxy (dev) or Caddy (prod)
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+/**
+ * High-level product mode for chat and persistence.
+ * - guest: no verified wallet session — in-memory chat only (see ChatWidget guest limit).
+ * - authenticated: wallet verified — encrypted persistence and quota paths apply.
+ */
+export type UserMode = 'guest' | 'authenticated';
 
 /**
  * DID Status types
@@ -38,6 +45,8 @@ export interface AuthState {
  */
 interface AuthContextType {
   authState: AuthState;
+  /** Derived: authenticated when the wallet session is verified; otherwise guest. */
+  userMode: UserMode;
   verifyWallet: () => Promise<void>;
   checkDID: () => Promise<void>;
   logout: () => Promise<void>;
@@ -369,10 +378,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [wallet, refreshAuth]);
 
+  const userMode: UserMode = useMemo(
+    () => (authState.isVerified ? 'authenticated' : 'guest'),
+    [authState.isVerified]
+  );
+
   return (
     <AuthContext.Provider
       value={{
         authState,
+        userMode,
         verifyWallet,
         checkDID,
         logout,

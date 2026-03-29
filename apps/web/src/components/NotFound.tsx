@@ -71,10 +71,10 @@ const NotFound: React.FC = () => {
                     Home
                   </button>
                   <button 
-                    onClick={() => navigate('/about-us')}
+                    onClick={() => navigate('/explore')}
                     className="text-sm sm:text-base text-body hover:text-primary-600 transition-all duration-300 p-3 rounded-lg hover:bg-white/50 min-h-[44px] hover:scale-105 active:scale-95"
                   >
-                    About Us
+                    Explore
                   </button>
                   <button 
                     onClick={() => navigate('/contact-us')}

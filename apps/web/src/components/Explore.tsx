@@ -6,7 +6,7 @@ import Footer from './Footer'
 import { FAQ_ITEMS } from '../data/faq'
 import FAQAccordion from './FAQAccordion'
 
-const AboutUs: React.FC = () => {
+const Explore: React.FC = () => {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen flex flex-col">
@@ -62,7 +62,7 @@ const AboutUs: React.FC = () => {
                   Security is the foundation of SafePsy's ecosystem: Data is encrypted at rest and in transit, and encryption keys are controlled by you (derived from your wallet). Message content is processed by our AI provider to generate responses; we do not log or persistently store plaintext.
                 </p>
               </div>
-              
+
               <div className="space-y-4 text-center stagger-item group">
                 <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
                   <Heart className="w-8 h-8 text-secondary-600 dark:text-secondary-400 icon-hover" />
@@ -72,7 +72,7 @@ const AboutUs: React.FC = () => {
                   In adequacy with APA guidelines and psychologists deontology, we uphold the highest standards of professional ethics in mental health online services.
                 </p>
               </div>
-              
+
               <div className="space-y-4 text-center stagger-item group">
                 <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
                   <Users className="w-8 h-8 text-accent-600 dark:text-accent-400 icon-hover" />
@@ -94,7 +94,7 @@ const AboutUs: React.FC = () => {
               <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-8 sm:mb-12 px-4">
                 SafePsy integrates artificial intelligence, blockchain, and secure digital identity to transform the way therapy and mental health support are delivered worldwide. Users control their own data through decentralized identity, verified directly on the blockchain, ensuring privacy and compliance at every step. An AI-powered therapy assistant provides immediate support, helping users prepare for sessions, reflect between appointments, and access guidance in moments of need.
               </p>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                 <div className="space-y-4 text-center stagger-item group">
                   <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
@@ -105,7 +105,7 @@ const AboutUs: React.FC = () => {
                     Our AI assistant don't use your data for training, it evolves through psychology-informed training. It helps users prepare, reflect, and complement human psychologists.
                   </p>
                 </div>
-                
+
                 <div className="space-y-4 text-center stagger-item group">
                   <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
                     <Lock className="w-8 h-8 text-secondary-600 dark:text-secondary-400 icon-hover" />
@@ -115,7 +115,7 @@ const AboutUs: React.FC = () => {
                     The backbone of our security: decentralized identity on the blockchain provides transparency and trust, and ensures users own and control their identity and encryption keys.
                   </p>
                 </div>
-                
+
                 <div className="space-y-4 text-center stagger-item group">
                   <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
                     <Globe className="w-8 h-8 text-accent-600 dark:text-accent-400 icon-hover" />
@@ -147,7 +147,7 @@ const AboutUs: React.FC = () => {
                 Join our waitlist to be among the first to experience safe online-therapy.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center stagger-item">
-                <button 
+                <button
                   onClick={() => navigate('/')}
                   className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[44px] w-full sm:w-auto hover:scale-105 active:scale-95 transition-transform duration-200"
                 >
@@ -163,4 +163,4 @@ const AboutUs: React.FC = () => {
   )
 }
 
-export default AboutUs
+export default Explore

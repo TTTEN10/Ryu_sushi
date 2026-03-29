@@ -33,7 +33,9 @@ const Header: React.FC<HeaderProps> = () => {
               <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
             </Link>
           ) : (
-            <ConnectWallet />
+            <div id="wallet-connect-region" className="flex items-center">
+              <ConnectWallet />
+            </div>
           )}
           <ThemeToggle />
         </div>

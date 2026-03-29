@@ -19,7 +19,9 @@ set -euo pipefail
 # Optional overrides:
 #   APP_IP=... API_IP=... CADDY_SITE_NAMES=... APP_USER=... SSH_KEY=... \
 #   VLLM_IMAGE=... VLLM_CPU_KVCACHE_SPACE=... VLLM_DTYPE=... \
-#   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... ./deployment/deploy-instance-aware-roadmap.sh
+#   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... \
+#   VLLM_TENSOR_PARALLEL_SIZE=... VLLM_EXTRA_DOCKER_ARGS=... \
+#   VLLM_DOCKER_MEMORY=... ./deployment/deploy-instance-aware-roadmap.sh
 #
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
 #   Default: safepsy.com, www.safepsy.com
@@ -36,13 +38,18 @@ SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
 
 API_PORT="${API_PORT:-8000}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai-cpu:latest}"
-# Default: very small instruct model; phi-2 + float32 often OOMs / fails engine init on 8GB CPU.
-MODEL_ID="${MODEL_ID:-Qwen/Qwen2-0.5B-Instruct}"
-FALLBACK_MODEL_ID="${FALLBACK_MODEL_ID:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-256}"
-FALLBACK_MAX_MODEL_LEN="${FALLBACK_MAX_MODEL_LEN:-256}"
+# Default: Qwen2.5-7B primary / 3B fallback. Raise VLLM_DOCKER_MEMORY if the host has RAM (see default below).
+MODEL_ID="${MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
+FALLBACK_MODEL_ID="${FALLBACK_MODEL_ID:-Qwen/Qwen2.5-3B-Instruct}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-8192}"
+FALLBACK_MAX_MODEL_LEN="${FALLBACK_MAX_MODEL_LEN:-8192}"
 VLLM_CPU_KVCACHE_SPACE="${VLLM_CPU_KVCACHE_SPACE:-1}"
 VLLM_DTYPE="${VLLM_DTYPE:-auto}"
+VLLM_TENSOR_PARALLEL_SIZE="${VLLM_TENSOR_PARALLEL_SIZE:-1}"
+# Example GPU image extras: VLLM_EXTRA_DOCKER_ARGS='--gpu-memory-utilization 0.9'
+VLLM_EXTRA_DOCKER_ARGS="${VLLM_EXTRA_DOCKER_ARGS:-}"
+# vLLM container cgroup cap (weights + KV cache); 24g reduces OOM risk for 7B / long context vs 6g.
+VLLM_DOCKER_MEMORY="${VLLM_DOCKER_MEMORY:-24g}"
 
 APP_BASE_DIR="/home/${APP_USER}/app"
 API_BASE_DIR="/home/${APP_USER}/llm-api"
@@ -105,7 +112,7 @@ for HOST in "${API_IP}" "${APP_IP}"; do
   '"
 done
 
-log "STEP 3: Deploy API server first (vLLM CPU-friendly profile with fallback)"
+log "STEP 3: Deploy API server first (vLLM OpenAI server, chunked prefill, tensor-parallel-size fallback chain)"
 run_ssh "${API_IP}" "bash -lc '
   set -euo pipefail
   mkdir -p ${API_BASE_DIR}
@@ -120,13 +127,16 @@ run_ssh "${API_IP}" "bash -lc '
       --name vllm \
       -p ${API_PORT}:8000 \
       --restart unless-stopped \
-      --memory=6g \
+      --memory=${VLLM_DOCKER_MEMORY} \
       --cpus=3 \
       -e VLLM_CPU_KVCACHE_SPACE=${VLLM_CPU_KVCACHE_SPACE} \
       ${VLLM_IMAGE} \
       --model \"\${model}\" \
       --dtype ${VLLM_DTYPE} \
-      --max-model-len \"\${maxlen}\"
+      --max-model-len \"\${maxlen}\" \
+      --enable-chunked-prefill \
+      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE} \
+      ${VLLM_EXTRA_DOCKER_ARGS}
   }
 
   run_model \"${MODEL_ID}\" \"${MAX_MODEL_LEN}\"

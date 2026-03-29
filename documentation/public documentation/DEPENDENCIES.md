@@ -14,7 +14,7 @@ This document lists all dependencies required for the SafePsy application deploy
 - **dotenv** `^16.4.7`: Environment variable management
 
 #### Database & ORM
-- **@prisma/client** `6.19.1`: Prisma ORM client (generated from schema)
+- **@prisma/client** `6.19.2`: Prisma ORM client (generated from schema)
 - **prisma** `^6.19.1`: Prisma CLI for migrations and schema management
 
 #### Runtime & Build Tools
@@ -58,13 +58,13 @@ This document lists all dependencies required for the SafePsy application deploy
 ### Frontend (`apps/web/package.json`)
 
 #### Core Framework
-- **react** `^18.x`: UI library
-- **react-dom** `^18.x`: React DOM renderer
-- **react-router-dom** `^6.x`: Client-side routing
+- **react** `^18.3.x`: UI library
+- **react-dom** `^18.3.x`: React DOM renderer
+- **react-router-dom** `^7.x`: Client-side routing (e.g. `/`, `/explore`, `/beta/chat`; see `apps/web/src/App.tsx`)
 
 #### Build Tools
-- **vite** `^5.x`: Build tool and dev server
-- **typescript** `^5.x`: TypeScript support
+- **vite** `^6.x`: Build tool and dev server
+- **typescript** `^5.7.x`: TypeScript support
 
 #### UI Components & Styling
 - Various UI libraries as needed
@@ -153,7 +153,7 @@ npm run build
 
 - **Node.js**: 18.x (Alpine Linux compatible)
 - **PostgreSQL**: 15.x
-- **Prisma**: 6.19.x
+- **Prisma**: 6.19.x (`@prisma/client` 6.19.2 in workspaces)
 - **Caddy**: 2.x
 - **TypeScript**: 5.7.x
 

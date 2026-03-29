@@ -1,3 +1,7 @@
+/**
+ * Wallet connect + signature verification. Optional for browsing; required for encrypted persistence,
+ * DID flows, and unlimited chat. Guests use ChatWidget without verifying (session-only, capped prompts).
+ */
 import { useState, useEffect } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';

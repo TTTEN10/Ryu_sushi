@@ -10,7 +10,8 @@ Follow these steps to reach **first value**: a private chat with Dr. Safe using 
 
 ### 1. Open SafePsy and connect your wallet
 
-- Go to the SafePsy app and choose **Connect wallet** (e.g. MetaMask or WalletConnect).
+- You can try **guest chat** on the landing page first (limited turns); to keep history and use encrypted persistence, continue with **Connect wallet** (e.g. MetaMask or WalletConnect).
+- Go to the SafePsy app and choose **Connect wallet** when you are ready to verify your wallet.
 - **Use Sepolia Testnet.** If your wallet is on another network, switch to Sepolia when prompted.
 - Approve the connection in your wallet.
 

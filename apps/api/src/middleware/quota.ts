@@ -103,6 +103,13 @@ export const optionalQuotaMiddleware = async (
   try {
     const quotaService = QuotaService.getInstance();
 
+    // Guest mode: explicit client flag — do not attach DID quota (no billing linkage).
+    const body = req.body as { mode?: string } | undefined;
+    if (body?.mode === 'guest') {
+      next();
+      return;
+    }
+
     if (!req.wallet) {
       next();
       return;

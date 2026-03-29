@@ -45,6 +45,21 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                 A key differentiator: you own your data. We do not store it with third parties or use it to train AI models.
               </p>
 
+              <div className="max-w-4xl mx-auto mb-10 sm:mb-12 px-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/20 p-6 text-left">
+                <h3 className="text-xl text-heading font-semibold mb-3">Guest mode and wallet mode</h3>
+                <p className="text-body text-sm sm:text-base mb-3">
+                  <strong className="text-heading">Guest mode</strong> lets you try the assistant without connecting a wallet.
+                  Guest conversations are not written to our databases, are not associated with any wallet or account, and exist
+                  only in your browser for that visit (a hard refresh starts a new session). We do not use guest message content
+                  for analytics or training. Operational logs avoid storing guest chat text.
+                </p>
+                <p className="text-body text-sm sm:text-base">
+                  <strong className="text-heading">Wallet mode</strong> (after you connect and verify a wallet) enables encrypted
+                  storage of your chat history, keys derived from your wallet, and continuity across sessions subject to our
+                  technical architecture and terms.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
                 <div className="space-y-4 text-center">
                   <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700">

@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import AboutUs from "./components/AboutUs";
+import Explore from "./components/Explore";
 import SecurityAndPrivacyPolicy from "./components/SecurityAndPrivacyPolicy";
 import ContactUs from "./components/ContactUs";
 import NotFound from "./components/NotFound";
@@ -68,9 +68,10 @@ export default function App() {
               <Landing />
             </RouteWithSEO>
           } />
-          <Route path="/about-us" element={
+          <Route path="/about-us" element={<Navigate to="/explore" replace />} />
+          <Route path="/explore" element={
             <RouteWithSEO>
-              <AboutUs />
+              <Explore />
             </RouteWithSEO>
           } />
           <Route path="/sap-policy" element={

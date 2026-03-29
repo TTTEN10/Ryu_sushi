@@ -20,9 +20,12 @@ interface ChatMessage {
 }
 
 /**
- * Hook for managing encrypted chat storage
- * 
- * Flow:
+ * Hook for managing encrypted chat storage (verified wallet sessions only).
+ *
+ * Guest mode does not use this path: ChatWidget keeps messages in React state and calls
+ * POST /api/chat/completions with { mode: 'guest' } — no ciphertext is saved to the API.
+ *
+ * Flow (authenticated):
  * 1. On mount: Load DID info, get encrypted symmetric key
  * 2. Decrypt symmetric key using wallet
  * 3. Load encrypted chat from backend

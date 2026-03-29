@@ -1,6 +1,6 @@
 """
 AI Chatbot Service - vLLM-based OpenAI-compatible API
-Serves GRMenon model via vLLM with SSE streaming support
+Serves Qwen2.5-Instruct (default) via vLLM with SSE streaming support
 """
 import os
 import time
@@ -9,11 +9,10 @@ import logging
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional
 import uvicorn
 
 # Configure logging
@@ -35,12 +34,73 @@ app_state = {
 
 # Environment variables
 PORT = int(os.getenv("PORT", "8000"))
-MODEL_NAME = os.getenv("MODEL_NAME", "grmenon/grmenon-7b")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
 MODEL_REVISION = os.getenv("MODEL_REVISION", "main")
-MAX_MODEL_LEN = int(os.getenv("MAX_MODEL_LEN", "4096")) if os.getenv("MAX_MODEL_LEN") else None
+MAX_MODEL_LEN = int(os.getenv("MAX_MODEL_LEN", "8192"))
 GPU_MEMORY_UTILIZATION = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9")) if os.getenv("GPU_MEMORY_UTILIZATION") else None
 VLLM_TENSOR_PARALLEL_SIZE = int(os.getenv("VLLM_TENSOR_PARALLEL_SIZE", "1")) if os.getenv("VLLM_TENSOR_PARALLEL_SIZE") else None
+VLLM_ENABLE_CHUNKED_PREFILL = os.getenv("VLLM_ENABLE_CHUNKED_PREFILL", "true").lower() == "true"
+VLLM_MAX_NUM_SEQS = int(os.getenv("VLLM_MAX_NUM_SEQS", "256"))
 AI_INTERNAL_API_KEY = os.getenv("AI_INTERNAL_API_KEY", "")  # API key for authentication
+
+DEFAULT_SYSTEM_PROMPT = """You are an AI psychological support assistant.
+
+Your role is NOT to diagnose or replace therapy.
+Your role is to help users:
+- reflect on their thoughts and emotions
+- structure what they feel
+- prepare for therapy sessions
+- explore patterns gently
+
+Communication style:
+- warm, calm, non-judgmental
+- never authoritative or absolute
+- ask open-ended questions
+- validate emotions before suggesting anything
+
+Rules:
+- never give medical or diagnostic claims
+- avoid clichés or generic advice
+- prioritize depth over speed
+- if risk detected (self-harm), encourage seeking human help
+
+Techniques allowed:
+- cognitive behavioral reflection (CBT)
+- reframing thoughts
+- emotional labeling
+- gentle curiosity
+
+Respond thoughtfully in the user's language when they write in French, English, or Russian."""
+
+CRISIS_PREPEND = (
+    "I'm really glad you shared this… you don't have to go through this alone…\n\n"
+)
+
+# Lightweight keyword scan (EN / FR / RU); not a substitute for professional triage.
+CRISIS_KEYWORDS = (
+    "suicide",
+    "suicidal",
+    "self-harm",
+    "self harm",
+    "kill myself",
+    "end my life",
+    "want to die",
+    "hurt myself",
+    "self-injur",
+    "overdose",
+    "hang myself",
+    "me suicider",
+    "me tuer",
+    "finir ma vie",
+    "envie de mourir",
+    "auto-mutilation",
+    "automutilation",
+    "суицид",
+    "самоубийств",
+    "покончить с собой",
+    "хочу умереть",
+    "навредить себе",
+)
 
 # Try to get git SHA from environment (set during build)
 GIT_SHA = os.getenv("GIT_SHA", "unknown")
@@ -58,9 +118,38 @@ class ChatCompletionRequest(BaseModel):
     temperature: Optional[float] = Field(0.7, ge=0.0, le=2.0, description="Sampling temperature")
     max_tokens: Optional[int] = Field(1000, ge=1, description="Maximum tokens to generate")
     stream: Optional[bool] = Field(False, description="Whether to stream the response")
-    top_p: Optional[float] = Field(1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter")
+    top_p: Optional[float] = Field(0.9, ge=0.0, le=1.0, description="Nucleus sampling parameter")
     frequency_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0, description="Frequency penalty")
     presence_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0, description="Presence penalty")
+
+
+def detect_crisis_signals(text: str) -> bool:
+    if not text or not text.strip():
+        return False
+    lowered = text.lower()
+    return any(kw in lowered for kw in CRISIS_KEYWORDS)
+
+
+def user_messages_text(messages: List[ChatMessage]) -> str:
+    return "\n".join(m.content for m in messages if m.role == "user")
+
+
+def prepare_messages_with_system(messages: List[ChatMessage]) -> List[ChatMessage]:
+    """Ensure DEFAULT_SYSTEM_PROMPT is applied (merged with any client system message)."""
+    if not messages:
+        return [ChatMessage(role="system", content=DEFAULT_SYSTEM_PROMPT)]
+    out: List[ChatMessage] = []
+    merged = False
+    for msg in messages:
+        if msg.role == "system" and not merged:
+            merged = True
+            combined = f"{DEFAULT_SYSTEM_PROMPT}\n\n---\n\n{msg.content}"
+            out.append(ChatMessage(role="system", content=combined))
+        else:
+            out.append(msg)
+    if not merged:
+        out.insert(0, ChatMessage(role="system", content=DEFAULT_SYSTEM_PROMPT))
+    return out
 
 
 def initialize_model():
@@ -78,11 +167,13 @@ def initialize_model():
         
         logger.info(f"Initializing vLLM with model: {MODEL_NAME}")
         
-        # Build vLLM arguments
-        vllm_kwargs = {
+        # Build vLLM arguments (continuous batching is default; chunked prefill improves throughput)
+        vllm_kwargs: Dict[str, Any] = {
             "model": MODEL_NAME,
             "trust_remote_code": True,
             "max_model_len": MAX_MODEL_LEN,
+            "revision": MODEL_REVISION,
+            "max_num_seqs": VLLM_MAX_NUM_SEQS,
         }
         
         if GPU_MEMORY_UTILIZATION:
@@ -90,6 +181,9 @@ def initialize_model():
         
         if VLLM_TENSOR_PARALLEL_SIZE and VLLM_TENSOR_PARALLEL_SIZE > 1:
             vllm_kwargs["tensor_parallel_size"] = VLLM_TENSOR_PARALLEL_SIZE
+
+        if VLLM_ENABLE_CHUNKED_PREFILL:
+            vllm_kwargs["enable_chunked_prefill"] = True
         
         # Initialize LLM engine
         app_state["llm_engine"] = LLM(**vllm_kwargs)
@@ -208,9 +302,11 @@ async def version():
     })
 
 
-def generate_mock_response(messages: List[ChatMessage], stream: bool = False):
+def generate_mock_response(messages: List[ChatMessage], stream: bool = False, crisis_detected: bool = False):
     """Generate a mock response for non-GPU mode"""
     response_text = "This is a mock response. GPU mode is disabled (USE_GPU=false)."
+    if crisis_detected:
+        response_text = CRISIS_PREPEND + response_text
     
     if stream:
         def mock_stream():
@@ -272,7 +368,9 @@ def generate_vllm_stream(
     messages: List[ChatMessage],
     temperature: float,
     max_tokens: int,
-    model: str
+    model: str,
+    top_p: float,
+    prepend_crisis: bool = False,
 ):
     """Generate streaming response using vLLM"""
     if not app_state["llm_engine"]:
@@ -299,6 +397,7 @@ def generate_vllm_stream(
     sampling_params = SamplingParams(
         temperature=temperature,
         max_tokens=max_tokens,
+        top_p=top_p,
     )
     
     # Generate with streaming
@@ -307,6 +406,20 @@ def generate_vllm_stream(
     created_time = int(time.time())
     
     try:
+        if prepend_crisis:
+            chunk = {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created_time,
+                "model": model or app_state["model_name"],
+                "choices": [{
+                    "index": 0,
+                    "delta": {"content": CRISIS_PREPEND},
+                    "finish_reason": None
+                }]
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+
         # vLLM's LLM.generate() returns a list of RequestOutput
         # For streaming, we use the generate() method which yields tokens
         # We'll use a synchronous generator that yields SSE chunks
@@ -383,7 +496,9 @@ async def generate_vllm_non_stream(
     messages: List[ChatMessage],
     temperature: float,
     max_tokens: int,
-    model: str
+    model: str,
+    top_p: float,
+    prepend_crisis: bool = False,
 ) -> Dict[str, Any]:
     """Generate non-streaming response using vLLM"""
     if not app_state["llm_engine"]:
@@ -409,6 +524,7 @@ async def generate_vllm_non_stream(
     sampling_params = SamplingParams(
         temperature=temperature,
         max_tokens=max_tokens,
+        top_p=top_p,
     )
     
     # Generate
@@ -423,6 +539,8 @@ async def generate_vllm_non_stream(
         
         output = outputs[0]
         generated_text = output.outputs[0].text
+        if prepend_crisis:
+            generated_text = CRISIS_PREPEND + generated_text
         
         # Estimate token counts (rough: ~4 chars per token)
         prompt_tokens = len(prompt) // 4
@@ -468,12 +586,18 @@ async def chat_completions(
     
     # Use request model or default
     model = request.model or app_state["model_name"] or MODEL_NAME
+
+    crisis_detected = detect_crisis_signals(user_messages_text(request.messages))
+    messages = prepare_messages_with_system(request.messages)
+    temperature = 0.7 if request.temperature is None else request.temperature
+    top_p = 0.9 if request.top_p is None else request.top_p
+    max_tokens = request.max_tokens or 1000
     
     # Handle mock mode
     if not app_state["use_gpu"]:
         if request.stream:
             return StreamingResponse(
-                generate_mock_response(request.messages, stream=True),
+                generate_mock_response(messages, stream=True, crisis_detected=crisis_detected),
                 media_type="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
@@ -481,7 +605,7 @@ async def chat_completions(
                 }
             )
         else:
-            return JSONResponse(generate_mock_response(request.messages, stream=False))
+            return JSONResponse(generate_mock_response(messages, stream=False, crisis_detected=crisis_detected))
     
     # Handle GPU mode
     try:
@@ -489,10 +613,12 @@ async def chat_completions(
             # Use a generator function for streaming
             def stream_generator():
                 for chunk in generate_vllm_stream(
-                    request.messages,
-                    request.temperature or 0.7,
-                    request.max_tokens or 1000,
-                    model
+                    messages,
+                    temperature,
+                    max_tokens,
+                    model,
+                    top_p,
+                    prepend_crisis=crisis_detected,
                 ):
                     yield chunk
             
@@ -506,10 +632,12 @@ async def chat_completions(
             )
         else:
             result = await generate_vllm_non_stream(
-                request.messages,
-                request.temperature or 0.7,
-                request.max_tokens or 1000,
-                model
+                messages,
+                temperature,
+                max_tokens,
+                model,
+                top_p,
+                prepend_crisis=crisis_detected,
             )
             return JSONResponse(result)
     except HTTPException:

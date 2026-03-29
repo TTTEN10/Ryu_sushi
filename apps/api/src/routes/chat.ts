@@ -611,13 +611,20 @@ const chatCompletionSchema = Joi.object({
   stream: Joi.boolean().optional(),
   userId: Joi.string().max(255).optional(),
   sessionId: Joi.string().max(255).optional(),
+  /** `guest`: process and return completion only; no persistence, no quota increment, no identity linkage. */
+  mode: Joi.string().valid('guest', 'authenticated').optional(),
 });
 
 /**
  * POST /api/chat/completions
  * Main chat completion endpoint with optional SSE streaming
- * 
- * Auth: Optional (wallet session recommended for encrypted chat)
+ *
+ * Auth: Optional (wallet session recommended for encrypted chat).
+ *
+ * Body `mode`:
+ * - `guest` — process messages in memory for the AI call only; do not increment DID quota, persist
+ *   transcripts, or associate with identity. Logs must not include message bodies.
+ * - `authenticated` or omitted — normal wallet/DID quota and persistence rules on the client after stream.
  */
 router.post(
   '/completions',
@@ -630,9 +637,15 @@ router.post(
     try {
       const request: ChatCompletionRequest = req.body;
       const shouldStream = request.stream !== false; // Default to streaming
+      const isGuestMode = request.mode === 'guest';
 
-      // Check quota if DID is authenticated
-      if (req.quota && req.wallet) {
+      // Guest mode: completions are ephemeral — do not increment DID quota or persist (client sends mode: 'guest').
+      if (isGuestMode) {
+        logger.debug('Chat completion: guest mode — skipping quota increment and persistence');
+      }
+
+      // Check quota if DID is authenticated (never for explicit guest mode)
+      if (!isGuestMode && req.quota && req.wallet) {
         const { did, service } = req.quota;
         const walletAddress = req.wallet.walletAddress.toLowerCase();
         const incrementResult = await service.incrementUsage(did);

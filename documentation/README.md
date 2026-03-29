@@ -9,6 +9,12 @@ Documentation is split into **public** and **private** sections.
 
 See also [LAUNCH.md](./LAUNCH.md), [PERSONAS.md](./PERSONAS.md), [CLAIMS_AND_TRUST_LANGUAGE.md](./CLAIMS_AND_TRUST_LANGUAGE.md).
 
+## Web app — guest mode
+
+- **No wallet required** to open the beta chat; **five guest messages** per browser session (in-memory only).
+- **Wallet verified** unlocks encrypted persistence and normal quota rules.
+- Internal flow: [private documentation/GUEST_MODE.md](./private%20documentation/GUEST_MODE.md). Web package notes: [apps/web/README.md](../apps/web/README.md).
+
 ## Public documentation
 
 Suitable for users, contributors, and external audiences (product overview, guides, legal, compliance).

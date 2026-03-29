@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, Wifi, WifiOff, MessageSquare } from 'lucide-react';
+import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useChatEncryption } from '../hooks/useChatEncryption';
 import { encryptChatMessage, decryptChatMessage } from '../utils/did-encryption';
 import { updateChatReference } from '../utils/did-contract';
@@ -10,6 +11,7 @@ import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
+import GuestModeLimitModal from './GuestModeLimitModal';
 
 interface Message {
   id: string;
@@ -46,9 +48,12 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const MAX_MESSAGE_LENGTH = 2000;
 const EDIT_WINDOW_MS = 30000; // 30 seconds
+/** Guest mode: max user messages per browser session (in-memory only; resets on refresh). */
+const GUEST_PROMPT_LIMIT = 5;
 
 export default function ChatWidget() {
   const [searchParams] = useSearchParams();
+  const { authState, userMode } = useAuth();
   const { wallet, signer } = useWallet();
   const { symmetricKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
@@ -67,10 +72,34 @@ export default function ChatWidget() {
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [requestInProgress, setRequestInProgress] = useState(false);
+  const [guestPromptCount, setGuestPromptCount] = useState(0);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const concurrencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isGuest = userMode === 'guest';
+
+  // Wallet verified mid-session: reset guest limit and allow persistence path (load replaces thread).
+  useEffect(() => {
+    if (authState.isVerified) {
+      setGuestPromptCount(0);
+      setShowGuestLimitModal(false);
+    }
+  }, [authState.isVerified]);
+
+  const scrollToWalletConnect = useCallback(() => {
+    document.getElementById('wallet-connect-region')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
+  // After the 5th guest message is sent, show conversion modal once streaming finishes.
+  useEffect(() => {
+    if (!isGuest || isStreaming) return;
+    if (guestPromptCount >= GUEST_PROMPT_LIMIT) {
+      setShowGuestLimitModal(true);
+    }
+  }, [isGuest, guestPromptCount, isStreaming]);
 
   // Check concurrency status
   const checkConcurrencyStatus = useCallback(async (): Promise<boolean> => {
@@ -130,38 +159,42 @@ export default function ChatWidget() {
     }
   }, [wallet?.address, symmetricKey, encryptionLoading, checkConcurrencyStatus]);
 
-  // Load chat history when encryption is ready
+  // Load encrypted chat history when wallet session is verified and the symmetric key is ready.
+  // Always replaces in-memory messages so a prior guest thread does not leak after verification.
   useEffect(() => {
-    if (symmetricKey && !encryptionLoading) {
+    if (symmetricKey && !encryptionLoading && authState.isVerified) {
       setIsLoadingHistory(true);
-      loadChat().then((loadedMessages) => {
-        if (loadedMessages && loadedMessages.length > 0) {
+      loadChat()
+        .then((loadedMessages) => {
+          const raw = loadedMessages ?? [];
           const now = Date.now();
-          setMessages(loadedMessages.map((msg: any) => {
-            const timestamp = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
-            const messageTime = timestamp.getTime();
-            const canEdit = msg.role === 'user' && (now - messageTime) < EDIT_WINDOW_MS;
-            
-            return {
-              id: msg.id || `msg-${Date.now()}-${Math.random()}`,
-              role: msg.role,
-              content: msg.content,
-              timestamp,
-              encrypted: false, // Already decrypted by hook
-              canEdit,
-            };
-          }));
-        }
-        setIsLoadingHistory(false);
-      }).catch((err) => {
-        console.error('Error loading chat:', err);
-        showToast('error', 'Failed to load chat history');
-        setIsLoadingHistory(false);
-      });
+          setMessages(
+            raw.map((msg: any) => {
+              const timestamp = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
+              const messageTime = timestamp.getTime();
+              const canEdit = msg.role === 'user' && now - messageTime < EDIT_WINDOW_MS;
+
+              return {
+                id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+                role: msg.role,
+                content: msg.content,
+                timestamp,
+                encrypted: false,
+                canEdit,
+              };
+            })
+          );
+          setIsLoadingHistory(false);
+        })
+        .catch((err) => {
+          console.error('Error loading chat:', err);
+          showToast('error', 'Failed to load chat history');
+          setIsLoadingHistory(false);
+        });
     } else if (!symmetricKey && !encryptionLoading) {
       setIsLoadingHistory(false);
     }
-  }, [symmetricKey, encryptionLoading, loadChat, showToast]);
+  }, [symmetricKey, encryptionLoading, loadChat, showToast, authState.isVerified]);
 
   // Encrypt message content using DID encryption
   const encryptMessage = async (content: string): Promise<string> => {
@@ -228,14 +261,16 @@ export default function ChatWidget() {
           ? { ...msg, content: editContent.trim() }
           : msg
       );
-      await saveChat(
-        updatedMessages.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-        }))
-      );
+      if (!isGuest) {
+        await saveChat(
+          updatedMessages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          }))
+        );
+      }
       showToast('success', 'Message updated');
     } catch (error) {
       console.error('Error saving edited message:', error);
@@ -262,14 +297,16 @@ export default function ChatWidget() {
 
     try {
       const updatedMessages = messages.filter((msg) => msg.id !== messageId);
-      await saveChat(
-        updatedMessages.map((msg) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-        }))
-      );
+      if (!isGuest) {
+        await saveChat(
+          updatedMessages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          }))
+        );
+      }
       showToast('success', 'Message deleted');
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -282,16 +319,24 @@ export default function ChatWidget() {
     }
   };
 
-  // Handle sending a message
+  // Handle sending a message.
+  // Guest mode: messages stay in React state only; API requests include mode: 'guest' (no server persistence).
+  // Authenticated: wallet-derived encryption + saveChat + quota path.
   const handleSend = async () => {
-    if (!input.trim() || isStreaming || !symmetricKey || input.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
+    if (!input.trim() || isStreaming || input.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
+    if (!isGuest && (!symmetricKey || encryptionLoading)) return;
+
+    if (isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT) {
+      setShowGuestLimitModal(true);
+      return;
+    }
 
     if (isOffline) {
       showToast('error', 'Cannot send messages while offline. Please check your connection.');
       return;
     }
 
-    // Check concurrency status one more time before sending
+    // Check concurrency status one more time before sending (wallet / DID path only)
     const isInProgress = await checkConcurrencyStatus();
     if (isInProgress) {
       showToast('error', 'Please wait for the chatbot to respond before sending another message.');
@@ -307,19 +352,26 @@ export default function ChatWidget() {
       canEdit: true,
     };
 
+    if (isGuest) {
+      setGuestPromptCount((c) => c + 1);
+    }
+
     setMessages((prev) => [...prev, userMessage]);
-    
-    // Save chat after user message
-    try {
-      const updatedMessages = [...messages, userMessage];
-      await saveChat(updatedMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp,
-      })));
-    } catch (error) {
-      console.error('Error saving chat:', error);
+
+    if (!isGuest) {
+      try {
+        const updatedMessages = [...messages, userMessage];
+        await saveChat(
+          updatedMessages.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          }))
+        );
+      } catch (error) {
+        console.error('Error saving chat:', error);
+      }
     }
     setInput('');
     setIsStreaming(true);
@@ -374,6 +426,7 @@ export default function ChatWidget() {
             content: m.content,
           })),
           stream: true,
+          mode: isGuest ? 'guest' : 'authenticated',
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -450,19 +503,23 @@ export default function ChatWidget() {
                   return [...prev, assistantMessage];
                 });
               } else if (currentEvent === 'done') {
-                // Save chat after assistant response
+                // Persist encrypted history only for verified wallet sessions
                 setIsStreaming(false);
                 try {
-                  const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
-                  await saveChat(updatedMessages.map((msg) => ({
-                    id: msg.id,
-                    role: msg.role,
-                    content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
-                    timestamp: msg.timestamp,
-                  })));
-                  
+                  if (!isGuest) {
+                    const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
+                    await saveChat(
+                      updatedMessages.map((msg) => ({
+                        id: msg.id,
+                        role: msg.role,
+                        content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
+                        timestamp: msg.timestamp,
+                      }))
+                    );
+                  }
+
                   // Update DID if signer is available
-                  if (signer && wallet) {
+                  if (!isGuest && signer && wallet) {
                     try {
                       const token = localStorage.getItem('walletSessionToken');
                       const headers: HeadersInit = {
@@ -560,8 +617,16 @@ export default function ChatWidget() {
     return message.content;
   };
 
+  const guestAtLimit = isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT;
+  const guestOneLeft = isGuest && guestPromptCount === GUEST_PROMPT_LIMIT - 1;
+
   return (
     <>
+      <GuestModeLimitModal
+        open={showGuestLimitModal}
+        onClose={() => setShowGuestLimitModal(false)}
+        onScrollToWallet={scrollToWalletConnect}
+      />
       {showPaywall && paywallData && (
         <Paywall
           quota={paywallData.quota}
@@ -580,8 +645,26 @@ export default function ChatWidget() {
       )}
       <div className="flex flex-col h-[600px] bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-lg border border-neutral-dark/20 dark:border-white/20 shadow-sm">
       {/* Header */}
-      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg">
-        <p className="text-xs text-body opacity-60 text-center">All the exchanged data will be encrypted and stored in your personal wallet. Nobody except you will have access to it</p>
+      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg space-y-2">
+        {isGuest ? (
+          <>
+            <p
+              className="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-center"
+              role="status"
+            >
+              Guest mode: your chat is not saved and will disappear when you leave or refresh. Connect a
+              wallet to encrypt and keep your sessions.
+            </p>
+            <p className="text-xs text-body opacity-60 text-center">
+              {guestPromptCount}/{GUEST_PROMPT_LIMIT} guest messages used this session
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-body opacity-60 text-center">
+            All the exchanged data will be encrypted and stored in your personal wallet. Nobody except you
+            will have access to it
+          </p>
+        )}
       </div>
 
       {/* Messages */}
@@ -598,7 +681,11 @@ export default function ChatWidget() {
           <EmptyState
             icon={MessageSquare}
             title="Start a conversation"
-            description="Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet."
+            description={
+              isGuest
+                ? 'Send a message to try Dr. Safe instantly. Guest chats stay in this tab only (not saved). Connect a wallet for encrypted history across sessions.'
+                : 'Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet.'
+            }
           />
         ) : (
           messages.map((message) => (
@@ -649,6 +736,23 @@ export default function ChatWidget() {
             <span>Offline - Messages cannot be sent</span>
           </div>
         )}
+        {guestOneLeft && !guestAtLimit && (
+          <p className="mb-2 text-xs text-amber-700 dark:text-amber-300" role="status">
+            1 guest message left this session. Connect a wallet for unlimited, saved chats.
+          </p>
+        )}
+        {guestAtLimit && (
+          <p className="mb-2 text-xs text-amber-800 dark:text-amber-200 font-medium" role="alert">
+            Guest limit reached. Connect or create a wallet to continue.
+            <button
+              type="button"
+              onClick={() => setShowGuestLimitModal(true)}
+              className="ml-2 underline text-primary-600 dark:text-primary-400"
+            >
+              Why?
+            </button>
+          </p>
+        )}
         
         {/* Editing Indicator */}
         {editingMessageId && (
@@ -696,8 +800,20 @@ export default function ChatWidget() {
                   }
                 }
               }}
-              placeholder={editingMessageId ? "Edit your message..." : "Type your message..."}
-              disabled={isStreaming || !symmetricKey || encryptionLoading || isOffline || requestInProgress}
+              placeholder={
+                editingMessageId
+                  ? 'Edit your message...'
+                  : isGuest
+                    ? 'Type your message (guest mode — not saved)...'
+                    : 'Type your message...'
+              }
+              disabled={
+                isStreaming ||
+                (!isGuest && (!symmetricKey || encryptionLoading)) ||
+                isOffline ||
+                requestInProgress ||
+                guestAtLimit
+              }
               maxLength={MAX_MESSAGE_LENGTH}
               className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-black/30 text-heading placeholder:text-body placeholder:opacity-50"
             />
@@ -738,7 +854,15 @@ export default function ChatWidget() {
           ) : (
             <button
               onClick={handleSend}
-              disabled={!input.trim() || !symmetricKey || encryptionLoading || isOffline || input.length > MAX_MESSAGE_LENGTH || requestInProgress || isStreaming}
+              disabled={
+                !input.trim() ||
+                (!isGuest && (!symmetricKey || encryptionLoading)) ||
+                isOffline ||
+                input.length > MAX_MESSAGE_LENGTH ||
+                requestInProgress ||
+                isStreaming ||
+                guestAtLimit
+              }
               className="px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center min-h-[44px] min-w-[44px]"
               aria-label="Send message"
               title={requestInProgress ? "Please wait for the chatbot to respond before sending another message" : ""}
@@ -747,13 +871,13 @@ export default function ChatWidget() {
             </button>
           )}
         </div>
-        {encryptionLoading && (
+        {!isGuest && encryptionLoading && (
           <p className="text-xs text-body opacity-75 mt-2 flex items-center gap-1">
             <span className="animate-spin">⟳</span>
             Initializing encryption...
           </p>
         )}
-        {encryptionError && (
+        {!isGuest && encryptionError && (
           <p className="text-xs text-red-600 dark:text-red-400 mt-2">{encryptionError}</p>
         )}
       </div>

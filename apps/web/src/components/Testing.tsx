@@ -22,11 +22,15 @@ export default function Testing() {
                   Chat with Dr. Safe
                 </span>
               </h1>
+              <p className="max-w-2xl mx-auto mt-4 text-sm sm:text-base text-body">
+                You can chat as a guest (no wallet, five messages per session, nothing saved) or connect a wallet to
+                encrypt and keep your history.
+              </p>
               <div className="max-w-3xl mx-auto mt-6">
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
                   <div className="p-3 rounded-xl border border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20">
                     <p className="text-heading font-semibold">Step 1</p>
-                    <p className="text-body">Set up profile</p>
+                    <p className="text-body">Try chat or connect</p>
                   </div>
                   <div className="p-3 rounded-xl border border-secondary-300 dark:border-secondary-700 bg-secondary-50 dark:bg-secondary-900/20">
                     <p className="text-heading font-semibold">Step 2</p>
@@ -34,7 +38,7 @@ export default function Testing() {
                   </div>
                   <div className="p-3 rounded-xl border border-accent-300 dark:border-accent-700 bg-accent-50 dark:bg-accent-900/20">
                     <p className="text-heading font-semibold">Step 3</p>
-                    <p className="text-body">Start chat</p>
+                    <p className="text-body">Full sessions</p>
                   </div>
                 </div>
               </div>
