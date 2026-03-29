@@ -109,6 +109,11 @@ temp/
 *.p12
 *.pfx
 *private*
+# Allow only the canonical repo tree map (folder name matches *private*).
+!documentation/private documentation/
+!documentation/private documentation/REPOSITORY_SYNTAX_TREE.md
+documentation/private documentation/*
+!documentation/private documentation/REPOSITORY_SYNTAX_TREE.md
 *secret*
 *credentials*
 *secrets*
