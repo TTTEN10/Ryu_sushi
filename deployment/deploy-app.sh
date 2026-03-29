@@ -13,13 +13,13 @@ set -euo pipefail
 # 5) Harden API exposure
 #
 # Usage:
-#   chmod +x deployment/deploy-instance-aware-roadmap.sh
-#   ./deployment/deploy-instance-aware-roadmap.sh
+#   chmod +x deployment/deploy-app.sh
+#   ./deployment/deploy-app.sh
 #
 # Optional overrides:
 #   APP_IP=... API_IP=... CADDY_SITE_NAMES=... APP_USER=... SSH_KEY=... \
 #   VLLM_IMAGE=... VLLM_CPU_KVCACHE_SPACE=... VLLM_DTYPE=... \
-#   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... ./deployment/deploy-instance-aware-roadmap.sh
+#   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... ./deployment/deploy-app.sh
 #
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
 #   Default: safepsy.com, www.safepsy.com
@@ -81,7 +81,7 @@ wait_http() {
 }
 
 log "Preflight: checking SSH access"
-log "Running deploy-instance-aware-roadmap.sh v${SCRIPT_VERSION}"
+log "Running deploy-app.sh v${SCRIPT_VERSION}"
 run_ssh "${API_IP}" "echo 'API SSH OK on $(hostname)'" || die "Cannot SSH to API server ${API_IP}"
 run_ssh "${APP_IP}" "echo 'APP SSH OK on $(hostname)'" || die "Cannot SSH to APP server ${APP_IP}"
 
