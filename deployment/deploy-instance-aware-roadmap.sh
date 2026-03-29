@@ -23,6 +23,8 @@ set -euo pipefail
 #   VLLM_TENSOR_PARALLEL_SIZE=... VLLM_EXTRA_DOCKER_ARGS=... \
 #   VLLM_DOCKER_MEMORY=... ./deployment/deploy-instance-aware-roadmap.sh
 #
+# App host LLM proxy: MODEL_API_URL and optional MODEL_PROXY_TIMEOUT (default 120s) in compose.
+#
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
 #   Default: safepsy.com, www.safepsy.com
 
@@ -53,7 +55,7 @@ VLLM_DOCKER_MEMORY="${VLLM_DOCKER_MEMORY:-24g}"
 
 APP_BASE_DIR="/home/${APP_USER}/app"
 API_BASE_DIR="/home/${APP_USER}/llm-api"
-SCRIPT_VERSION="2026-03-24.1"
+SCRIPT_VERSION="2026-03-29.1"
 
 if [[ -n "${SSH_KEY}" ]]; then
   SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout="${SSH_CONNECT_TIMEOUT}" -i "${SSH_KEY}")
@@ -325,19 +327,25 @@ CMD [\"serve\", \"dist\", \"-l\", \"3000\"]
 EOF
 
   cat > backend/requirements.txt <<\"EOF\"
-fastapi
-uvicorn
-requests
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+requests>=2.31.0
 EOF
 
   cat > backend/main.py <<\"EOF\"
+import logging
 import os
 import requests
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(\"llm_proxy\")
 
 app = FastAPI()
 MODEL_API_URL = os.getenv(\"MODEL_API_URL\", \"http://127.0.0.1:8000\").rstrip(\"/\")
+UPSTREAM_TIMEOUT = int(os.getenv(\"MODEL_PROXY_TIMEOUT\", \"120\"))
 
 app.add_middleware(
     CORSMiddleware,
@@ -349,32 +357,52 @@ app.add_middleware(
 
 @app.get(\"/healthz\")
 def healthz():
-  return {\"ok\": True, \"service\": \"backend\"}
+    return {\"ok\": True, \"service\": \"backend\", \"model_api_url\": MODEL_API_URL}
+
+def _proxy_v1_models():
+    try:
+        r = requests.get(f\"{MODEL_API_URL}/v1/models\", timeout=UPSTREAM_TIMEOUT)
+        ct = r.headers.get(\"content-type\") or \"application/json\"
+        return Response(content=r.content, status_code=r.status_code, media_type=ct)
+    except requests.exceptions.RequestException as e:
+        log.warning(\"v1/models upstream error: %s\", e)
+        return JSONResponse(
+            status_code=502,
+            content={
+                \"error\": \"upstream_unavailable\",
+                \"detail\": str(e),
+                \"upstream\": MODEL_API_URL,
+            },
+        )
 
 @app.get(\"/models\")
-def models():
-  resp = requests.get(f\"{MODEL_API_URL}/v1/models\", timeout=15)
-  resp.raise_for_status()
-  return resp.json()
-
 @app.get(\"/v1/models\")
 def v1_models():
-  resp = requests.get(f\"{MODEL_API_URL}/v1/models\", timeout=15)
-  resp.raise_for_status()
-  return resp.json()
+    return _proxy_v1_models()
 
 @app.post(\"/v1/chat/completions\")
 async def v1_chat_completions(request: Request):
-  body = await request.body()
-  ctype = request.headers.get(\"content-type\", \"application/json\")
-  r = requests.post(
-      f\"{MODEL_API_URL}/v1/chat/completions\",
-      data=body,
-      headers={\"Content-Type\": ctype},
-      timeout=180,
-  )
-  ct = r.headers.get(\"content-type\", \"application/json\")
-  return Response(content=r.content, status_code=r.status_code, media_type=ct)
+    body = await request.body()
+    ctype = request.headers.get(\"content-type\", \"application/json\")
+    try:
+        r = requests.post(
+            f\"{MODEL_API_URL}/v1/chat/completions\",
+            data=body,
+            headers={\"Content-Type\": ctype},
+            timeout=180,
+        )
+    except requests.exceptions.RequestException as e:
+        log.warning(\"v1/chat/completions upstream error: %s\", e)
+        return JSONResponse(
+            status_code=502,
+            content={
+                \"error\": \"upstream_unavailable\",
+                \"detail\": str(e),
+                \"upstream\": MODEL_API_URL,
+            },
+        )
+    ct = r.headers.get(\"content-type\", \"application/json\")
+    return Response(content=r.content, status_code=r.status_code, media_type=ct)
 EOF
 
   cat > backend/Dockerfile <<\"EOF\"
@@ -400,6 +428,7 @@ services:
     restart: always
     environment:
       - MODEL_API_URL=http://${API_IP}:${API_PORT}
+      - MODEL_PROXY_TIMEOUT=120
     deploy:
       resources:
         limits:

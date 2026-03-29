@@ -542,6 +542,7 @@ documentation/
 │   ├── TOKENOMICS.md
 │   ├── VALIDATION_QUICK_START.md
 │   ├── WALLET_COMPLETE_GUIDE.md
+│   ├── api/SSE_STREAMING_CONTRACT.md  # SSE wire format for apps/api chat streaming — Markdown
 │   ├── api/contracts/governance/GOVERNANCE.md
 │   ├── ISO27001/                # Policy pack (scope, SoA, checklist, etc.)
 │   └── whitepaper/whitepaper.md

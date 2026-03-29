@@ -67,7 +67,7 @@ retry: <optional_retry>
    - SSE streaming implementation
    - Request validation
 
-3. **`documentation/api/SSE_STREAMING_CONTRACT.md`**
+3. **[api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md)**
    - Complete SSE contract documentation
    - Client implementation examples
    - Best practices and testing
@@ -95,6 +95,16 @@ The web app sends `mode: "guest"` on `POST /api/chat/completions` when the user 
 - `optionalQuotaMiddleware` skips attaching DID quota when `body.mode === "guest"`.
 - The completions handler skips DID usage increment when `request.mode === "guest"`.
 - Message text must not be written to application logs; the AI gateway already sends only `role`/`content` to upstream providers.
+
+## API deployment topologies
+
+| Topology | What serves `/api/...` | Chat widget (`/api/chat/completions`) |
+|----------|-------------------------|----------------------------------------|
+| **Local / full stack** | Node `apps/api` (e.g. port 3001) | Works: SSE contract, guest mode, save/load, quota. |
+| **`deployment/deploy-app.sh` production** | Caddy → **minimal FastAPI** proxy → vLLM OpenAI API | **Not supported** by that proxy alone: the widget expects SafePsy SSE and `/api/chat/*` routes implemented in `apps/api`. The script exposes vLLM via `/api/v1/models` and `/api/v1/chat/completions` (OpenAI shape). |
+| **`apps/ai-chatbot`** | Optional FastAPI + in-process or routed vLLM | Separate service; configure `AI_INTERNAL_API_KEY` and backend URL per your compose. |
+
+For the **SSE wire format** used by `apps/api`, see [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md).
 
 ## 📝 Usage Examples
 
@@ -278,7 +288,7 @@ data: {"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":150,"
 
 ## 📚 Documentation
 
-- **SSE Contract**: See `SSE_STREAMING_CONTRACT.md` for complete SSE specification
+- **SSE Contract**: See [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md)
 - **API Routes**: See `src/routes/chat.ts` for route implementation
 - **Service**: See `src/lib/ai-gateway.service.ts` for service implementation
 

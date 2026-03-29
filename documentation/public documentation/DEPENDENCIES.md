@@ -71,21 +71,48 @@ This document lists all dependencies required for the SafePsy application deploy
 
 ## Infrastructure Dependencies
 
+### Instance-aware production stack (`deployment/deploy-app.sh`)
+
+End-to-end script deploys **two hosts** (defaults: app `51.159.117.169`, LLM API `51.159.160.246` — override with `APP_IP` / `API_IP`).
+
+| Piece | Image / runtime | Role |
+|-------|------------------|------|
+| **vLLM** | `vllm/vllm-openai-cpu:latest` (override `VLLM_IMAGE`) | OpenAI-compatible HTTP on host port `API_PORT` (default `8000`): `/v1/models`, `/v1/chat/completions` |
+| **App frontend** | `node:20-alpine` | Builds `apps/web` with `VITE_API_URL=https://<APP_DOMAIN>` |
+| **App “backend”** | `python:3.11-slim` + FastAPI | LLM **proxy** only: forwards to `MODEL_API_URL` (compose: `http://<API_IP>:<API_PORT>`). Env `MODEL_PROXY_TIMEOUT` (default `120`) for upstream `/v1/models`. |
+| **Edge** | `caddy:latest` | TLS; `handle_path /api/*` → proxy; `/*` → static SPA |
+
+**vLLM container env / flags** (script defaults): `VLLM_CPU_KVCACHE_SPACE`, `VLLM_DTYPE`, `VLLM_TENSOR_PARALLEL_SIZE`, `VLLM_EXTRA_DOCKER_ARGS`, `VLLM_DOCKER_MEMORY`; models `MODEL_ID` / `FALLBACK_MODEL_ID`, `MAX_MODEL_LEN` / `FALLBACK_MAX_MODEL_LEN`.
+
+**Note:** This stack does **not** run Node `apps/api`. Full chat (SSE, guest mode, encrypted save/load) requires `apps/api` or another implementation of the contract in [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md).
+
+### AI chatbot workspace (`apps/ai-chatbot`)
+
+Python service (FastAPI) with optional **in-process vLLM** when CUDA/GPU is available. Declared in `apps/ai-chatbot/requirements.txt`:
+
+- **fastapi** `>=0.115.0`, **uvicorn[standard]** `>=0.32.0`, **pydantic** `>=2.9.0`, **python-dotenv** `>=1.0.1`
+- **vllm** / **torch**: installed at image build or runtime per `Dockerfile` / `entrypoint.sh` (not pinned in `requirements.txt` — GPU/CUDA-specific)
+
+See `deploy/chatbot/.env.example` for `MODEL_NAME`, `AI_INTERNAL_API_KEY`, and optional `VLLM_*` tuning.
+
 ### Docker Images
 
-1. **node:18-alpine**
-   - Base image for application
-   - Includes Node.js 18 and npm
+1. **node:18-alpine** (and **node:20-alpine** in `deploy-app.sh` frontend build)
+   - Base image for application / Vite build
+   - Includes Node.js and npm
    - Alpine Linux for smaller image size
 
 2. **postgres:15-alpine**
    - PostgreSQL 15 database server
    - Alpine Linux variant
 
-3. **caddy:2-alpine**
+3. **caddy:2-alpine** (deploy script uses **`caddy:latest`**)
    - Caddy web server v2
    - Automatic SSL certificate management
    - Reverse proxy capabilities
+
+4. **vllm/vllm-openai-cpu** (tag `latest` unless overridden)
+   - OpenAI-compatible inference server (CPU image in default deploy; use GPU images + `VLLM_EXTRA_DOCKER_ARGS` for CUDA hosts)
 
 ### System Packages (installed in Dockerfile)
 
@@ -98,12 +125,12 @@ This document lists all dependencies required for the SafePsy application deploy
 
 ### Backend Dev Dependencies
 - **nodemon** `^3.1.9`: Auto-restart on file changes
-- **@types/node** `^22.10.5`: TypeScript types for Node.js
+- **@types/node** `^25.2.x`: TypeScript types for Node.js
 - **@types/express** `^5.0.6`: TypeScript types for Express
 - **eslint** `^9.18.0`: Linting
 - **prettier** `^3.4.2`: Code formatting
 - **vitest** `^2.1.8`: Testing framework
-- **hardhat** `^3.1.0`: Ethereum development environment
+- **hardhat** `^2.22.x`: Ethereum development environment (API package; see `apps/api/package.json`)
 
 ## Production Deployment Requirements
 
