@@ -13,18 +13,13 @@ set -euo pipefail
 # 5) Harden API exposure
 #
 # Usage:
-#   chmod +x deployment/deploy-app.sh
-#   ./deployment/deploy-app.sh
+#   chmod +x deployment/deploy-instance-aware-roadmap.sh
+#   ./deployment/deploy-instance-aware-roadmap.sh
 #
 # Optional overrides:
 #   APP_IP=... API_IP=... CADDY_SITE_NAMES=... APP_USER=... SSH_KEY=... \
 #   VLLM_IMAGE=... VLLM_CPU_KVCACHE_SPACE=... VLLM_DTYPE=... \
-#   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... \
-#   VLLM_TENSOR_PARALLEL_SIZE=... VLLM_EXTRA_DOCKER_ARGS=... \
-#   VLLM_DOCKER_MEMORY=... ./deployment/deploy-app.sh
-#
-# On the app host, the generated LLM proxy reads MODEL_API_URL and optional MODEL_PROXY_TIMEOUT
-# (seconds, default 120) for GET /v1/models → upstream vLLM.
+#   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... ./deployment/deploy-instance-aware-roadmap.sh
 #
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
 #   Default: safepsy.com, www.safepsy.com
@@ -41,25 +36,20 @@ SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
 
 API_PORT="${API_PORT:-8000}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai-cpu:latest}"
-# Default: Qwen2.5-7B primary / 3B fallback. Raise VLLM_DOCKER_MEMORY if the host has RAM (see default below).
-MODEL_ID="${MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
-FALLBACK_MODEL_ID="${FALLBACK_MODEL_ID:-Qwen/Qwen2.5-3B-Instruct}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-8192}"
-FALLBACK_MAX_MODEL_LEN="${FALLBACK_MAX_MODEL_LEN:-8192}"
+# Default: very small instruct model; phi-2 + float32 often OOMs / fails engine init on 8GB CPU.
+MODEL_ID="${MODEL_ID:-Qwen/Qwen2-0.5B-Instruct}"
+FALLBACK_MODEL_ID="${FALLBACK_MODEL_ID:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-256}"
+FALLBACK_MAX_MODEL_LEN="${FALLBACK_MAX_MODEL_LEN:-256}"
 VLLM_CPU_KVCACHE_SPACE="${VLLM_CPU_KVCACHE_SPACE:-1}"
 VLLM_DTYPE="${VLLM_DTYPE:-auto}"
-VLLM_TENSOR_PARALLEL_SIZE="${VLLM_TENSOR_PARALLEL_SIZE:-1}"
-# Example GPU image extras: VLLM_EXTRA_DOCKER_ARGS='--gpu-memory-utilization 0.9'
-VLLM_EXTRA_DOCKER_ARGS="${VLLM_EXTRA_DOCKER_ARGS:-}"
-# vLLM container cgroup cap (weights + KV cache); 24g reduces OOM risk for 7B / long context vs 6g.
-VLLM_DOCKER_MEMORY="${VLLM_DOCKER_MEMORY:-24g}"
 
 APP_BASE_DIR="/home/${APP_USER}/app"
 API_BASE_DIR="/home/${APP_USER}/llm-api"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WEB_SRC_DIR="${WEB_SRC_DIR:-${REPO_ROOT}/apps/web}"
-SCRIPT_VERSION="2026-03-29.1"
+SCRIPT_VERSION="2026-03-24.1"
 
 if [[ -n "${SSH_KEY}" ]]; then
   SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout="${SSH_CONNECT_TIMEOUT}" -i "${SSH_KEY}")
@@ -91,7 +81,7 @@ wait_http() {
 }
 
 log "Preflight: checking SSH access"
-log "Running deploy-app.sh v${SCRIPT_VERSION}"
+log "Running deploy-instance-aware-roadmap.sh v${SCRIPT_VERSION}"
 run_ssh "${API_IP}" "echo 'API SSH OK on $(hostname)'" || die "Cannot SSH to API server ${API_IP}"
 run_ssh "${APP_IP}" "echo 'APP SSH OK on $(hostname)'" || die "Cannot SSH to APP server ${APP_IP}"
 
@@ -118,7 +108,7 @@ for HOST in "${API_IP}" "${APP_IP}"; do
   '"
 done
 
-log "STEP 3: Deploy API server first (vLLM OpenAI server, chunked prefill, tensor-parallel-size fallback chain)"
+log "STEP 3: Deploy API server first (vLLM CPU-friendly profile with fallback)"
 run_ssh "${API_IP}" "bash -lc '
   set -euo pipefail
   mkdir -p ${API_BASE_DIR}
@@ -133,16 +123,13 @@ run_ssh "${API_IP}" "bash -lc '
       --name vllm \
       -p ${API_PORT}:8000 \
       --restart unless-stopped \
-      --memory=${VLLM_DOCKER_MEMORY} \
+      --memory=6g \
       --cpus=3 \
       -e VLLM_CPU_KVCACHE_SPACE=${VLLM_CPU_KVCACHE_SPACE} \
       ${VLLM_IMAGE} \
       --model \"\${model}\" \
       --dtype ${VLLM_DTYPE} \
-      --max-model-len \"\${maxlen}\" \
-      --enable-chunked-prefill \
-      --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE} \
-      ${VLLM_EXTRA_DOCKER_ARGS}
+      --max-model-len \"\${maxlen}\"
   }
 
   run_model \"${MODEL_ID}\" \"${MAX_MODEL_LEN}\"
@@ -199,25 +186,19 @@ CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"]
 EOF
 
   cat > backend/requirements.txt <<\"EOF\"
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-requests>=2.31.0
+fastapi
+uvicorn
+requests
 EOF
 
   cat > backend/main.py <<\"EOF\"
-import logging
 import os
 import requests
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(\"llm_proxy\")
 
 app = FastAPI()
 MODEL_API_URL = os.getenv(\"MODEL_API_URL\", \"http://127.0.0.1:8000\").rstrip(\"/\")
-UPSTREAM_TIMEOUT = int(os.getenv(\"MODEL_PROXY_TIMEOUT\", \"120\"))
 
 app.add_middleware(
     CORSMiddleware,
@@ -229,52 +210,32 @@ app.add_middleware(
 
 @app.get(\"/healthz\")
 def healthz():
-    return {\"ok\": True, \"service\": \"backend\", \"model_api_url\": MODEL_API_URL}
-
-def _proxy_v1_models():
-    try:
-        r = requests.get(f\"{MODEL_API_URL}/v1/models\", timeout=UPSTREAM_TIMEOUT)
-        ct = r.headers.get(\"content-type\") or \"application/json\"
-        return Response(content=r.content, status_code=r.status_code, media_type=ct)
-    except requests.exceptions.RequestException as e:
-        log.warning(\"v1/models upstream error: %s\", e)
-        return JSONResponse(
-            status_code=502,
-            content={
-                \"error\": \"upstream_unavailable\",
-                \"detail\": str(e),
-                \"upstream\": MODEL_API_URL,
-            },
-        )
+  return {\"ok\": True, \"service\": \"backend\"}
 
 @app.get(\"/models\")
+def models():
+  resp = requests.get(f\"{MODEL_API_URL}/v1/models\", timeout=15)
+  resp.raise_for_status()
+  return resp.json()
+
 @app.get(\"/v1/models\")
 def v1_models():
-    return _proxy_v1_models()
+  resp = requests.get(f\"{MODEL_API_URL}/v1/models\", timeout=15)
+  resp.raise_for_status()
+  return resp.json()
 
 @app.post(\"/v1/chat/completions\")
 async def v1_chat_completions(request: Request):
-    body = await request.body()
-    ctype = request.headers.get(\"content-type\", \"application/json\")
-    try:
-        r = requests.post(
-            f\"{MODEL_API_URL}/v1/chat/completions\",
-            data=body,
-            headers={\"Content-Type\": ctype},
-            timeout=180,
-        )
-    except requests.exceptions.RequestException as e:
-        log.warning(\"v1/chat/completions upstream error: %s\", e)
-        return JSONResponse(
-            status_code=502,
-            content={
-                \"error\": \"upstream_unavailable\",
-                \"detail\": str(e),
-                \"upstream\": MODEL_API_URL,
-            },
-        )
-    ct = r.headers.get(\"content-type\", \"application/json\")
-    return Response(content=r.content, status_code=r.status_code, media_type=ct)
+  body = await request.body()
+  ctype = request.headers.get(\"content-type\", \"application/json\")
+  r = requests.post(
+      f\"{MODEL_API_URL}/v1/chat/completions\",
+      data=body,
+      headers={\"Content-Type\": ctype},
+      timeout=180,
+  )
+  ct = r.headers.get(\"content-type\", \"application/json\")
+  return Response(content=r.content, status_code=r.status_code, media_type=ct)
 EOF
 
   cat > backend/Dockerfile <<\"EOF\"
@@ -300,7 +261,6 @@ services:
     restart: always
     environment:
       - MODEL_API_URL=http://${API_IP}:${API_PORT}
-      - MODEL_PROXY_TIMEOUT=120
     deploy:
       resources:
         limits:
