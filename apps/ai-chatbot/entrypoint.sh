@@ -3,7 +3,7 @@ set -e
 
 # Default values
 USE_GPU=${USE_GPU:-true}
-MODEL_NAME=${MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}
+MODEL_NAME=${MODEL_NAME:-grmenon/grmenon-7b}
 
 echo "=== AI Chatbot Service Entrypoint ==="
 echo "USE_GPU: $USE_GPU"
