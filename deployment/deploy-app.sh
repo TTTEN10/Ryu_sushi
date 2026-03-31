@@ -49,6 +49,7 @@ API_BASE_DIR="/home/${APP_USER}/llm-api"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WEB_SRC_DIR="${WEB_SRC_DIR:-${REPO_ROOT}/apps/web}"
+SKIP_API="${SKIP_API:-0}"
 SCRIPT_VERSION="2026-03-24.1"
 
 if [[ -n "${SSH_KEY}" ]]; then
@@ -82,15 +83,25 @@ wait_http() {
 
 log "Preflight: checking SSH access"
 log "Running deploy-instance-aware-roadmap.sh v${SCRIPT_VERSION}"
-run_ssh "${API_IP}" "echo 'API SSH OK on $(hostname)'" || die "Cannot SSH to API server ${API_IP}"
+if [[ "${SKIP_API}" == "1" ]]; then
+  log "SKIP_API=1: skipping API server SSH preflight"
+else
+  run_ssh "${API_IP}" "echo 'API SSH OK on $(hostname)'" || die "Cannot SSH to API server ${API_IP}"
+fi
 run_ssh "${APP_IP}" "echo 'APP SSH OK on $(hostname)'" || die "Cannot SSH to APP server ${APP_IP}"
 
 log "STEP 1: Ensure ${APP_USER} exists and has docker group on both servers"
-run_ssh "${API_IP}" "id ${APP_USER} >/dev/null 2>&1 || useradd -m -s /bin/bash ${APP_USER}; groupadd -f docker; usermod -aG docker ${APP_USER}"
+if [[ "${SKIP_API}" != "1" ]]; then
+  run_ssh "${API_IP}" "id ${APP_USER} >/dev/null 2>&1 || useradd -m -s /bin/bash ${APP_USER}; groupadd -f docker; usermod -aG docker ${APP_USER}"
+fi
 run_ssh "${APP_IP}" "id ${APP_USER} >/dev/null 2>&1 || useradd -m -s /bin/bash ${APP_USER}; groupadd -f docker; usermod -aG docker ${APP_USER}"
 
 log "STEP 2: Install Docker and Compose plugin (if missing) on both servers"
-for HOST in "${API_IP}" "${APP_IP}"; do
+HOSTS=("${APP_IP}")
+if [[ "${SKIP_API}" != "1" ]]; then
+  HOSTS=("${API_IP}" "${APP_IP}")
+fi
+for HOST in "${HOSTS[@]}"; do
   run_ssh "${HOST}" "bash -lc '
     set -e
     if ! command -v docker >/dev/null 2>&1; then
@@ -109,58 +120,66 @@ for HOST in "${API_IP}" "${APP_IP}"; do
 done
 
 log "STEP 3: Deploy API server first (vLLM CPU-friendly profile with fallback)"
-run_ssh "${API_IP}" "bash -lc '
-  set -euo pipefail
-  mkdir -p ${API_BASE_DIR}
-  chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}
+if [[ "${SKIP_API}" == "1" ]]; then
+  log "SKIP_API=1: skipping API deployment"
+else
+  run_ssh "${API_IP}" "bash -lc '
+    set -euo pipefail
+    mkdir -p ${API_BASE_DIR}
+    chown -R ${APP_USER}:${APP_USER} /home/${APP_USER}
 
-  docker rm -f vllm >/dev/null 2>&1 || true
+    docker rm -f vllm >/dev/null 2>&1 || true
 
-  run_model() {
-    local model=\"\$1\"
-    local maxlen=\"\$2\"
-    docker run -d \
-      --name vllm \
-      -p ${API_PORT}:8000 \
-      --restart unless-stopped \
-      --memory=6g \
-      --cpus=3 \
-      -e VLLM_CPU_KVCACHE_SPACE=${VLLM_CPU_KVCACHE_SPACE} \
-      ${VLLM_IMAGE} \
-      --model \"\${model}\" \
-      --dtype ${VLLM_DTYPE} \
-      --max-model-len \"\${maxlen}\"
-  }
+    run_model() {
+      local model=\"\$1\"
+      local maxlen=\"\$2\"
+      docker run -d \
+        --name vllm \
+        -p ${API_PORT}:8000 \
+        --restart unless-stopped \
+        --memory=6g \
+        --cpus=3 \
+        -e VLLM_CPU_KVCACHE_SPACE=${VLLM_CPU_KVCACHE_SPACE} \
+        ${VLLM_IMAGE} \
+        --model \"\${model}\" \
+        --dtype ${VLLM_DTYPE} \
+        --max-model-len \"\${maxlen}\"
+    }
 
-  run_model \"${MODEL_ID}\" \"${MAX_MODEL_LEN}\"
+    run_model \"${MODEL_ID}\" \"${MAX_MODEL_LEN}\"
 
-  for i in {1..120}; do
-    if curl -fsS http://localhost:${API_PORT}/v1/models >/dev/null 2>&1; then
-      echo \"vLLM primary model healthy\"
-      exit 0
-    fi
-    sleep 3
-  done
+    for i in {1..120}; do
+      if curl -fsS http://localhost:${API_PORT}/v1/models >/dev/null 2>&1; then
+        echo \"vLLM primary model healthy\"
+        exit 0
+      fi
+      sleep 3
+    done
 
-  echo \"Primary model failed. Falling back to ${FALLBACK_MODEL_ID} / max-len ${FALLBACK_MAX_MODEL_LEN}\"
-  docker rm -f vllm >/dev/null 2>&1 || true
-  run_model \"${FALLBACK_MODEL_ID}\" \"${FALLBACK_MAX_MODEL_LEN}\"
+    echo \"Primary model failed. Falling back to ${FALLBACK_MODEL_ID} / max-len ${FALLBACK_MAX_MODEL_LEN}\"
+    docker rm -f vllm >/dev/null 2>&1 || true
+    run_model \"${FALLBACK_MODEL_ID}\" \"${FALLBACK_MAX_MODEL_LEN}\"
 
-  for i in {1..120}; do
-    if curl -fsS http://localhost:${API_PORT}/v1/models >/dev/null 2>&1; then
-      echo \"vLLM fallback healthy\"
-      exit 0
-    fi
-    sleep 3
-  done
+    for i in {1..120}; do
+      if curl -fsS http://localhost:${API_PORT}/v1/models >/dev/null 2>&1; then
+        echo \"vLLM fallback healthy\"
+        exit 0
+      fi
+      sleep 3
+    done
 
-  echo \"vLLM failed with both primary and fallback models\"
-  docker logs --tail=120 vllm || true
-  exit 1
-'"
+    echo \"vLLM failed with both primary and fallback models\"
+    docker logs --tail=120 vllm || true
+    exit 1
+  '"
+fi
 
 log "STEP 4: Verify API server externally from local machine"
-wait_http "http://${API_IP}:${API_PORT}/v1/models" 120 3 || die "API endpoint is not reachable at http://${API_IP}:${API_PORT}/v1/models"
+if [[ "${SKIP_API}" == "1" ]]; then
+  log "SKIP_API=1: skipping external API verification"
+else
+  wait_http "http://${API_IP}:${API_PORT}/v1/models" 120 3 || die "API endpoint is not reachable at http://${API_IP}:${API_PORT}/v1/models"
+fi
 
 log "STEP 5: Deploy app stack on APP server (apps/web frontend + backend + caddy)"
 [[ -d "${WEB_SRC_DIR}" ]] || die "Frontend source directory not found: ${WEB_SRC_DIR}"
@@ -311,30 +330,42 @@ EOF
 '"
 
 log "STEP 6: Validate APP -> API connectivity from APP server"
-run_ssh "${APP_IP}" "bash -lc '
-  set -euo pipefail
-  curl -fsS http://${API_IP}:${API_PORT}/v1/models >/dev/null
-  docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
-  docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
-'"
+if [[ "${SKIP_API}" == "1" ]]; then
+  log "SKIP_API=1: skipping APP -> API connectivity validation"
+else
+  run_ssh "${APP_IP}" "bash -lc '
+    set -euo pipefail
+    curl -fsS http://${API_IP}:${API_PORT}/v1/models >/dev/null
+    docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
+    docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
+  '"
+fi
 
 log "STEP 7: Security hardening on API server (UFW allow app IP only on ${API_PORT})"
-run_ssh "${API_IP}" "bash -lc '
-  set -e
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update
-  apt-get install -y ufw
-  ufw --force enable || true
-  ufw allow OpenSSH
-  ufw allow from ${APP_IP} to any port ${API_PORT} proto tcp
-  ufw deny ${API_PORT}/tcp || true
-  ufw status verbose
-'"
+if [[ "${SKIP_API}" == "1" ]]; then
+  log "SKIP_API=1: skipping API UFW hardening"
+else
+  run_ssh "${API_IP}" "bash -lc '
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y ufw
+    ufw --force enable || true
+    ufw allow OpenSSH
+    ufw allow from ${APP_IP} to any port ${API_PORT} proto tcp
+    ufw deny ${API_PORT}/tcp || true
+    ufw status verbose
+  '"
+fi
 
 log "STEP 8: Final checks"
 wait_http "http://${APP_IP}" 30 2 || die "App root is not reachable at http://${APP_IP}"
 run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/healthz && echo'"
-run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/models >/dev/null && echo backend_to_api_ok'"
+if [[ "${SKIP_API}" == "1" ]]; then
+  log "SKIP_API=1: skipping backend -> model API check (/api/models)"
+else
+  run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/models >/dev/null && echo backend_to_api_ok'"
+fi
 
 log "STEP 8b: HTTPS / domain (Caddy auto-HTTPS; requires DNS → ${APP_IP})"
 if wait_http "https://${APP_DOMAIN}" 25 3; then
