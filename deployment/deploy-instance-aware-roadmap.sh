@@ -23,6 +23,8 @@ set -euo pipefail
 #
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
 #   Default: safepsy.com, www.safepsy.com
+#
+# LLM routing: see deploy-app.sh (LLM_UPSTREAM_URL, APP_PRIVATE_IP). Same variables apply here.
 
 APP_IP="${APP_IP:-51.159.117.169}"
 API_IP="${API_IP:-51.159.160.246}"
@@ -35,6 +37,8 @@ SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
 
 API_PORT="${API_PORT:-8000}"
+LLM_UPSTREAM_URL="${LLM_UPSTREAM_URL:-http://${API_IP}:${API_PORT}}"
+APP_PRIVATE_IP="${APP_PRIVATE_IP:-}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai-cpu:latest}"
 # Default: very small instruct model; phi-2 + float32 often OOMs / fails engine init on 8GB CPU.
 MODEL_ID="${MODEL_ID:-Qwen/Qwen2-0.5B-Instruct}"
@@ -79,6 +83,8 @@ wait_http() {
 
 log "Preflight: checking SSH access"
 log "Running deploy-instance-aware-roadmap.sh v${SCRIPT_VERSION}"
+log "LLM upstream URL (app→vLLM): ${LLM_UPSTREAM_URL}"
+[[ -n "${APP_PRIVATE_IP}" ]] && log "APP_PRIVATE_IP for UFW on API host: ${APP_PRIVATE_IP}"
 run_ssh "${API_IP}" "echo 'API SSH OK on $(hostname)'" || die "Cannot SSH to API server ${API_IP}"
 run_ssh "${APP_IP}" "echo 'APP SSH OK on $(hostname)'" || die "Cannot SSH to APP server ${APP_IP}"
 
@@ -389,7 +395,7 @@ services:
     build: ./backend
     restart: always
     environment:
-      - MODEL_API_URL=http://${API_IP}:${API_PORT}
+      - MODEL_API_URL=${LLM_UPSTREAM_URL}
     deploy:
       resources:
         limits:
@@ -442,10 +448,15 @@ EOF
 log "STEP 6: Validate APP -> API connectivity from APP server"
 run_ssh "${APP_IP}" "bash -lc '
   set -euo pipefail
-  curl -fsS http://${API_IP}:${API_PORT}/v1/models >/dev/null
+  curl -fsS ${LLM_UPSTREAM_URL}/v1/models >/dev/null
   docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
   docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
 '"
+
+UFW_EXTRA_CMD=""
+if [[ -n "${APP_PRIVATE_IP}" ]]; then
+  UFW_EXTRA_CMD="ufw allow from ${APP_PRIVATE_IP} to any port ${API_PORT} proto tcp"
+fi
 
 log "STEP 7: Security hardening on API server (UFW allow app IP only on ${API_PORT})"
 run_ssh "${API_IP}" "bash -lc '
@@ -456,6 +467,7 @@ run_ssh "${API_IP}" "bash -lc '
   ufw --force enable || true
   ufw allow OpenSSH
   ufw allow from ${APP_IP} to any port ${API_PORT} proto tcp
+  ${UFW_EXTRA_CMD}
   ufw deny ${API_PORT}/tcp || true
   ufw status verbose
 '"
@@ -477,7 +489,8 @@ cat <<EOF
 SUCCESS
 - Frontend reachable:  http://${APP_IP}
 - Domain (HTTPS):       https://${APP_DOMAIN}  (also ${CADDY_SITE_NAMES})
-- API endpoint:         http://${API_IP}:${API_PORT}/v1/models
+- LLM upstream (app):   ${LLM_UPSTREAM_URL}/v1/models
+- API host (vLLM):      http://${API_IP}:${API_PORT}/v1/models
 - App stack path:       ${APP_BASE_DIR}
 - Inference container:  vllm
 

@@ -429,6 +429,7 @@ deployment/
 ├── on-app-server-recover.sh           # On-server recovery steps — Shell
 ├── setup-secrets.sh                   # Secrets setup — Shell
 ├── verify-production.sh               # Production verification — Shell
+├── test-llm-route-from-app.sh         # SSH to app host; curl vLLM /v1/models — Shell
 ├── logrotate-app-monitor.example      # Logrotate sample for monitor — Text
 ├── app-server-monitor/
 │   └── monitor.sh                     # Host monitor script — Shell
@@ -454,6 +455,7 @@ scripts/
 ├── restore-mongodb.sh         # Restore MongoDB — Shell
 ├── restore-redis.sh           # Restore Redis — Shell
 ├── run-ci-locally.sh          # Run CI checks locally — Shell
+├── restore-and-export-email-subscriptions.sh  # Restore Postgres dump then export waitlist CSV — Shell
 ├── run-local.sh               # Local dev orchestration helper — Shell
 ├── test-ci-cd.sh              # CI/CD smoke script — Shell
 ├── security-check.js          # Security check script — JavaScript
@@ -537,7 +539,6 @@ documentation/
 │   ├── SMART_CONTRACTS_AUDIT_REPORT.md
 │   ├── TESTING_COMPLETE_GUIDE.md
 │   ├── THIRD-PARTY-NOTICES.md
-│   ├── TOKENOMICS.md
 │   ├── VALIDATION_QUICK_START.md
 │   ├── WALLET_COMPLETE_GUIDE.md
 │   ├── api/SSE_STREAMING_CONTRACT.md  # SSE wire format for apps/api chat streaming — Markdown
@@ -572,6 +573,7 @@ documentation/
     ├── SMART_CONTRACTS_COMPREHENSIVE_TESTING.md
     ├── SMART_CONTRACTS_DEPLOYMENT.md
     ├── TECHNICAL_REVIEW.md     # complete review + merged audit (ex-audit_technical_Review Mar 2026)
+    ├── TOKENOMICS.md
     ├── VC_ONE_PAGER.md
     ├── WAF_CONFIGURATION.md
     ├── programming_sprint.md   # sprint log + technical roadmap (ex-TECHNICAL_ROADMAP merged Mar 2026)
