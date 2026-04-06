@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: infra/terraform/envs/prod
 
     steps:
       - name: Checkout code
@@ -39,6 +39,7 @@ jobs:
 
       - name: Terraform Format Check
         id: fmt
+        working-directory: infra/terraform
         run: terraform fmt -check -recursive
         continue-on-error: false
 
@@ -56,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: infra/terraform/envs/prod
     # Only run plan on protected branches or when secrets are available
     if: |
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&

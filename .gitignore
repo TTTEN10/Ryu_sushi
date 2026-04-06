@@ -150,6 +150,9 @@ terraform.tfvars
 .yarn/install-state.gz
 .pnp.*
 
+# Local deployment run artifacts (not source of truth)
+deployment/deployment-logs/
+
 # Deployment files that may contain server IPs or credentials
 # Note: Deployment scripts with hardcoded IPs should be reviewed
 # but are kept for operational purposes - consider using environment variables

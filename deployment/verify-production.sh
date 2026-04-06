@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify/diagnose production for current instance-aware setup.
+# Verify/diagnose production (Caddy + Python proxy + SPA on APP_DOMAIN).
 # Usage: bash deployment/verify-production.sh
 # Optional env:
 #   APP_DOMAIN=safepsy.com
@@ -10,7 +10,8 @@
 set -euo pipefail
 
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
-APP_IP="${APP_IP:-51.159.117.169}"
+# Default matches prod app instance when DNS for APP_DOMAIN points here; override if needed.
+APP_IP="${APP_IP:-51.159.149.66}"
 TIMEOUT="${TIMEOUT:-15}"
 CHECK_LLM="${CHECK_LLM:-0}"
 

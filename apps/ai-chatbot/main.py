@@ -1,6 +1,6 @@
 """
 AI Chatbot Service - vLLM-based OpenAI-compatible API
-Serves GRMenon model via vLLM with SSE streaming support
+Serves Qwen2.5-Instruct (default) via vLLM with SSE streaming support
 """
 import os
 import time
@@ -9,12 +9,12 @@ import logging
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional
 import uvicorn
+from starlette.concurrency import run_in_threadpool
 
 # Configure logging
 logging.basicConfig(
@@ -31,16 +31,154 @@ app_state = {
     "start_time": time.time(),
     "llm_engine": None,
     "use_gpu": os.getenv("USE_GPU", "true").lower() == "true",
+    "inference_backend": None,  # "vllm" | "cpu" | "mock"
+    "hf_model": None,
+    "tokenizer": None,
 }
 
 # Environment variables
 PORT = int(os.getenv("PORT", "8000"))
-MODEL_NAME = os.getenv("MODEL_NAME", "grmenon/grmenon-7b")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
 MODEL_REVISION = os.getenv("MODEL_REVISION", "main")
-MAX_MODEL_LEN = int(os.getenv("MAX_MODEL_LEN", "4096")) if os.getenv("MAX_MODEL_LEN") else None
+MAX_MODEL_LEN = int(os.getenv("MAX_MODEL_LEN", "8192"))
 GPU_MEMORY_UTILIZATION = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9")) if os.getenv("GPU_MEMORY_UTILIZATION") else None
 VLLM_TENSOR_PARALLEL_SIZE = int(os.getenv("VLLM_TENSOR_PARALLEL_SIZE", "1")) if os.getenv("VLLM_TENSOR_PARALLEL_SIZE") else None
+VLLM_ENABLE_CHUNKED_PREFILL = os.getenv("VLLM_ENABLE_CHUNKED_PREFILL", "true").lower() == "true"
+VLLM_MAX_NUM_SEQS = int(os.getenv("VLLM_MAX_NUM_SEQS", "256"))
 AI_INTERNAL_API_KEY = os.getenv("AI_INTERNAL_API_KEY", "")  # API key for authentication
+# When USE_GPU=false: set USE_MOCK_RESPONSES=true only for tests (returns fixed mock text).
+USE_MOCK_RESPONSES = os.getenv("USE_MOCK_RESPONSES", "false").lower() == "true"
+# Smaller default for CPU; override with CPU_MODEL_NAME. GPU path still uses MODEL_NAME.
+CPU_MODEL_NAME = os.getenv("CPU_MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
+
+DEFAULT_SYSTEM_PROMPT = """You are Dr.Safe, a psychologically-informed conversational assistant designed to support users in reflecting on their thoughts, emotions, and experiences in a safe, structured, and non-judgmental way.
+
+Your role is NOT to diagnose, treat, or replace a licensed mental health professional. Your goal is to provide emotional support, encourage self-reflection, and guide users toward clarity using evidence-based psychological principles (e.g., cognitive behavioral approaches, emotional labeling, grounding techniques).
+
+----------------------------------
+CORE PRINCIPLES
+----------------------------------
+
+1. SAFETY FIRST
+- If a user expresses distress, vulnerability, or crisis signals (e.g., self-harm, hopelessness, suicidal thoughts), prioritize safety.
+- Respond with empathy, validate feelings, and gently encourage seeking human support (trusted person, professional, hotline).
+- Never provide harmful instructions or normalize dangerous behavior.
+
+2. EMPATHY & VALIDATION
+- Always acknowledge the user's emotional state before offering guidance.
+- Use warm, human, and natural language (not clinical or robotic).
+- Avoid judgment, minimization, or toxic positivity.
+
+3. CLARITY THROUGH REFLECTION
+- Help users better understand their thoughts and emotions by:
+  - Asking relevant, open-ended questions
+  - Reframing cognitive distortions
+  - Naming emotions when helpful
+- Do not overwhelm the user with too many questions at once.
+
+4. STRUCTURED BUT FLEXIBLE SUPPORT
+- When appropriate, guide the conversation using light structure:
+  - Explore the situation
+  - Identify thoughts/emotions
+  - Suggest small actionable steps
+- Adapt to the user's level of engagement (short answers vs deep reflection).
+
+5. ACTIONABLE MICRO-STEPS
+- Offer simple, realistic, and immediately applicable suggestions:
+  - Breathing exercises
+  - Grounding techniques
+  - Journaling prompts
+  - Perspective shifts
+- Avoid overly complex or abstract advice.
+
+6. RESPECT USER AUTONOMY
+- Never impose advice.
+- Offer options instead of directives.
+- Encourage the user to decide what feels right for them.
+
+----------------------------------
+COMMUNICATION STYLE
+----------------------------------
+
+- Tone: warm, calm, reassuring, and thoughtful
+- Language: simple, natural, and emotionally intelligent
+- Length: concise but meaningful (avoid long lectures)
+- Use phrases like:
+  - "It sounds like..."
+  - "That makes sense given..."
+  - "Would you like to explore that a bit more?"
+  - "One small thing you could try is..."
+
+----------------------------------
+BOUNDARIES
+----------------------------------
+
+- Do NOT:
+  - Provide diagnoses
+  - Provide medical or psychiatric treatment plans
+  - Act as the user's only support system
+- If asked for diagnosis or medical advice:
+  - Gently redirect and suggest consulting a professional
+
+----------------------------------
+EXAMPLE BEHAVIORS
+----------------------------------
+
+If user says: "I feel overwhelmed and I can't handle anything anymore"
+→ Respond:
+- Validate: "That sounds really heavy..."
+- Reflect: "It seems like everything is piling up at once"
+- Guide: "Would it help to break things down together?"
+- Suggest: "We can start with just one small thing"
+
+If user is vague:
+→ Ask a gentle clarifying question
+
+If user is highly distressed:
+→ Slow down, prioritize grounding, reduce complexity
+
+----------------------------------
+GOAL
+----------------------------------
+
+Your goal is to help the user feel:
+- Heard
+- Understood
+- Slightly more calm or clear than before
+
+Even a small improvement matters.
+
+Respond thoughtfully in the user's language when they write in French, English, or Russian."""
+
+CRISIS_PREPEND = (
+    "I'm really glad you shared this… you don't have to go through this alone…\n\n"
+)
+
+# Lightweight keyword scan (EN / FR / RU); not a substitute for professional triage.
+CRISIS_KEYWORDS = (
+    "suicide",
+    "suicidal",
+    "self-harm",
+    "self harm",
+    "kill myself",
+    "end my life",
+    "want to die",
+    "hurt myself",
+    "self-injur",
+    "overdose",
+    "hang myself",
+    "me suicider",
+    "me tuer",
+    "finir ma vie",
+    "envie de mourir",
+    "auto-mutilation",
+    "automutilation",
+    "суицид",
+    "самоубийств",
+    "покончить с собой",
+    "хочу умереть",
+    "навредить себе",
+)
 
 # Try to get git SHA from environment (set during build)
 GIT_SHA = os.getenv("GIT_SHA", "unknown")
@@ -58,53 +196,112 @@ class ChatCompletionRequest(BaseModel):
     temperature: Optional[float] = Field(0.7, ge=0.0, le=2.0, description="Sampling temperature")
     max_tokens: Optional[int] = Field(1000, ge=1, description="Maximum tokens to generate")
     stream: Optional[bool] = Field(False, description="Whether to stream the response")
-    top_p: Optional[float] = Field(1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter")
+    top_p: Optional[float] = Field(0.9, ge=0.0, le=1.0, description="Nucleus sampling parameter")
     frequency_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0, description="Frequency penalty")
     presence_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0, description="Presence penalty")
 
 
+def detect_crisis_signals(text: str) -> bool:
+    if not text or not text.strip():
+        return False
+    lowered = text.lower()
+    return any(kw in lowered for kw in CRISIS_KEYWORDS)
+
+
+def user_messages_text(messages: List[ChatMessage]) -> str:
+    return "\n".join(m.content for m in messages if m.role == "user")
+
+
+def prepare_messages_with_system(messages: List[ChatMessage]) -> List[ChatMessage]:
+    """Ensure DEFAULT_SYSTEM_PROMPT is applied (merged with any client system message)."""
+    if not messages:
+        return [ChatMessage(role="system", content=DEFAULT_SYSTEM_PROMPT)]
+    out: List[ChatMessage] = []
+    merged = False
+    for msg in messages:
+        if msg.role == "system" and not merged:
+            merged = True
+            combined = f"{DEFAULT_SYSTEM_PROMPT}\n\n---\n\n{msg.content}"
+            out.append(ChatMessage(role="system", content=combined))
+        else:
+            out.append(msg)
+    if not merged:
+        out.insert(0, ChatMessage(role="system", content=DEFAULT_SYSTEM_PROMPT))
+    return out
+
+
 def initialize_model():
-    """Initialize vLLM engine (GPU mode) or mock (CPU mode)"""
-    if not app_state["use_gpu"]:
-        logger.info("USE_GPU=false: Running in mock/CPU mode")
+    """Initialize vLLM (GPU), Hugging Face on CPU, or explicit mock."""
+    if app_state["use_gpu"]:
+        try:
+            from vllm import LLM
+
+            logger.info(f"Initializing vLLM with model: {MODEL_NAME}")
+            vllm_kwargs: Dict[str, Any] = {
+                "model": MODEL_NAME,
+                "trust_remote_code": True,
+                "max_model_len": MAX_MODEL_LEN,
+                "revision": MODEL_REVISION,
+                "max_num_seqs": VLLM_MAX_NUM_SEQS,
+            }
+            if GPU_MEMORY_UTILIZATION:
+                vllm_kwargs["gpu_memory_utilization"] = GPU_MEMORY_UTILIZATION
+            if VLLM_TENSOR_PARALLEL_SIZE and VLLM_TENSOR_PARALLEL_SIZE > 1:
+                vllm_kwargs["tensor_parallel_size"] = VLLM_TENSOR_PARALLEL_SIZE
+            if VLLM_ENABLE_CHUNKED_PREFILL:
+                vllm_kwargs["enable_chunked_prefill"] = True
+
+            app_state["llm_engine"] = LLM(**vllm_kwargs)
+            app_state["model_loaded"] = True
+            app_state["model_name"] = MODEL_NAME
+            app_state["model_revision"] = MODEL_REVISION
+            app_state["inference_backend"] = "vllm"
+            logger.info(f"Model {MODEL_NAME} loaded successfully (vLLM)")
+        except ImportError:
+            logger.error("vLLM not installed. Install with: pip install vllm")
+            app_state["model_loaded"] = False
+            app_state["inference_backend"] = None
+        except Exception as e:
+            logger.error(f"Failed to load GPU model: {e}", exc_info=True)
+            app_state["model_loaded"] = False
+            app_state["inference_backend"] = None
+        return
+
+    if USE_MOCK_RESPONSES:
+        logger.info("USE_MOCK_RESPONSES=true: mock replies only (no LLM)")
         app_state["model_loaded"] = True
         app_state["model_name"] = "mock-model"
         app_state["model_revision"] = "mock"
+        app_state["inference_backend"] = "mock"
         return
-    
+
+    logger.info(f"USE_GPU=false: loading CPU model {CPU_MODEL_NAME}")
     try:
-        import vllm
-        from vllm import LLM, SamplingParams
-        
-        logger.info(f"Initializing vLLM with model: {MODEL_NAME}")
-        
-        # Build vLLM arguments
-        vllm_kwargs = {
-            "model": MODEL_NAME,
-            "trust_remote_code": True,
-            "max_model_len": MAX_MODEL_LEN,
-        }
-        
-        if GPU_MEMORY_UTILIZATION:
-            vllm_kwargs["gpu_memory_utilization"] = GPU_MEMORY_UTILIZATION
-        
-        if VLLM_TENSOR_PARALLEL_SIZE and VLLM_TENSOR_PARALLEL_SIZE > 1:
-            vllm_kwargs["tensor_parallel_size"] = VLLM_TENSOR_PARALLEL_SIZE
-        
-        # Initialize LLM engine
-        app_state["llm_engine"] = LLM(**vllm_kwargs)
+        import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        tok = AutoTokenizer.from_pretrained(CPU_MODEL_NAME, trust_remote_code=True)
+        if tok.pad_token is None:
+            tok.pad_token = tok.eos_token
+        model = AutoModelForCausalLM.from_pretrained(
+            CPU_MODEL_NAME,
+            trust_remote_code=True,
+            torch_dtype=torch.float32,
+            device_map="cpu",
+            low_cpu_mem_usage=True,
+        )
+        model.eval()
+        app_state["tokenizer"] = tok
+        app_state["hf_model"] = model
         app_state["model_loaded"] = True
-        app_state["model_name"] = MODEL_NAME
+        app_state["model_name"] = CPU_MODEL_NAME
         app_state["model_revision"] = MODEL_REVISION
-        
-        logger.info(f"Model {MODEL_NAME} loaded successfully")
-        
-    except ImportError:
-        logger.error("vLLM not installed. Install with: pip install vllm")
-        app_state["model_loaded"] = False
+        app_state["inference_backend"] = "cpu"
+        logger.info(f"CPU model {CPU_MODEL_NAME} loaded")
     except Exception as e:
-        logger.error(f"Failed to load model: {e}", exc_info=True)
+        logger.error(f"Failed to load CPU model: {e}", exc_info=True)
         app_state["model_loaded"] = False
+        app_state["inference_backend"] = None
 
 
 @asynccontextmanager
@@ -113,7 +310,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AI Chatbot Service...")
     logger.info(f"USE_GPU={app_state['use_gpu']}")
-    logger.info(f"MODEL_NAME={MODEL_NAME}")
+    logger.info(f"USE_MOCK_RESPONSES={USE_MOCK_RESPONSES}")
+    logger.info(f"MODEL_NAME={MODEL_NAME} CPU_MODEL_NAME={CPU_MODEL_NAME}")
+    logger.info(f"inference_backend={app_state.get('inference_backend')}")
     
     # Initialize model in background (non-blocking)
     try:
@@ -179,6 +378,12 @@ async def verify_api_key(
     return True
 
 
+@app.get("/health")
+async def health():
+    """Alias for load balancers / deploy scripts expecting /health."""
+    return await healthz()
+
+
 @app.get("/healthz")
 async def healthz():
     """Health check endpoint - must be fast and stable (public endpoint)"""
@@ -193,6 +398,8 @@ async def healthz():
         "uptime": int(uptime),  # Production-ready format
         "uptime_seconds": int(uptime),  # Keep for backward compatibility
         "use_gpu": app_state["use_gpu"],
+        "inference_backend": app_state["inference_backend"],
+        "use_mock_responses": USE_MOCK_RESPONSES,
     })
 
 
@@ -208,9 +415,11 @@ async def version():
     })
 
 
-def generate_mock_response(messages: List[ChatMessage], stream: bool = False):
+def generate_mock_response(messages: List[ChatMessage], stream: bool = False, crisis_detected: bool = False):
     """Generate a mock response for non-GPU mode"""
     response_text = "This is a mock response. GPU mode is disabled (USE_GPU=false)."
+    if crisis_detected:
+        response_text = CRISIS_PREPEND + response_text
     
     if stream:
         def mock_stream():
@@ -268,11 +477,152 @@ def generate_mock_response(messages: List[ChatMessage], stream: bool = False):
         }
 
 
+def _hf_chat_prompt(messages: List[ChatMessage]) -> str:
+    tok = app_state["tokenizer"]
+    raw = [{"role": m.role, "content": m.content} for m in messages]
+    return tok.apply_chat_template(raw, tokenize=False, add_generation_prompt=True)
+
+
+def generate_cpu_stream(
+    messages: List[ChatMessage],
+    temperature: float,
+    max_tokens: int,
+    model: str,
+    top_p: float,
+    prepend_crisis: bool = False,
+):
+    """HF causal LM streaming (CPU)."""
+    from threading import Thread
+    from transformers import TextIteratorStreamer
+
+    tokenizer = app_state["tokenizer"]
+    hf_model = app_state["hf_model"]
+    if not tokenizer or not hf_model:
+        raise HTTPException(status_code=503, detail="CPU model not loaded")
+
+    prompt = _hf_chat_prompt(messages)
+    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = {k: v.to(hf_model.device) for k, v in inputs.items()}
+
+    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    gen_kwargs = {
+        **inputs,
+        "streamer": streamer,
+        "max_new_tokens": max_tokens,
+        "do_sample": True,
+        "temperature": max(0.01, float(temperature)),
+        "top_p": float(top_p),
+    }
+
+    thread = Thread(target=hf_model.generate, kwargs=gen_kwargs)
+    thread.start()
+
+    completion_id = f"chatcmpl-{int(time.time())}"
+    created_time = int(time.time())
+    mid = model or app_state["model_name"]
+
+    if prepend_crisis:
+        chunk = {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created_time,
+            "model": mid,
+            "choices": [{"index": 0, "delta": {"content": CRISIS_PREPEND}, "finish_reason": None}],
+        }
+        yield f"data: {json.dumps(chunk)}\n\n"
+
+    for new_text in streamer:
+        if not new_text:
+            continue
+        chunk = {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created_time,
+            "model": mid,
+            "choices": [{"index": 0, "delta": {"content": new_text}, "finish_reason": None}],
+        }
+        yield f"data: {json.dumps(chunk)}\n\n"
+
+    thread.join()
+    final_chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created_time,
+        "model": mid,
+        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+    }
+    yield f"data: {json.dumps(final_chunk)}\n\n"
+    yield "data: [DONE]\n\n"
+
+
+async def generate_cpu_non_stream(
+    messages: List[ChatMessage],
+    temperature: float,
+    max_tokens: int,
+    model: str,
+    top_p: float,
+    prepend_crisis: bool = False,
+) -> Dict[str, Any]:
+    import torch
+
+    tokenizer = app_state["tokenizer"]
+    hf_model = app_state["hf_model"]
+    if not tokenizer or not hf_model:
+        raise HTTPException(status_code=503, detail="CPU model not loaded")
+
+    prompt = _hf_chat_prompt(messages)
+    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = {k: v.to(hf_model.device) for k, v in inputs.items()}
+
+    def _gen() -> str:
+        with torch.inference_mode():
+            out = hf_model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                do_sample=True,
+                temperature=max(0.01, float(temperature)),
+                top_p=float(top_p),
+            )
+        row = out[0]
+        prompt_len = inputs["input_ids"].shape[1]
+        gen_tokens = row[prompt_len:]
+        return tokenizer.decode(gen_tokens, skip_special_tokens=True)
+
+    generated_text = await run_in_threadpool(_gen)
+    if prepend_crisis:
+        generated_text = CRISIS_PREPEND + generated_text
+
+    completion_id = f"chatcmpl-{int(time.time())}"
+    mid = model or app_state["model_name"]
+    prompt_tokens = inputs["input_ids"].shape[1]
+    completion_tokens = len(generated_text.split())
+    return {
+        "id": completion_id,
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": mid,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": generated_text},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": int(prompt_tokens),
+            "completion_tokens": completion_tokens,
+            "total_tokens": int(prompt_tokens) + completion_tokens,
+        },
+    }
+
+
 def generate_vllm_stream(
     messages: List[ChatMessage],
     temperature: float,
     max_tokens: int,
-    model: str
+    model: str,
+    top_p: float,
+    prepend_crisis: bool = False,
 ):
     """Generate streaming response using vLLM"""
     if not app_state["llm_engine"]:
@@ -299,6 +649,7 @@ def generate_vllm_stream(
     sampling_params = SamplingParams(
         temperature=temperature,
         max_tokens=max_tokens,
+        top_p=top_p,
     )
     
     # Generate with streaming
@@ -307,6 +658,20 @@ def generate_vllm_stream(
     created_time = int(time.time())
     
     try:
+        if prepend_crisis:
+            chunk = {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created_time,
+                "model": model or app_state["model_name"],
+                "choices": [{
+                    "index": 0,
+                    "delta": {"content": CRISIS_PREPEND},
+                    "finish_reason": None
+                }]
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+
         # vLLM's LLM.generate() returns a list of RequestOutput
         # For streaming, we use the generate() method which yields tokens
         # We'll use a synchronous generator that yields SSE chunks
@@ -383,7 +748,9 @@ async def generate_vllm_non_stream(
     messages: List[ChatMessage],
     temperature: float,
     max_tokens: int,
-    model: str
+    model: str,
+    top_p: float,
+    prepend_crisis: bool = False,
 ) -> Dict[str, Any]:
     """Generate non-streaming response using vLLM"""
     if not app_state["llm_engine"]:
@@ -409,6 +776,7 @@ async def generate_vllm_non_stream(
     sampling_params = SamplingParams(
         temperature=temperature,
         max_tokens=max_tokens,
+        top_p=top_p,
     )
     
     # Generate
@@ -423,6 +791,8 @@ async def generate_vllm_non_stream(
         
         output = outputs[0]
         generated_text = output.outputs[0].text
+        if prepend_crisis:
+            generated_text = CRISIS_PREPEND + generated_text
         
         # Estimate token counts (rough: ~4 chars per token)
         prompt_tokens = len(prompt) // 4
@@ -452,6 +822,16 @@ async def generate_vllm_non_stream(
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
+@app.get("/v1/models")
+async def list_models():
+    """OpenAI-compatible model list (used by app proxy health checks)."""
+    mid = app_state["model_name"] or MODEL_NAME
+    return {
+        "object": "list",
+        "data": [{"id": mid, "object": "model", "created": int(time.time()), "owned_by": "safepsy"}],
+    }
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(
     request: ChatCompletionRequest,
@@ -459,40 +839,78 @@ async def chat_completions(
 ):
     """OpenAI-compatible chat completions endpoint with SSE streaming support"""
     
-    # Check if model is loaded (unless in mock mode)
-    if app_state["use_gpu"] and not app_state["model_loaded"]:
+    if not app_state["model_loaded"]:
         raise HTTPException(
             status_code=503,
-            detail="Model not loaded. Service is starting up or model failed to load."
+            detail="Model not loaded. Service is starting up or model failed to load.",
         )
-    
+
     # Use request model or default
     model = request.model or app_state["model_name"] or MODEL_NAME
-    
-    # Handle mock mode
-    if not app_state["use_gpu"]:
+
+    crisis_detected = detect_crisis_signals(user_messages_text(request.messages))
+    messages = prepare_messages_with_system(request.messages)
+    temperature = 0.7 if request.temperature is None else request.temperature
+    top_p = 0.9 if request.top_p is None else request.top_p
+    max_tokens = request.max_tokens or 1000
+
+    if app_state["inference_backend"] == "mock":
         if request.stream:
             return StreamingResponse(
-                generate_mock_response(request.messages, stream=True),
+                generate_mock_response(messages, stream=True, crisis_detected=crisis_detected),
                 media_type="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
-                }
+                },
             )
-        else:
-            return JSONResponse(generate_mock_response(request.messages, stream=False))
-    
-    # Handle GPU mode
+        return JSONResponse(generate_mock_response(messages, stream=False, crisis_detected=crisis_detected))
+
+    if app_state["inference_backend"] == "cpu":
+        try:
+            if request.stream:
+                return StreamingResponse(
+                    generate_cpu_stream(
+                        messages,
+                        temperature,
+                        max_tokens,
+                        model,
+                        top_p,
+                        prepend_crisis=crisis_detected,
+                    ),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                    },
+                )
+            result = await generate_cpu_non_stream(
+                messages,
+                temperature,
+                max_tokens,
+                model,
+                top_p,
+                prepend_crisis=crisis_detected,
+            )
+            return JSONResponse(result)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"CPU chat completion error: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+    # vLLM (GPU)
     try:
         if request.stream:
             # Use a generator function for streaming
             def stream_generator():
                 for chunk in generate_vllm_stream(
-                    request.messages,
-                    request.temperature or 0.7,
-                    request.max_tokens or 1000,
-                    model
+                    messages,
+                    temperature,
+                    max_tokens,
+                    model,
+                    top_p,
+                    prepend_crisis=crisis_detected,
                 ):
                     yield chunk
             
@@ -506,10 +924,12 @@ async def chat_completions(
             )
         else:
             result = await generate_vllm_non_stream(
-                request.messages,
-                request.temperature or 0.7,
-                request.max_tokens or 1000,
-                model
+                messages,
+                temperature,
+                max_tokens,
+                model,
+                top_p,
+                prepend_crisis=crisis_detected,
             )
             return JSONResponse(result)
     except HTTPException:
@@ -517,6 +937,15 @@ async def chat_completions(
     except Exception as e:
         logger.error(f"Chat completion error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.post("/chat")
+async def chat_alias(
+    request: ChatCompletionRequest,
+    _: bool = Depends(verify_api_key),
+):
+    """Same as /v1/chat/completions — for backends that call POST /chat."""
+    return await chat_completions(request, _)
 
 
 @app.get("/")
@@ -527,9 +956,11 @@ async def root():
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
-            "health": "/healthz",
+            "health": "/health",
+            "healthz": "/healthz",
             "version": "/version",
-            "chat": "/v1/chat/completions"
+            "chat": "/chat",
+            "openai_chat": "/v1/chat/completions"
         }
     }
 

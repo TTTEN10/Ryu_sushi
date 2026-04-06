@@ -385,6 +385,7 @@ export default function ChatWidget() {
     // Create abort controller for cancellation
     abortControllerRef.current = new AbortController();
 
+    let streamFinalized = false;
     try {
       // Messages are already decrypted in state, just format for API
       const decryptedMessages = [...messages, userMessage].map((msg) => ({
@@ -476,6 +477,59 @@ export default function ChatWidget() {
         timestamp: new Date(),
       };
 
+      const persistAfterStream = async () => {
+        if (streamFinalized) return;
+        streamFinalized = true;
+        setIsStreaming(false);
+        try {
+          if (!isGuest) {
+            const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
+            await saveChat(
+              updatedMessages.map((msg) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
+                timestamp: msg.timestamp,
+              }))
+            );
+          }
+
+          if (!isGuest && signer && wallet) {
+            try {
+              const token = localStorage.getItem('walletSessionToken');
+              const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+              };
+              if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+              }
+
+              const saveResponse = await fetch(`${API_BASE_URL}/api/chat/save`, {
+                method: 'POST',
+                headers,
+                credentials: 'include',
+                body: JSON.stringify({
+                  encryptedChatBlob: '',
+                  didTokenId: null,
+                }),
+              });
+
+              if (saveResponse.ok) {
+                const saveData = await saveResponse.json();
+                if (saveData.success && saveData.data.requiresDidUpdate && signer) {
+                  const chatRef = saveData.data.blobHash || '';
+                  await updateChatReference(signer, chatRef, new Uint8Array(0));
+                }
+              }
+            } catch (didError) {
+              console.error('Error updating DID:', didError);
+            }
+          }
+        } catch (error) {
+          console.error('Error saving chat:', error);
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
 
@@ -490,7 +544,29 @@ export default function ChatWidget() {
             currentEvent = line.substring(7).trim();
           } else if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.substring(6));
+              const raw = line.substring(6).trim();
+              if (raw === '[DONE]') {
+                await persistAfterStream();
+                continue;
+              }
+              const data = JSON.parse(raw);
+
+              // OpenAI-compatible SSE (chat.completion.chunk): no "event:" lines
+              const delta = data?.choices?.[0]?.delta as { content?: string } | undefined;
+              if (delta?.content) {
+                assistantMessage.content += delta.content;
+                setMessages((prev) => {
+                  const lastMsg = prev[prev.length - 1];
+                  if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
+                    return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
+                  }
+                  return [...prev, assistantMessage];
+                });
+              }
+              const finishReason = data?.choices?.[0]?.finish_reason;
+              if (finishReason) {
+                await persistAfterStream();
+              }
 
               if (currentEvent === 'token') {
                 // Append token to assistant message
@@ -503,58 +579,7 @@ export default function ChatWidget() {
                   return [...prev, assistantMessage];
                 });
               } else if (currentEvent === 'done') {
-                // Persist encrypted history only for verified wallet sessions
-                setIsStreaming(false);
-                try {
-                  if (!isGuest) {
-                    const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
-                    await saveChat(
-                      updatedMessages.map((msg) => ({
-                        id: msg.id,
-                        role: msg.role,
-                        content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
-                        timestamp: msg.timestamp,
-                      }))
-                    );
-                  }
-
-                  // Update DID if signer is available
-                  if (!isGuest && signer && wallet) {
-                    try {
-                      const token = localStorage.getItem('walletSessionToken');
-                      const headers: HeadersInit = {
-                        'Content-Type': 'application/json',
-                      };
-                      if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                      }
-                      
-                      const saveResponse = await fetch(`${API_BASE_URL}/api/chat/save`, {
-                        method: 'POST',
-                        headers,
-                        credentials: 'include',
-                        body: JSON.stringify({
-                          encryptedChatBlob: '', // Will be set by backend
-                          didTokenId: null,
-                        }),
-                      });
-                      
-                      if (saveResponse.ok) {
-                        const saveData = await saveResponse.json();
-                        if (saveData.success && saveData.data.requiresDidUpdate && signer) {
-                          // Update DID contract with chat reference
-                          const chatRef = saveData.data.blobHash || '';
-                          await updateChatReference(signer, chatRef, new Uint8Array(0));
-                        }
-                      }
-                    } catch (didError) {
-                      console.error('Error updating DID:', didError);
-                      // Continue even if DID update fails
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error saving chat:', error);
-                }
+                await persistAfterStream();
               } else if (currentEvent === 'error') {
                 // Check if it's a quota exceeded error
                 if (data.error === 'QUOTA_EXCEEDED' && data.paywall) {
@@ -596,8 +621,10 @@ export default function ChatWidget() {
           },
         ]);
       }
-      setIsStreaming(false);
     } finally {
+      if (!streamFinalized) {
+        setIsStreaming(false);
+      }
       setIsTyping(false);
     }
   };

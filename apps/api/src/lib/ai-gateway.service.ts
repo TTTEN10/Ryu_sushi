@@ -1,5 +1,6 @@
 import logger from './logger';
 import axios, { AxiosInstance } from 'axios';
+import { DR_SAFE_SYSTEM_PROMPT } from './dr-safe-system-prompt';
 
 /**
  * SSE Event Types for AI Streaming
@@ -215,7 +216,7 @@ class AIGatewayService {
       if (!hasSystemMessage) {
         scalewayMessages.unshift({
           role: 'system',
-          content: 'You are a compassionate and professional mental health assistant. Provide supportive, empathetic responses while encouraging users to seek professional help when needed. Always prioritize user safety and wellbeing.',
+          content: DR_SAFE_SYSTEM_PROMPT,
         });
       }
 
@@ -434,7 +435,7 @@ class AIGatewayService {
       if (!hasSystemMessage) {
         cleanMessages.unshift({
           role: 'system',
-          content: 'You are a compassionate and professional mental health assistant. Provide supportive, empathetic responses while encouraging users to seek professional help when needed. Always prioritize user safety and wellbeing.',
+          content: DR_SAFE_SYSTEM_PROMPT,
         });
       }
 
@@ -644,7 +645,7 @@ class AIGatewayService {
       if (!hasSystemMessage) {
         scalewayMessages.unshift({
           role: 'system',
-          content: 'You are a compassionate and professional mental health assistant. Provide supportive, empathetic responses while encouraging users to seek professional help when needed. Always prioritize user safety and wellbeing.',
+          content: DR_SAFE_SYSTEM_PROMPT,
         });
       }
 
@@ -724,7 +725,7 @@ class AIGatewayService {
       if (!hasSystemMessage) {
         cleanMessages.unshift({
           role: 'system',
-          content: 'You are a compassionate and professional mental health assistant. Provide supportive, empathetic responses while encouraging users to seek professional help when needed. Always prioritize user safety and wellbeing.',
+          content: DR_SAFE_SYSTEM_PROMPT,
         });
       }
 

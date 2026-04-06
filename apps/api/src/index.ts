@@ -10,6 +10,7 @@ import subscribe from "./routes/subscribe";
 import contact from "./routes/contact";
 import testing from "./routes/testing";
 import chat from "./routes/chat";
+import betaChat from "./routes/beta-chat";
 import did from "./routes/did";
 import auth from "./routes/auth";
 import payment from "./routes/payment";
@@ -105,6 +106,7 @@ app.use(express.json({ limit: '10kb' })); // Default limit to 10KB to prevent Do
 
 // Increase body size limit for chat routes specifically
 app.use('/api/chat/completions', express.json({ limit: '100kb' })); // Allow larger chat messages
+app.use('/beta/chat', express.json({ limit: '100kb' }));
 // Increase body size limit for RAG indexing (documents can be larger)
 app.use('/api/rag/index', express.json({ limit: '500kb' })); // Allow larger documents for indexing
 
@@ -176,6 +178,7 @@ app.use("/api/subscribe", subscribe);
 app.use("/api/contact", contact);
 app.use("/api/testing", testing); // Dev/testing endpoints (keep for backward compatibility)
 app.use("/api/auth", auth); // Production auth endpoints
+app.use("/beta", betaChat);
 app.use("/api/chat", chat);
 app.use("/api/did", did);
 app.use("/api/payment", payment);

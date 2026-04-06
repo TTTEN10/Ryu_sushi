@@ -18,6 +18,7 @@ import { storageService } from '../lib/storage.service';
 import { encryptAES256GCM, generateEncryptionKey } from '../lib/crypto';
 import { prisma } from '../lib/prisma';
 import { getRetrieverService } from '../lib/retriever.service';
+import { DR_SAFE_SYSTEM_PROMPT } from '../lib/dr-safe-system-prompt';
 
 const router = Router();
 
@@ -97,7 +98,7 @@ async function enhanceWithRAG(request: ChatCompletionRequest): Promise<ChatCompl
 
     // Find or create system message
     let systemMessage = request.messages.find((msg) => msg.role === 'system');
-    const baseSystemPrompt = 'You are a helpful AI assistant for SafePsy, a Web3.0 decentralized identity-based therapy and mental health platform. Provide accurate, helpful information while emphasizing that you are not a substitute for professional mental health care.';
+    const baseSystemPrompt = DR_SAFE_SYSTEM_PROMPT;
 
     if (systemMessage) {
       // Append context to existing system message

@@ -8,9 +8,12 @@ pydantic>=2.9.0
 # vLLM will be installed during Docker build, with fallback to runtime install
 # vllm>=0.6.0
 
-# Optional: for better performance
-# torch>=2.4.0
-# transformers>=4.40.0
+# CPU inference (when USE_GPU=false and USE_MOCK_RESPONSES=false)
+torch>=2.1.0
+transformers>=4.40.0
+accelerate>=0.27.0
+sentencepiece>=0.1.99
+einops>=0.7.0
 
 # Utilities
 python-dotenv>=1.0.1

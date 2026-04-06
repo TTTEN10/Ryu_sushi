@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Do not commit terraform.tfvars.
+# Scaleway console organization ID is optional for this stack (not passed to provider).
+
+scaleway_access_key  = "SCWXXXXXXXXXXXXXXXXX"
+scaleway_secret_key    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+scaleway_project_id    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
