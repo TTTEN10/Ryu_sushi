@@ -424,7 +424,6 @@ deploy/
 ```
 deployment/
 ├── deploy-app.sh                      # Application deploy entry — Shell
-├── deploy-instance-aware-roadmap.sh   # Instance-aware / roadmap deploy — Shell
 ├── install-app-monitor-remote.sh      # Remote install for app monitor — Shell
 ├── on-app-server-recover.sh           # On-server recovery steps — Shell
 ├── setup-secrets.sh                   # Secrets setup — Shell
