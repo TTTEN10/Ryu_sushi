@@ -14,7 +14,7 @@ The file `documentation/private documentation/REPOSITORY_SYNTAX_TREE.md` is the 
 - New, removed, or renamed **directories** or **important entry files** under `apps/`, `deployment/`, `deploy/`, `scripts/`, `infra/`, `.github/workflows/`, or top-level layout.
 - New or removed **routes**, **middleware**, or **major modules** under `apps/api/src/` or `apps/web/src/` (add/remove the corresponding line in the tree section).
 - **Documentation** layout changes under `documentation/public documentation/` or `documentation/private documentation/`.
-- **Tooling/config** called out in the tree (e.g. new workflow, new Cursor rules under `.cursor/rules/`, Trivy outputs).
+- **Tooling/config** called out in the tree (e.g. new workflow, new Cursor rules under `.cursor/rules/`, Semgrep outputs).
 
 ## Skip when impact is local or trivial
 

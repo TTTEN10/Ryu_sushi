@@ -4,6 +4,7 @@ import { ipHash } from "../lib/crypto";
 import { subscriptionRateLimitMiddleware } from "../lib/ratelimit";
 import { safetyMiddleware, safetyResponseInterceptor } from "../middleware/safety";
 import { contactMessagesTotal } from "../lib/metrics";
+import { createEmailService } from "../lib/emailService";
 
 const router = Router();
 
@@ -79,6 +80,33 @@ router.post("/", async (req, res) => {
     
     // Track metrics for Prometheus
     contactMessagesTotal.inc();
+
+    // Notify SafePsy admin about new contact message (non-blocking)
+    const emailService = createEmailService();
+    emailService.sendAdminNotificationEmail({
+      subject: `New contact message: ${subject}`,
+      textBody: [
+        'A new contact message was submitted on SafePsy.',
+        '',
+        `From: ${fullName} <${email}>`,
+        `Subject: ${subject}`,
+        '',
+        'Message:',
+        message,
+        '',
+        `Timestamp: ${new Date().toISOString()}`,
+      ].join('\n'),
+      htmlBody: `
+        <p><strong>A new contact message was submitted on SafePsy.</strong></p>
+        <p><strong>From:</strong> ${fullName} &lt;${email}&gt;</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Message:</strong></p>
+        <pre style="white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${message}</pre>
+        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+      `,
+    }).catch((error) => {
+      console.error('Failed to send admin notification email:', error);
+    });
     
     res.json({ 
       success: true, 

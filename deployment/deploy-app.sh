@@ -18,7 +18,7 @@ set -euo pipefail
 #
 # Optional overrides:
 #   APP_IP=... API_IP=... CADDY_SITE_NAMES=... APP_USER=... SSH_KEY=... \
-#   VLLM_IMAGE=... VLLM_CPU_KVCACHE_SPACE=... VLLM_DTYPE=... \
+#   VLLM_IMAGE=... VLLM_DOCKER_GPU_ARGS=... VLLM_TOKENIZER_MODE=... VLLM_CPU_KVCACHE_SPACE=... VLLM_DTYPE=... \
 #   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... \
 #   VLLM_TENSOR_PARALLEL_SIZE=... VLLM_EXTRA_DOCKER_ARGS=... \
 #   VLLM_DOCKER_MEMORY=... ./deployment/deploy-app.sh
@@ -48,26 +48,30 @@ SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
 
 API_PORT="${API_PORT:-8000}"
-VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai-cpu:latest}"
-# Default: Qwen2.5-7B primary / 3B fallback. Raise VLLM_DOCKER_MEMORY if the host has RAM (see default below).
-MODEL_ID="${MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
+# Dolphin 24B needs a CUDA image + GPU; override for CPU-only dev (e.g. smaller MODEL_ID + vllm/vllm-openai-cpu:latest).
+VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
+VLLM_DOCKER_GPU_ARGS="${VLLM_DOCKER_GPU_ARGS:---gpus all}"
+# Primary: dphn/Dolphin-Mistral-24B-Venice-Edition (Mistral tokenizer). Fallback: Qwen (no --tokenizer-mode on fallback).
+MODEL_ID="${MODEL_ID:-dphn/Dolphin-Mistral-24B-Venice-Edition}"
 FALLBACK_MODEL_ID="${FALLBACK_MODEL_ID:-Qwen/Qwen2.5-3B-Instruct}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-8192}"
 FALLBACK_MAX_MODEL_LEN="${FALLBACK_MAX_MODEL_LEN:-8192}"
 VLLM_CPU_KVCACHE_SPACE="${VLLM_CPU_KVCACHE_SPACE:-1}"
 VLLM_DTYPE="${VLLM_DTYPE:-auto}"
 VLLM_TENSOR_PARALLEL_SIZE="${VLLM_TENSOR_PARALLEL_SIZE:-1}"
+# Applied only to MODEL_ID (see https://huggingface.co/dphn/Dolphin-Mistral-24B-Venice-Edition — vLLM + tokenizer_mode mistral).
+VLLM_TOKENIZER_MODE="${VLLM_TOKENIZER_MODE:-mistral}"
 # Example GPU image extras: VLLM_EXTRA_DOCKER_ARGS='--gpu-memory-utilization 0.9'
 VLLM_EXTRA_DOCKER_ARGS="${VLLM_EXTRA_DOCKER_ARGS:-}"
-# vLLM container cgroup cap (weights + KV cache); 24g reduces OOM risk for 7B / long context vs 6g.
-VLLM_DOCKER_MEMORY="${VLLM_DOCKER_MEMORY:-24g}"
+# cgroup cap; 24B BF16 needs substantial host RAM / VRAM — raise if the instance allows.
+VLLM_DOCKER_MEMORY="${VLLM_DOCKER_MEMORY:-80g}"
 
 APP_BASE_DIR="/home/${APP_USER}/app"
 API_BASE_DIR="/home/${APP_USER}/llm-api"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WEB_SRC_DIR="${WEB_SRC_DIR:-${REPO_ROOT}/apps/web}"
-SCRIPT_VERSION="2026-04-06.2"
+SCRIPT_VERSION="2026-04-07.1"
 
 # Where vLLM / chatbot runs and how the app backend reaches it (set MODEL_API_URL_FOR_COMPOSE before this script to override).
 if [[ "${SINGLE_HOST}" == "1" ]]; then
@@ -188,7 +192,13 @@ else
     run_model() {
       local model=\"\$1\"
       local maxlen=\"\$2\"
+      local tokenizer_mode=\"\$3\"
+      extra_tok=
+      if [ -n \"\$tokenizer_mode\" ]; then
+        extra_tok=\"--tokenizer-mode \$tokenizer_mode\"
+      fi
       docker run -d \
+        ${VLLM_DOCKER_GPU_ARGS} \
         --name vllm \
         ${VLLM_PUBLISH} \
         --restart unless-stopped \
@@ -201,10 +211,11 @@ else
         --max-model-len \"\${maxlen}\" \
         --enable-chunked-prefill \
         --tensor-parallel-size ${VLLM_TENSOR_PARALLEL_SIZE} \
+        \${extra_tok} \
         ${VLLM_EXTRA_DOCKER_ARGS}
     }
 
-    run_model \"${MODEL_ID}\" \"${MAX_MODEL_LEN}\"
+    run_model \"${MODEL_ID}\" \"${MAX_MODEL_LEN}\" \"${VLLM_TOKENIZER_MODE}\"
 
     for i in {1..120}; do
       if curl -fsS http://localhost:${API_PORT}/v1/models >/dev/null 2>&1; then
@@ -216,7 +227,7 @@ else
 
     echo \"Primary model failed. Falling back to ${FALLBACK_MODEL_ID} / max-len ${FALLBACK_MAX_MODEL_LEN}\"
     docker rm -f vllm >/dev/null 2>&1 || true
-    run_model \"${FALLBACK_MODEL_ID}\" \"${FALLBACK_MAX_MODEL_LEN}\"
+    run_model \"${FALLBACK_MODEL_ID}\" \"${FALLBACK_MAX_MODEL_LEN}\" \"\"
 
     for i in {1..120}; do
       if curl -fsS http://localhost:${API_PORT}/v1/models >/dev/null 2>&1; then
@@ -293,13 +304,16 @@ EOF
   cat > backend/main.py <<\"EOF\"
 import json
 import os
+import time
 import httpx
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 
 app = FastAPI()
 MODEL_API_URL = os.getenv(\"MODEL_API_URL\", \"http://127.0.0.1:8000\").rstrip(\"/\")
+MODEL_API_URL_ALT = os.getenv(\"MODEL_API_URL_ALT\", \"\").strip().rstrip(\"/\")
 
 app.add_middleware(
     CORSMiddleware,
@@ -314,11 +328,43 @@ app.add_middleware(
 def healthz():
   return {\"ok\": True, \"service\": \"backend\"}
 
+def _upstream_bases():
+  out = []
+  for b in (MODEL_API_URL, MODEL_API_URL_ALT):
+    if b and b not in out:
+      out.append(b)
+  return out if out else [\"http://127.0.0.1:8000\"]
+
 def _models_upstream():
-  with httpx.Client(timeout=15.0) as client:
-    r = client.get(f\"{MODEL_API_URL}/v1/models\")
-    r.raise_for_status()
-    return r.json()
+  \"\"\"Proxy GET /v1/models; try each upstream base; never return HTTP 500 (verify + UIs).\"\"\"
+  errors = []
+  timeout = httpx.Timeout(45.0, connect=15.0)
+  for base in _upstream_bases():
+    try:
+      with httpx.Client(timeout=timeout) as client:
+        r = client.get(f\"{base}/v1/models\")
+        if r.status_code == 200:
+          data = r.json()
+          if isinstance(data, dict) and \"data\" in data:
+            return data
+        errors.append(f\"{base}: HTTP {r.status_code}\")
+    except Exception as e:
+      errors.append(f\"{base}: {type(e).__name__}\")
+  return JSONResponse(
+    status_code=200,
+    content={
+      \"object\": \"list\",
+      \"data\": [
+        {
+          \"id\": os.getenv(\"FALLBACK_MODEL_ID\", \"dr-safe\"),
+          \"object\": \"model\",
+          \"created\": int(time.time()),
+          \"owned_by\": \"safepsy\",
+        }
+      ],
+      \"warning\": \"chatbot /v1/models unreachable from app proxy: \" + \"; \".join(errors[:5]),
+    },
+  )
 
 @app.get(\"/models\")
 def models():
@@ -342,31 +388,37 @@ def _want_stream(body: bytes) -> bool:
 async def v1_chat_completions(request: Request):
   body = await request.body()
   ctype = request.headers.get(\"content-type\", \"application/json\")
-  url = f\"{MODEL_API_URL}/v1/chat/completions\"
   headers = {\"Content-Type\": ctype}
   timeout = httpx.Timeout(300.0, connect=30.0)
   want_stream = _want_stream(body)
+  last_err = None
+  for base in _upstream_bases():
+    url = f\"{base}/v1/chat/completions\"
+    try:
+      if want_stream:
+        async def gen(u=url):
+          async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(\"POST\", u, content=body, headers=headers) as response:
+              async for chunk in response.aiter_bytes():
+                yield chunk
 
-  if want_stream:
-    async def gen():
+        return StreamingResponse(
+          gen(),
+          media_type=\"text/event-stream\",
+          status_code=200,
+        )
+
       async with httpx.AsyncClient(timeout=timeout) as client:
-        async with client.stream(\"POST\", url, content=body, headers=headers) as response:
-          async for chunk in response.aiter_bytes():
-            yield chunk
-
-    return StreamingResponse(
-      gen(),
-      media_type=\"text/event-stream\",
-      status_code=200,
-    )
-
-  async with httpx.AsyncClient(timeout=timeout) as client:
-    r = await client.post(url, content=body, headers=headers)
-  return Response(
-    content=r.content,
-    status_code=r.status_code,
-    media_type=r.headers.get(\"content-type\", \"application/json\"),
-  )
+        r = await client.post(url, content=body, headers=headers)
+      return Response(
+        content=r.content,
+        status_code=r.status_code,
+        media_type=r.headers.get(\"content-type\", \"application/json\"),
+      )
+    except Exception as e:
+      last_err = e
+      continue
+  raise HTTPException(status_code=502, detail=f\"chatbot unreachable: {last_err!s}\")
 EOF
 
   cat > backend/Dockerfile <<\"EOF\"
@@ -394,6 +446,7 @@ services:
     restart: always
     environment:
       - MODEL_API_URL=${MODEL_API_URL_FOR_COMPOSE}
+      - MODEL_API_URL_ALT=${MODEL_API_URL_ALT_FOR_COMPOSE:-}
     deploy:
       resources:
         limits:

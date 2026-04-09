@@ -88,7 +88,6 @@ class ObjectStorageService extends BaseStorageService {
   private initializeClient() {
     try {
       // Dynamic import to avoid errors if AWS SDK is not installed
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { S3Client } = require('@aws-sdk/client-s3');
       
       const clientConfig: any = {
@@ -317,7 +316,6 @@ class IPFSStorageService extends BaseStorageService {
   private async uploadToWeb3Storage(data: Buffer | string, filename: string): Promise<StorageResult> {
     try {
       // Dynamic import
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { Web3Storage, File } = require('web3.storage');
       
       const token = process.env.WEB3_STORAGE_TOKEN!;

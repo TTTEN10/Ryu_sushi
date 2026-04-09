@@ -176,7 +176,7 @@ The following documentation depends on or references the **revised (LLM-first) t
 | **[documentation/api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md)** | References 3-tier pricing and TOKENOMICS/PRICING_COMPLETE_GUIDE. |
 | **[documentation/wallpaper/whitepaper.md](wallpaper/whitepaper.md)** | Payment and pricing sections reference TOKENOMICS and PRICING_COMPLETE_GUIDE. |
 | **[DID_COMPLETE_GUIDE.md](DID_COMPLETE_GUIDE.md)** | Target pricing and premium tiers reference TOKENOMICS. |
-| **[TECHNICAL_REVIEW.md](TECHNICAL_REVIEW.md)** | Target pricing model and tier limits reference TOKENOMICS and PRICING_COMPLETE_GUIDE. |
+| **[TECHNICAL_REVIEW.md](../private%20documentation/TECHNICAL_REVIEW.md)** | Target pricing model and tier limits reference TOKENOMICS and PRICING_COMPLETE_GUIDE. |
 | **infra/terraform (README, SAFEPSY_APP_DEPLOYMENT)** | Subscription/tier context references TOKENOMICS for 3-tier and $PSY. |
 
 **Update order when changing tokenomics:** (1) TOKENOMICS.md, (2) PRICING_COMPLETE_GUIDE.md (dependency table and env vars), (3) DEPLOYMENT_FILES_INDEX.md, (4) other docs as needed.

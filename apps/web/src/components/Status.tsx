@@ -19,12 +19,10 @@ const Status: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
   const [autoRefreshCount, setAutoRefreshCount] = useState(0)
-  const [isManualRefresh, setIsManualRefresh] = useState(false)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const checkHealth = useCallback(async (isManual: boolean = false) => {
+  const checkHealth = useCallback(async (_isManual: boolean = false) => {
     setLoading(true)
-    setIsManualRefresh(isManual)
     
     try {
       // Try multiple health endpoints
@@ -79,7 +77,6 @@ const Status: React.FC = () => {
       setLastChecked(new Date())
     } finally {
       setLoading(false)
-      setIsManualRefresh(false)
     }
   }, [])
 

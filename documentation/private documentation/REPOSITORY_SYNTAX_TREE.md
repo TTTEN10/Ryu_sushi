@@ -13,7 +13,7 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 ├── env.example                     # Root env template — Text
 ├── .dockerignore                   # Docker build ignore rules — Text
 ├── prisma/
-│   └── schema.prisma               # Root Prisma schema (used by root `db:*` scripts) — Prisma
+│   └── schema.prisma               # Legacy duplicate; canonical schema is `apps/api/schema.prisma` (root `db:*` use `--schema=apps/api/schema.prisma`) — Prisma
 ├── public/                         # Shared static assets (logos, hero imagery) — PNG/JPG
 ├── logs/                           # Local log mount (e.g. healthcheck) — Text
 ├── api/                            # Workspace-adjacent Cursor scope (not the Express API)
@@ -61,25 +61,14 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 
 ---
 
-## .trivy
-
-```
-.trivy/
-├── trivy-sast-scan.json     # SAST scan results — JSON
-├── trivy-sast-report.txt     # SAST human-readable report — Text
-├── trivy-sbom-scan.json      # SBOM scan results — JSON
-└── trivy-sbom-report.txt     # SBOM human-readable report — Text
-```
-
----
-
 ## apps/api
 
 ```
 apps/api/
 ├── package.json              # API deps & scripts (dev, build, test, deploy:contracts) — JSON
 ├── nodemon.json              # Nodemon config for dev — JSON
-├── tsconfig.json             # TypeScript config — JSON
+├── tsconfig.json             # TypeScript config (excludes `src/contracts/**`) — JSON
+├── tsconfig.contracts.json   # Deploy/tooling scripts under `src/contracts` — JSON
 ├── tsconfig.hardhat.json     # Hardhat/contracts TS config — JSON
 ├── hardhat.config.js         # Hardhat: networks, Solidity, plugins — JavaScript
 ├── hardhat.config.cjs        # Hardhat CJS config — JavaScript
@@ -124,11 +113,14 @@ apps/api/
 │   └── verify-sepolia-etherscan.sh       # Etherscan verification on Sepolia — Shell
 │
 ├── src/
-│   ├── index.ts              # Express app entry: CORS, helmet, routes (subscribe, contact, testing, chat, did, auth, payment, rag), middleware — TypeScript
+│   ├── index.ts              # Express app entry: CORS, helmet, routes (subscribe, contact, testing, chat, did, auth, payment, rag), LLM upstream health poller — TypeScript
+│   ├── shims-jsdom.d.ts      # Ambient `jsdom` declaration for typecheck — TypeScript
 │   │
 │   ├── routes/
 │   │   ├── auth.ts           # Auth routes: login, register, session, logout — TypeScript
-│   │   ├── chat.ts           # Chat: completions, history, health, streaming — TypeScript
+│   │   ├── beta-chat.ts      # Legacy POST /beta/chat forward + OpenAI POST /beta/chat/completions — TypeScript
+│   │   ├── chat-completions.ts # Shared mount for OpenAI-style completions (used by chat + beta) — TypeScript
+│   │   ├── chat.ts           # Chat: completions, upstream-status, history, streaming — TypeScript
 │   │   ├── contact.ts        # Contact form submit — TypeScript
 │   │   ├── did.ts            # DID: register, metadata, services, verify — TypeScript
 │   │   ├── payment.ts        # Payment & pricing — TypeScript
@@ -148,11 +140,14 @@ apps/api/
 │   │   ├── request-id.ts     # Request ID — TypeScript
 │   │   ├── safety.ts         # Input safety / abuse — TypeScript
 │   │   ├── sanitize.ts       # Request sanitization — TypeScript
+│   │   ├── upstream-status-auth.ts # Optional secret for GET /api/chat/upstream-status — TypeScript
 │   │   ├── validation.ts     # Request validation — TypeScript
 │   │   └── wallet-auth.ts    # Wallet-based auth — TypeScript
 │   │
 │   ├── lib/
 │   │   ├── ai-gateway.service.ts    # AI gateway (LLM/completions) — TypeScript
+│   │   ├── chat-rag-context.ts      # RAG enhancement for chat completions — TypeScript
+│   │   ├── llm-upstream-health.ts   # Periodic /health probes for self-hosted LLM bases — TypeScript
 │   │   ├── api-helpers.ts           # Shared API helpers — TypeScript
 │   │   ├── config.ts                # Config & secret manager init — TypeScript
 │   │   ├── constants.ts             # App constants — TypeScript
@@ -277,9 +272,11 @@ apps/web/
 │   │   ├── chat-retrieval.ts      # Chat retrieval from API — TypeScript
 │   │   ├── chat-summary-retrieval.ts # Chat summary retrieval — TypeScript
 │   │   ├── cookieUtils.ts         # Cookie helpers — TypeScript
+│   │   ├── crypto-helpers.ts      # Web Crypto BufferSource normalization — TypeScript
 │   │   ├── did-contract.ts        # DID contract calls (frontend) — TypeScript
 │   │   ├── did-encryption.ts      # DID-based encryption — TypeScript
 │   │   ├── encryption.ts          # General encryption — TypeScript
+│   │   ├── ethers-helpers.ts      # Read-only ethers provider narrowing for DID reads — TypeScript
 │   │   ├── errorMessages.ts      # User-facing error messages — TypeScript
 │   │   ├── queueManager.ts       # Request/queue management — TypeScript
 │   │   └── safepsy-web3-client.ts # Web3/wallet client — TypeScript
@@ -340,7 +337,10 @@ apps/web/
 ```
 apps/ai-chatbot/
 ├── main.py              # FastAPI app: vLLM-based OpenAI-compatible API, chat completions, streaming, health — Python
+├── prompt_builder.py    # Canonical chat prompts via HF tokenizer — Python
+├── session_redis.py     # Optional Redis session metadata (TTL) — Python
 ├── requirements.txt     # Python deps (FastAPI, vLLM, etc.) — Text
+├── requirements-lite.txt # Minimal deps for local mock chatbot (FastAPI/uvicorn only) — Text
 ├── Dockerfile           # Container build for AI service — Dockerfile
 ├── .dockerignore        # Image build context ignore — Text
 └── entrypoint.sh        # Container entrypoint — Shell
@@ -423,10 +423,14 @@ deploy/
 
 ```
 deployment/
-├── deploy-app.sh                      # Application deploy entry — Shell
+├── deploy.sh                          # Terraform + chatbot compose + deploy-app.sh — Shell
+├── deploy-app.sh                      # Application deploy (Caddy + SPA + Python proxy) — Shell
+├── deploy-instance-aware-roadmap.sh   # Legacy instance-aware deploy (restored; replaced by deploy.sh in commit 08de24c6e) — Shell
+├── bootstrap-chatbot-host.sh          # SSH: verify host, sync chatbot slice, compose up — Shell
+├── chatbot/
+│   └── docker-compose.yml             # Chatbot API + Redis — YAML
 ├── install-app-monitor-remote.sh      # Remote install for app monitor — Shell
 ├── on-app-server-recover.sh           # On-server recovery steps — Shell
-├── setup-secrets.sh                   # Secrets setup — Shell
 ├── verify-production.sh               # Production verification — Shell
 ├── test-llm-route-from-app.sh         # SSH to app host; curl vLLM /v1/models — Shell
 ├── logrotate-app-monitor.example      # Logrotate sample for monitor — Text
@@ -456,6 +460,7 @@ scripts/
 ├── run-ci-locally.sh          # Run CI checks locally — Shell
 ├── restore-and-export-email-subscriptions.sh  # Restore Postgres dump then export waitlist CSV — Shell
 ├── run-local.sh               # Local dev orchestration helper — Shell
+├── simulate-llm-failure.sh    # Manual LLM degradation / upstream-status checks — Shell
 ├── test-ci-cd.sh              # CI/CD smoke script — Shell
 ├── security-check.js          # Security check script — JavaScript
 └── verify-mock-flow.ts        # E2E mock DID/auth flow (invoked via `npm run verify:flow`) — TypeScript
@@ -507,12 +512,6 @@ tests/
 ```
 documentation/
 ├── README.md                    # Top-level doc pointer — Markdown
-├── programming_sprint.md        # Pointer to private doc (canonical sprint + roadmap)
-├── LAUNCH.md                    # Launch notes — Markdown
-├── NEW_INSTANCES_DEPLOYMENT.md  # New instance deployment — Markdown
-├── VC_ONE_PAGER.md              # VC one-pager — Markdown
-├── EXCHANGE_PARTNER_ONE_PAGER.md
-├── PERSONAS.md
 │
 ├── public documentation/        # Shareable / external-facing copies of guides
 │   ├── README.md
@@ -563,6 +562,9 @@ documentation/
     ├── GOVERNANCE.md
     ├── INCIDENT_ESCALATION_AND_COMMS.md
     ├── LAUNCH.md
+    ├── CHATBOT_TECHNICAL.md   # How chatbot + API gateway + vLLM compose work (internal)
+    ├── CONTRACTS_SCRIPTS_TSC.md  # Why tsc reports errors under apps/api/src/contracts/scripts — Markdown
+    ├── TYPESCRIPT_ISSUES_REPORT.md  # Snapshot of remaining TS diagnostics (esp. apps/web) — Markdown
     ├── GUEST_MODE.md           # Guest vs wallet chat flow (internal)
     ├── PERSONAS.md
     ├── SCALEWAY_SECRET_MANAGER_SETUP.md
@@ -571,11 +573,11 @@ documentation/
     ├── SHELL_SCRIPTS_DOCUMENTATION.md
     ├── SMART_CONTRACTS_COMPREHENSIVE_TESTING.md
     ├── SMART_CONTRACTS_DEPLOYMENT.md
-    ├── TECHNICAL_REVIEW.md     # complete review + merged audit (ex-audit_technical_Review Mar 2026)
+    ├── TECHNICAL_REVIEW.md     # Restored from pre-consolidation `REVIEW_UX_UI_SECURITY.md` (UX/UI/security review; merge with public guides for claims)
     ├── TOKENOMICS.md
     ├── VC_ONE_PAGER.md
     ├── WAF_CONFIGURATION.md
-    ├── programming_sprint.md   # sprint log + technical roadmap (ex-TECHNICAL_ROADMAP merged Mar 2026)
+    ├── programming_sprint.md   # Restored from pre-consolidation `COMPLETE_IMPLEMENTATION_SUMMARY.md` (implementation status + follow-ups)
     ├── safepsy-web3-client.md
     ├── ai-chatbot/              # AI service deploy & GPU notes
     ├── api/contracts/           # Hardhat / deployment quick starts
@@ -583,8 +585,7 @@ documentation/
     ├── infra/                   # Terraform & observability write-ups
     ├── ops/                     # Operations, DB, troubleshooting
     ├── runbooks/                # 01–10 numbered runbooks + README; `runbooks/scripts/README.md`
-    ├── scripts/                 # Backup / disk cleanup readme
-    └── trivy/TRIVY_SCAN_GUIDE.md
+    └── scripts/                 # Backup / disk cleanup readme
 ```
 
 Some guides exist in both **public** and **private** trees (e.g. `LAUNCH.md`, one-pagers, `PERSONAS.md`) with different paths; treat **private documentation** as the canonical place for runbooks and operational detail.

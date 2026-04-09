@@ -20,6 +20,23 @@ export interface ProxyContractDeployment {
 // Union type for contract deployments (can be standard or proxy)
 export type AnyContractDeployment = ContractDeployment | ProxyContractDeployment;
 
+export function isProxyContractDeployment(d: AnyContractDeployment): d is ProxyContractDeployment {
+  return 'proxy' in d && 'implementation' in d;
+}
+
+/** Primary on-chain address: UUPS proxy, or direct deployment address. */
+export function getDeploymentPrimaryAddress(d: AnyContractDeployment): string {
+  return isProxyContractDeployment(d) ? d.proxy : d.address;
+}
+
+export function getDeploymentTx(d: AnyContractDeployment): string {
+  return d.tx;
+}
+
+export function getDeploymentBlock(d: AnyContractDeployment): number {
+  return d.block;
+}
+
 // Full deployment registry matching the requested format
 export interface DeploymentRegistry {
   network: string;

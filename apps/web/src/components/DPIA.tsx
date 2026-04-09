@@ -750,7 +750,7 @@ const DPIA: React.FC = () => {
                     <div>
                       <strong className="text-heading">Key Storage Architecture:</strong>
                       <ul className="mt-2 ml-6 list-disc space-y-1">
-                        <li><strong>Encrypted DEK Storage:</strong> Stored in DID document on blockchain (on-chain). Format: {signature}:{iv}:{encryptedKey}. Encrypted using wallet-based KEK (AES-256-GCM).</li>
+                        <li><strong>Encrypted DEK Storage:</strong> Stored in DID document on blockchain (on-chain). Format: {'{signature}:{iv}:{encryptedKey}'}. Encrypted using wallet-based KEK (AES-256-GCM).</li>
                         <li><strong>Server-Side Key Policy:</strong> Server NEVER stores raw keys (DEK/KEK) in any form. Server stores ciphertext blobs only (encrypted chat data). Server cannot decrypt without user's wallet.</li>
                         <li><strong>Client-Side Key Storage:</strong> Keys exist in browser memory only during active session. Keys cleared on logout or session expiration. No persistent key storage on client device.</li>
                         <li><strong>Key Transmission:</strong> Keys NEVER transmitted to server. Only encrypted blobs (ciphertext) sent to server. Key derivation happens client-side only.</li>

@@ -4,6 +4,18 @@ import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
 /**
  * DID Identity Token ABI (ERC-721 Soulbound)
  */
+/** Write methods on DID identity token (ethers BaseContract does not list custom ABI methods). */
+type DIDIdentityTokenWritable = ethers.Contract & {
+  updateChatReference(
+    chatReference: string,
+    encryptedKeyMetadata: Uint8Array
+  ): Promise<ethers.ContractTransactionResponse>;
+  updateEncryptedKeyMetadata(
+    encryptedKeyMetadata: Uint8Array
+  ): Promise<ethers.ContractTransactionResponse>;
+  updateChatDataReference(chatReference: string): Promise<ethers.ContractTransactionResponse>;
+};
+
 const DID_IDENTITY_TOKEN_ABI = [
   // Profile functions
   'function getProfileByOwner(address user) external view returns (tuple(address owner, uint64 createdAt, uint64 lastUpdatedAt, bytes32 chatDataReference, bytes encryptedKeyMetadata))',
@@ -82,15 +94,15 @@ export async function updateChatReference(
     keyMetadataBytes = encryptedKeyMetadata;
   }
 
-  // Create contract instance with signer
-  const contractWithSigner = contract.connect(signer);
+  const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
 
-  // Call updateChatReference
   const tx = await contractWithSigner.updateChatReference(chatReference, keyMetadataBytes);
   
   // Wait for transaction
   const receipt = await tx.wait();
-  
+  if (receipt === null) {
+    throw new Error('Transaction receipt not available');
+  }
   return receipt;
 }
 
@@ -143,15 +155,15 @@ export async function updateEncryptedKeyMetadata(
     keyMetadataBytes = encryptedKeyMetadata;
   }
 
-  // Create contract instance with signer
-  const contractWithSigner = contract.connect(signer);
+  const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
 
-  // Call updateEncryptedKeyMetadata
   const tx = await contractWithSigner.updateEncryptedKeyMetadata(keyMetadataBytes);
   
   // Wait for transaction
   const receipt = await tx.wait();
-  
+  if (receipt === null) {
+    throw new Error('Transaction receipt not available');
+  }
   return receipt;
 }
 
@@ -192,15 +204,15 @@ export async function updateChatDataReference(
     throw new Error('Wallet does not have a DID. Please create one first.');
   }
 
-  // Create contract instance with signer
-  const contractWithSigner = contract.connect(signer);
+  const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
 
-  // Call updateChatDataReference
   const tx = await contractWithSigner.updateChatDataReference(chatReference);
   
   // Wait for transaction
   const receipt = await tx.wait();
-  
+  if (receipt === null) {
+    throw new Error('Transaction receipt not available');
+  }
   return receipt;
 }
 

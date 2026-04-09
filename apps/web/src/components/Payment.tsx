@@ -37,7 +37,7 @@ interface Subscription {
 
 export default function Payment() {
   const { authState } = useAuth();
-  const { wallet, provider, signer } = useWallet();
+  const { wallet, signer } = useWallet();
   const [pricing, setPricing] = useState<PricingData | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,11 +256,20 @@ export default function Payment() {
                 <div className="text-2xl font-bold">
                   {tier === 'FREE' ? 'Free' : 'Premium'}
                 </div>
-                {tier !== 'FREE' && typeof tierData.price.crypto === 'object' && (
+                {tier !== 'FREE' &&
+                  tierData.price.crypto !== null &&
+                  typeof tierData.price.crypto === 'object' &&
+                  !Array.isArray(tierData.price.crypto) && (
                   <div className="text-sm text-gray-600 mt-1">
-                    {tierData.price.crypto.ETH && `or ${tierData.price.crypto.ETH}`}
-                    {tierData.price.crypto.USDT && ` / ${tierData.price.crypto.USDT}`}
-                    {tierData.price.crypto.USDC && ` / ${tierData.price.crypto.USDC}`}
+                    {'ETH' in tierData.price.crypto &&
+                      tierData.price.crypto.ETH &&
+                      `or ${tierData.price.crypto.ETH}`}
+                    {'USDT' in tierData.price.crypto &&
+                      tierData.price.crypto.USDT &&
+                      ` / ${tierData.price.crypto.USDT}`}
+                    {'USDC' in tierData.price.crypto &&
+                      tierData.price.crypto.USDC &&
+                      ` / ${tierData.price.crypto.USDC}`}
                   </div>
                 )}
               </div>

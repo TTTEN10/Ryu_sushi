@@ -7,11 +7,19 @@
 
 export interface EmailProvider {
   sendConfirmationEmail(email: string): Promise<void>
+  sendAdminNotificationEmail(params: {
+    to: string
+    subject: string
+    textBody: string
+    htmlBody?: string
+  }): Promise<void>
 }
 
 export interface EmailServiceConfig {
   provider: EmailProvider
   enabled: boolean
+  adminNotificationsEnabled: boolean
+  adminNotificationEmail: string
 }
 
 /**
@@ -24,6 +32,24 @@ export class StubEmailProvider implements EmailProvider {
     console.log(`[EMAIL STUB] Email content: Welcome to SafePsy! You've successfully joined our waitlist.`)
     console.log(`[EMAIL STUB] Timestamp: ${new Date().toISOString()}`)
     
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+
+  async sendAdminNotificationEmail(params: {
+    to: string
+    subject: string
+    textBody: string
+    htmlBody?: string
+  }): Promise<void> {
+    console.log(`[EMAIL STUB] Admin notification would be sent to: ${params.to}`)
+    console.log(`[EMAIL STUB] Subject: ${params.subject}`)
+    console.log(`[EMAIL STUB] Text body:\n${params.textBody}`)
+    if (params.htmlBody) {
+      console.log(`[EMAIL STUB] HTML body:\n${params.htmlBody}`)
+    }
+    console.log(`[EMAIL STUB] Timestamp: ${new Date().toISOString()}`)
+
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 100))
   }
@@ -102,6 +128,24 @@ export class PostmarkEmailProvider implements EmailProvider {
       MessageStream: 'outbound',
     })
   }
+
+  async sendAdminNotificationEmail(params: {
+    to: string
+    subject: string
+    textBody: string
+    htmlBody?: string
+  }): Promise<void> {
+    await this.initializePostmark()
+
+    await this.postmarkClient.sendEmail({
+      From: this.fromAddress,
+      To: params.to,
+      Subject: params.subject,
+      HtmlBody: params.htmlBody,
+      TextBody: params.textBody,
+      MessageStream: 'outbound',
+    })
+  }
 }
 
 /**
@@ -132,11 +176,45 @@ export class EmailService {
     }
   }
 
+  async sendAdminNotificationEmail(params: {
+    subject: string
+    textBody: string
+    htmlBody?: string
+  }): Promise<void> {
+    if (!this.config.adminNotificationsEnabled) {
+      console.log('[EMAIL SERVICE] Admin notifications are disabled, skipping admin notification')
+      return
+    }
+
+    const to = (this.config.adminNotificationEmail || '').trim()
+    if (!to) {
+      console.warn('[EMAIL SERVICE] ADMIN_NOTIFICATION_EMAIL is empty; skipping admin notification')
+      return
+    }
+
+    try {
+      await this.config.provider.sendAdminNotificationEmail({
+        to,
+        subject: params.subject,
+        textBody: params.textBody,
+        htmlBody: params.htmlBody,
+      })
+      console.log(`[EMAIL SERVICE] Admin notification sent successfully to: ${to}`)
+    } catch (error) {
+      console.error(`[EMAIL SERVICE] Failed to send admin notification to ${to}:`, error)
+      // Don't throw - admin notification failures shouldn't break the user flow
+    }
+  }
+
   /**
    * Check if the email service is enabled
    */
   isEnabled(): boolean {
     return this.config.enabled
+  }
+
+  isAdminNotificationsEnabled(): boolean {
+    return this.config.adminNotificationsEnabled && !!this.config.adminNotificationEmail
   }
 }
 
@@ -147,6 +225,8 @@ export class EmailService {
 export function createEmailService(): EmailService {
   const enabled = process.env.ENABLE_CONFIRMATION_EMAIL === 'true'
   const providerType = (process.env.EMAIL_PROVIDER || 'stub').toLowerCase()
+  const adminNotificationsEnabled = process.env.ENABLE_ADMIN_NOTIFICATION_EMAIL === 'true'
+  const adminNotificationEmail = process.env.ADMIN_NOTIFICATION_EMAIL || 'safepsyoff@gmail.com'
 
   let provider: EmailProvider
 
@@ -173,5 +253,7 @@ export function createEmailService(): EmailService {
   return new EmailService({
     provider,
     enabled,
+    adminNotificationsEnabled,
+    adminNotificationEmail,
   })
 }

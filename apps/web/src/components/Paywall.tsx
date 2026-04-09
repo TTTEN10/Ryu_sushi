@@ -42,7 +42,7 @@ export default function Paywall({
   onClose,
   onUpgradeSuccess,
 }: PaywallProps) {
-  const { wallet, provider, signer } = useWallet();
+  const { wallet, signer } = useWallet();
   const [selectedCurrency, setSelectedCurrency] = useState<PaymentCurrency>('ETH');
   const [txHash, setTxHash] = useState('');
   const [step, setStep] = useState<PaymentStep>('select');
@@ -80,7 +80,7 @@ export default function Paywall({
       }
       
       let amount: bigint;
-      let tx: ethers.ContractTransactionResponse;
+      let tx: ethers.TransactionResponse;
 
       if (selectedCurrency === 'ETH') {
         // Send native ETH
@@ -107,8 +107,10 @@ export default function Paywall({
       setTxHash(tx.hash);
       setStep('verify');
 
-      // Wait for transaction confirmation
       const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('Transaction receipt not available');
+      }
       if (receipt.status === 1) {
         // Transaction confirmed, verify with backend
         await verifyPayment(tx.hash);

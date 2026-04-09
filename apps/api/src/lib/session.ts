@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import logger from './logger';
 import { SUPPORTED_CHAIN_ID } from './constants';
 
@@ -35,7 +35,7 @@ export function generateWalletToken(payload: Omit<WalletSessionPayload, 'iat' | 
 
   return jwt.sign(tokenPayload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
-  });
+  } as SignOptions);
 }
 
 /**

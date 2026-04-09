@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useWallet } from '../contexts/WalletContext';
 import { 
   Shield, 
   Wallet, 
@@ -48,7 +47,6 @@ interface DataPointer {
 
 export default function DIDProfile() {
   const { authState } = useAuth();
-  const { wallet } = useWallet();
   const { showToast } = useToast();
   const [profileData, setProfileData] = useState<DIDProfileData | null>(null);
   const [pointers, setPointers] = useState<DataPointer[]>([]);
@@ -254,14 +252,7 @@ export default function DIDProfile() {
   };
 
   if (!authState.isVerified) {
-    return (
-      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-        <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-          <AlertTriangle className="w-5 h-5" />
-          <p className="text-sm font-medium">Please verify your wallet to view your DID profile</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (isLoading && !profileData) {

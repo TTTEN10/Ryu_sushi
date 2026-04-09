@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
 import { User, Calendar, Clock, MessageSquare, Loader2, AlertCircle, RefreshCw, Download, Trash2, CheckCircle, Key } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import DIDTokenVisualization from './DIDTokenVisualization';
-import { retrieveChatData, exportChatData } from '../utils/chat-retrieval';
+import { exportChatData } from '../utils/chat-retrieval';
 import { updateChatDataReference, getDIDProfile } from '../utils/did-contract';
 import { decryptSymmetricKey } from '../utils/did-encryption';
 import { ethers } from 'ethers';
@@ -398,7 +398,7 @@ export default function AboutMe() {
       setSuccessMessage(null);
 
       // Clear chat reference by setting it to empty string (which becomes bytes32(0))
-      const receipt = await updateChatDataReference(signer, '');
+      await updateChatDataReference(signer, '');
       
       setSuccessMessage('Chat reference revoked successfully');
       

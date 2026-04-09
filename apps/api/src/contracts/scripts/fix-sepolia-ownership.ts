@@ -66,6 +66,7 @@ async function main() {
   await ownership.waitForDeployment();
   const ownershipAddr = await ownership.getAddress();
   const ownershipTx = ownership.deploymentTransaction();
+  const ownershipInterface = new ethers.Contract(ownershipAddr, ownershipArtifact.abi, wallet);
   console.log(`   ✅ DIDOwnershipV2: ${ownershipAddr}`);
 
   // Step 2: Deploy Registry with Ownership
@@ -85,17 +86,18 @@ async function main() {
   await registry.waitForDeployment();
   const registryAddr = await registry.getAddress();
   const registryTx = registry.deploymentTransaction();
+  const registryInterface = new ethers.Contract(registryAddr, registryArtifact.abi, wallet);
   console.log(`   ✅ DIDRegistryV2: ${registryAddr}`);
 
   // Step 3: Set Registry on Ownership
   console.log('\n3. Wiring Ownership.registryContract to Registry...');
-  const tx = await ownership.setRegistryContract(registryAddr);
+  const tx = await ownershipInterface.setRegistryContract(registryAddr);
   await tx.wait();
   console.log('   ✅ Ownership.registryContract set');
 
   // Verify
-  const regOwnership = await registry.ownershipContract();
-  const ownRegistry = await ownership.registryContract();
+  const regOwnership = await registryInterface.ownershipContract();
+  const ownRegistry = await ownershipInterface.registryContract();
   console.log('\n4. Verification:');
   console.log(`   Registry.ownershipContract → ${regOwnership} ${regOwnership === ownershipAddr ? '✅' : '❌'}`);
   console.log(`   Ownership.registryContract → ${ownRegistry} ${ownRegistry === registryAddr ? '✅' : '❌'}`);

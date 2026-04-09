@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
 import axios, { AxiosError } from 'axios';
 import logger from '../lib/logger';
+import { mountChatCompletions } from './chat-completions';
 
 const router = Router();
+
+/** OpenAI-compatible path: POST /beta/chat/completions (same behavior as POST /api/chat/completions) */
+mountChatCompletions(router, '/chat/completions');
 
 const FALLBACK_BODY = {
   success: false,
@@ -77,8 +81,8 @@ router.post('/chat', async (req: Request, res: Response) => {
 
   if (wouldLoop(url, req)) {
     logger.warn(
-      { url },
-      'Upstream URL targets this API host — refusing to avoid a request loop. Point CHATBOT_* at the FastAPI chatbot (e.g. http://<chatbot-ip>:8000/chat).'
+      'Upstream URL targets this API host — refusing to avoid a request loop. Point CHATBOT_* at the FastAPI chatbot (e.g. http://<chatbot-ip>:8000/chat).',
+      { url }
     );
     return res.status(200).json(FALLBACK_BODY);
   }
@@ -101,21 +105,24 @@ router.post('/chat', async (req: Request, res: Response) => {
     if (r.status >= 200 && r.status < 300) {
       return res.status(r.status).json(r.data);
     }
-    logger.warn({ status: r.status, url }, 'beta/chat upstream non-success');
+    logger.warn('beta/chat upstream non-success', { status: r.status, url });
     return res.status(200).json(FALLBACK_BODY);
   } catch (err) {
     const ax = err as AxiosError;
-    logger.warn(
-      { url, message: ax.message, code: ax.code },
-      'beta/chat upstream error; retrying once'
-    );
+    logger.warn('beta/chat upstream error; retrying once', {
+      url,
+      message: ax.message,
+      code: ax.code,
+    });
     try {
       const r2 = await attempt();
       if (r2.status >= 200 && r2.status < 300) {
         return res.status(r2.status).json(r2.data);
       }
     } catch (err2) {
-      logger.error(err2, 'beta/chat retry failed');
+      logger.error('beta/chat retry failed', {
+        err: err2 instanceof Error ? err2.message : String(err2),
+      });
     }
     return res.status(200).json(FALLBACK_BODY);
   }

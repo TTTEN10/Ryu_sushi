@@ -184,4 +184,4 @@ To strengthen long-term scarcity: **Buyback + Burn**.
 
 - [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md) — Tier pricing ($19 Premium, $69 Gold), current implementation, and **dependencies** (treasury, staking, cashback, buyback+burn, airdrop, dual payment).
 
-**Docs that depend on this tokenomics:** [DEPLOYMENT_FILES_INDEX.md](DEPLOYMENT_FILES_INDEX.md), [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md), [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md), [wallpaper/whitepaper.md](wallpaper/whitepaper.md), [DID_COMPLETE_GUIDE.md](DID_COMPLETE_GUIDE.md), [TECHNICAL_REVIEW.md](TECHNICAL_REVIEW.md), [DEPENDENCIES.md](DEPENDENCIES.md).
+**Docs that depend on this tokenomics:** [DEPLOYMENT_FILES_INDEX.md](DEPLOYMENT_FILES_INDEX.md), [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md), [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md), [wallpaper/whitepaper.md](wallpaper/whitepaper.md), [DID_COMPLETE_GUIDE.md](DID_COMPLETE_GUIDE.md), [TECHNICAL_REVIEW.md](../private%20documentation/TECHNICAL_REVIEW.md), [DEPENDENCIES.md](DEPENDENCIES.md).

@@ -158,7 +158,9 @@ describe('ContactUs Component', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Message sent successfully!')).toBeInTheDocument()
+      expect(
+        screen.getAllByText('Message sent successfully!').length
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -187,7 +189,10 @@ describe('ContactUs Component', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Network error. Please check your connection and try again.')).toBeInTheDocument()
+      expect(
+        screen.getAllByText('Network error. Check your connection and try again.')
+          .length
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 

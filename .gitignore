@@ -1,4 +1,6 @@
 # Python
+**/.venv-py311/
+.venv-py311/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,8 +28,8 @@ build/
 !**/env.example
 !**/*.env.example
 
-# Security scan output (large artifacts)
-.trivy/
+# Security scan output (large artifacts; Semgrep JSON/text exports if stored in-repo)
+.semgrep-out/
 
 # IDE and editor files
 .vscode/
@@ -114,6 +116,13 @@ temp/
 !documentation/private documentation/REPOSITORY_SYNTAX_TREE.md
 documentation/private documentation/*
 !documentation/private documentation/REPOSITORY_SYNTAX_TREE.md
+!documentation/private documentation/EXCHANGE_PARTNER_ONE_PAGER.md
+!documentation/private documentation/LAUNCH.md
+!documentation/private documentation/NEW_INSTANCES_DEPLOYMENT.md
+!documentation/private documentation/PERSONAS.md
+!documentation/private documentation/VC_ONE_PAGER.md
+!documentation/private documentation/TECHNICAL_REVIEW.md
+!documentation/private documentation/programming_sprint.md
 *secret*
 *credentials*
 *secrets*

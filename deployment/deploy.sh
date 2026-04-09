@@ -53,12 +53,18 @@ log "STEP 2 — Terraform (infra/terraform/envs/prod)"
 if ! command -v terraform >/dev/null 2>&1; then
   die "terraform not found in PATH"
 fi
-# Accept TF_VAR_scaleway_* (Terraform variable names) or short aliases TF_VAR_access_key / TF_VAR_secret_key / TF_VAR_project_id
+# Credentials: (1) export TF_VAR_scaleway_* or TF_VAR_access_key / TF_VAR_secret_key / TF_VAR_project_id, OR
+# (2) place infra/terraform/envs/prod/terraform.tfvars (gitignored) with scaleway_* — Terraform loads it automatically.
 export TF_VAR_scaleway_access_key="${TF_VAR_scaleway_access_key:-${TF_VAR_access_key:-}}"
 export TF_VAR_scaleway_secret_key="${TF_VAR_scaleway_secret_key:-${TF_VAR_secret_key:-}}"
 export TF_VAR_scaleway_project_id="${TF_VAR_scaleway_project_id:-${TF_VAR_project_id:-}}"
+_tfvars="${TF_DIR}/terraform.tfvars"
 if [[ -z "${TF_VAR_scaleway_access_key:-}" || -z "${TF_VAR_scaleway_secret_key:-}" || -z "${TF_VAR_scaleway_project_id:-}" ]]; then
-  die "Export TF_VAR_scaleway_access_key, TF_VAR_scaleway_secret_key, TF_VAR_scaleway_project_id (or TF_VAR_access_key, TF_VAR_secret_key, TF_VAR_project_id)."
+  if [[ -f "${_tfvars}" ]]; then
+    log "Using Scaleway credentials from ${_tfvars} (TF_VAR_* not all set)."
+  else
+    die "Set Scaleway credentials: export TF_VAR_scaleway_access_key, TF_VAR_scaleway_secret_key, TF_VAR_scaleway_project_id (or TF_VAR_access_key, TF_VAR_secret_key, TF_VAR_project_id), OR create ${_tfvars} from terraform.tfvars.example."
+  fi
 fi
 (
   cd "${TF_DIR}"
@@ -92,12 +98,14 @@ for i in 1 2 3 4 5; do
 done
 [[ "${ok}" -eq 1 ]] || die "Chatbot health check failed at http://${CHATBOT_HOST}:8000/health"
 
-log "STEP 5 — App stack (deploy-app.sh with SKIP_VLLM_DEPLOY + chatbot private URL)"
+log "STEP 5 — App stack (deploy-app.sh with SKIP_VLLM_DEPLOY + chatbot URL)"
 export APP_DOMAIN
 export CADDY_SITE_NAMES
 export APP_IP="${APP_HOST}"
 export API_IP="${CHATBOT_HOST}"
 export SKIP_VLLM_DEPLOY=1
 export CHATBOT_HEALTH_PATH=/health
-export MODEL_API_URL_FOR_COMPOSE="http://${CHATBOT_PRIVATE_IP}:8000"
+# Primary: public host (routable from app Docker → internet → chatbot SG). Alt: Terraform IP (e.g. same or VPC).
+export MODEL_API_URL_FOR_COMPOSE="http://${CHATBOT_HOST}:8000"
+export MODEL_API_URL_ALT_FOR_COMPOSE="http://${CHATBOT_PRIVATE_IP}:8000"
 exec "${SCRIPT_DIR}/deploy-app.sh" "$@"

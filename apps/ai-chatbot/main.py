@@ -1,6 +1,6 @@
 """
 AI Chatbot Service - vLLM-based OpenAI-compatible API
-Serves Qwen2.5-Instruct (default) via vLLM with SSE streaming support
+Default GPU model: dphn/Dolphin-Mistral-24B-Venice-Edition (set VLLM_TOKENIZER_MODE=mistral).
 """
 import os
 import time
@@ -12,9 +12,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 import uvicorn
 from starlette.concurrency import run_in_threadpool
+import httpx
+
+from prompt_builder import build_prompt_with_tokenizer
+from session_redis import touch_session, redis_health
 
 # Configure logging
 logging.basicConfig(
@@ -31,17 +35,20 @@ app_state = {
     "start_time": time.time(),
     "llm_engine": None,
     "use_gpu": os.getenv("USE_GPU", "true").lower() == "true",
-    "inference_backend": None,  # "vllm" | "cpu" | "mock"
+    # "proxy" | "vllm" | "cpu" | "mock" — proxy = forward to VLLM_OPENAI_BASE_URL (no local model load)
+    "inference_backend": None,
     "hf_model": None,
+    # Canonical chat template builder (HF tokenizer). Used for CPU inference and for local vLLM prompts.
     "tokenizer": None,
 }
 
 # Environment variables
 PORT = int(os.getenv("PORT", "8000"))
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
+MODEL_NAME = os.getenv("MODEL_NAME", "dphn/Dolphin-Mistral-24B-Venice-Edition")
 MODEL_REVISION = os.getenv("MODEL_REVISION", "main")
 MAX_MODEL_LEN = int(os.getenv("MAX_MODEL_LEN", "8192"))
 GPU_MEMORY_UTILIZATION = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9")) if os.getenv("GPU_MEMORY_UTILIZATION") else None
+VLLM_TOKENIZER_MODE = os.getenv("VLLM_TOKENIZER_MODE", "mistral").strip()
 VLLM_TENSOR_PARALLEL_SIZE = int(os.getenv("VLLM_TENSOR_PARALLEL_SIZE", "1")) if os.getenv("VLLM_TENSOR_PARALLEL_SIZE") else None
 VLLM_ENABLE_CHUNKED_PREFILL = os.getenv("VLLM_ENABLE_CHUNKED_PREFILL", "true").lower() == "true"
 VLLM_MAX_NUM_SEQS = int(os.getenv("VLLM_MAX_NUM_SEQS", "256"))
@@ -50,6 +57,11 @@ AI_INTERNAL_API_KEY = os.getenv("AI_INTERNAL_API_KEY", "")  # API key for authen
 USE_MOCK_RESPONSES = os.getenv("USE_MOCK_RESPONSES", "false").lower() == "true"
 # Smaller default for CPU; override with CPU_MODEL_NAME. GPU path still uses MODEL_NAME.
 CPU_MODEL_NAME = os.getenv("CPU_MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
+
+# Production: set VLLM_OPENAI_BASE_URL to an external vLLM OpenAI server — FastAPI becomes orchestration only (no heavy weights in-process).
+VLLM_OPENAI_BASE_URL = os.getenv("VLLM_OPENAI_BASE_URL", "").strip().rstrip("/")
+UPSTREAM_OPENAI_API_KEY = os.getenv("UPSTREAM_OPENAI_API_KEY", "").strip()
+UPSTREAM_OPENAI_TIMEOUT_S = float(os.getenv("UPSTREAM_OPENAI_TIMEOUT_S", "120"))
 
 DEFAULT_SYSTEM_PROMPT = """You are Dr.Safe, a psychologically-informed conversational assistant designed to support users in reflecting on their thoughts, emotions, and experiences in a safe, structured, and non-judgmental way.
 
@@ -191,6 +203,8 @@ class ChatMessage(BaseModel):
 
 
 class ChatCompletionRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
     model: Optional[str] = Field(None, description="Model name (optional, uses default)")
     messages: List[ChatMessage] = Field(..., description="List of chat messages")
     temperature: Optional[float] = Field(0.7, ge=0.0, le=2.0, description="Sampling temperature")
@@ -199,6 +213,11 @@ class ChatCompletionRequest(BaseModel):
     top_p: Optional[float] = Field(0.9, ge=0.0, le=1.0, description="Nucleus sampling parameter")
     frequency_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0, description="Frequency penalty")
     presence_penalty: Optional[float] = Field(0.0, ge=-2.0, le=2.0, description="Presence penalty")
+    session_id: Optional[str] = Field(
+        None,
+        validation_alias=AliasChoices("sessionId", "session_id"),
+        description="Opaque session id for optional Redis metadata (from API gateway)",
+    )
 
 
 def detect_crisis_signals(text: str) -> bool:
@@ -231,10 +250,27 @@ def prepare_messages_with_system(messages: List[ChatMessage]) -> List[ChatMessag
 
 
 def initialize_model():
-    """Initialize vLLM (GPU), Hugging Face on CPU, or explicit mock."""
+    """Initialize vLLM (GPU), Hugging Face on CPU, explicit mock, or proxy-only (external OpenAI server)."""
+    if VLLM_OPENAI_BASE_URL:
+        display = os.getenv("PROXY_MODEL_DISPLAY_NAME", MODEL_NAME).strip() or MODEL_NAME
+        logger.info(
+            "Inference mode=proxy: requests forwarded to OpenAI-compatible upstream %s (model display=%s)",
+            VLLM_OPENAI_BASE_URL,
+            display,
+        )
+        app_state["model_loaded"] = True
+        app_state["model_name"] = display
+        app_state["model_revision"] = MODEL_REVISION
+        app_state["inference_backend"] = "proxy"
+        app_state["llm_engine"] = None
+        app_state["tokenizer"] = None
+        app_state["hf_model"] = None
+        return
+
     if app_state["use_gpu"]:
         try:
             from vllm import LLM
+            from transformers import AutoTokenizer
 
             logger.info(f"Initializing vLLM with model: {MODEL_NAME}")
             vllm_kwargs: Dict[str, Any] = {
@@ -250,8 +286,15 @@ def initialize_model():
                 vllm_kwargs["tensor_parallel_size"] = VLLM_TENSOR_PARALLEL_SIZE
             if VLLM_ENABLE_CHUNKED_PREFILL:
                 vllm_kwargs["enable_chunked_prefill"] = True
+            if VLLM_TOKENIZER_MODE:
+                vllm_kwargs["tokenizer_mode"] = VLLM_TOKENIZER_MODE
 
             app_state["llm_engine"] = LLM(**vllm_kwargs)
+            # Load tokenizer separately so vLLM and CPU paths share one canonical chat template.
+            tok = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True, revision=MODEL_REVISION)
+            if tok.pad_token is None:
+                tok.pad_token = tok.eos_token
+            app_state["tokenizer"] = tok
             app_state["model_loaded"] = True
             app_state["model_name"] = MODEL_NAME
             app_state["model_revision"] = MODEL_REVISION
@@ -400,6 +443,7 @@ async def healthz():
         "use_gpu": app_state["use_gpu"],
         "inference_backend": app_state["inference_backend"],
         "use_mock_responses": USE_MOCK_RESPONSES,
+        "redis": redis_health(),
     })
 
 
@@ -479,8 +523,9 @@ def generate_mock_response(messages: List[ChatMessage], stream: bool = False, cr
 
 def _hf_chat_prompt(messages: List[ChatMessage]) -> str:
     tok = app_state["tokenizer"]
-    raw = [{"role": m.role, "content": m.content} for m in messages]
-    return tok.apply_chat_template(raw, tokenize=False, add_generation_prompt=True)
+    if not tok:
+        raise HTTPException(status_code=503, detail="Tokenizer not loaded")
+    return build_prompt_with_tokenizer(tokenizer=tok, messages=messages).prompt
 
 
 def generate_cpu_stream(
@@ -629,21 +674,11 @@ def generate_vllm_stream(
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     from vllm import SamplingParams
-    
-    # Convert messages to prompt format
-    # Use a simple chat template format
-    prompt_parts = []
-    for msg in messages:
-        role = msg.role
-        content = msg.content
-        if role == "system":
-            prompt_parts.append(f"System: {content}")
-        elif role == "user":
-            prompt_parts.append(f"User: {content}")
-        elif role == "assistant":
-            prompt_parts.append(f"Assistant: {content}")
-    
-    prompt = "\n".join(prompt_parts) + "\nAssistant:"
+
+    tok = app_state["tokenizer"]
+    if not tok:
+        raise HTTPException(status_code=503, detail="Tokenizer not loaded")
+    prompt = build_prompt_with_tokenizer(tokenizer=tok, messages=messages).prompt
     
     # Create sampling params
     sampling_params = SamplingParams(
@@ -685,41 +720,60 @@ def generate_vllm_stream(
             raise HTTPException(status_code=500, detail="No output generated")
         
         output = outputs[0]
-        
-        # Get the generated text
-        generated_text = output.outputs[0].text
-        
-        # Stream the text token by token (split by whitespace for simplicity)
-        # In production, you might want to use actual tokenization
-        tokens = generated_text.split()
-        previous_text = ""
-        
-        for i, token in enumerate(tokens):
-            # Build up the text incrementally
-            current_text = previous_text + (" " if previous_text else "") + token
-            delta_text = token + (" " if i < len(tokens) - 1 else "")
-            
-            chunk = {
-                "id": completion_id,
-                "object": "chat.completion.chunk",
-                "created": created_time,
-                "model": model or app_state["model_name"],
-                "choices": [{
-                    "index": 0,
-                    "delta": {"content": delta_text},
-                    "finish_reason": None
-                }]
-            }
-            yield f"data: {json.dumps(chunk)}\n\n"
-            
-            previous_text = current_text
+        gen = output.outputs[0]
+        token_ids = getattr(gen, "token_ids", None)
+        if token_ids is None:
+            token_ids = getattr(gen, "tokens", None)
+
+        mid = model or app_state["model_name"]
+
+        if token_ids and len(token_ids) > 0:
+            prev_text = ""
+            for i in range(1, len(token_ids) + 1):
+                cur = tok.decode(token_ids[:i], skip_special_tokens=True)
+                delta_text = cur[len(prev_text) :]
+                prev_text = cur
+                if not delta_text:
+                    continue
+                chunk = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created_time,
+                    "model": mid,
+                    "choices": [{
+                        "index": 0,
+                        "delta": {"content": delta_text},
+                        "finish_reason": None
+                    }]
+                }
+                yield f"data: {json.dumps(chunk)}\n\n"
+        else:
+            generated_text = gen.text
+            tokens = generated_text.split()
+            previous_text = ""
+            for i, token in enumerate(tokens):
+                current_text = previous_text + (" " if previous_text else "") + token
+                delta_text = token + (" " if i < len(tokens) - 1 else "")
+                chunk = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created_time,
+                    "model": mid,
+                    "choices": [{
+                        "index": 0,
+                        "delta": {"content": delta_text},
+                        "finish_reason": None
+                    }]
+                }
+                yield f"data: {json.dumps(chunk)}\n\n"
+                previous_text = current_text
         
         # Final chunk
         final_chunk = {
             "id": completion_id,
             "object": "chat.completion.chunk",
             "created": created_time,
-            "model": model or app_state["model_name"],
+            "model": mid,
             "choices": [{
                 "index": 0,
                 "delta": {},
@@ -757,20 +811,11 @@ async def generate_vllm_non_stream(
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     from vllm import SamplingParams
-    
-    # Convert messages to prompt format
-    prompt_parts = []
-    for msg in messages:
-        role = msg.role
-        content = msg.content
-        if role == "system":
-            prompt_parts.append(f"System: {content}")
-        elif role == "user":
-            prompt_parts.append(f"User: {content}")
-        elif role == "assistant":
-            prompt_parts.append(f"Assistant: {content}")
-    
-    prompt = "\n".join(prompt_parts) + "\nAssistant:"
+
+    tok = app_state["tokenizer"]
+    if not tok:
+        raise HTTPException(status_code=503, detail="Tokenizer not loaded")
+    prompt = build_prompt_with_tokenizer(tokenizer=tok, messages=messages).prompt
     
     # Create sampling params
     sampling_params = SamplingParams(
@@ -822,9 +867,117 @@ async def generate_vllm_non_stream(
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
+def _upstream_openai_headers() -> Dict[str, str]:
+    h = {"Content-Type": "application/json"}
+    if UPSTREAM_OPENAI_API_KEY:
+        h["Authorization"] = f"Bearer {UPSTREAM_OPENAI_API_KEY}"
+    return h
+
+
+def _openai_messages_dicts(messages: List[ChatMessage]) -> List[Dict[str, str]]:
+    return [{"role": m.role, "content": m.content} for m in messages]
+
+
+def _crisis_sse_chunk_bytes(model_id: str) -> bytes:
+    cid = f"chatcmpl-{int(time.time())}"
+    created = int(time.time())
+    chunk = {
+        "id": cid,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model_id,
+        "choices": [{"index": 0, "delta": {"content": CRISIS_PREPEND}, "finish_reason": None}],
+    }
+    return f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
+
+
+async def proxy_upstream_chat_stream(
+    messages: List[ChatMessage],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    top_p: float,
+    frequency_penalty: float,
+    presence_penalty: float,
+    prepend_crisis: bool,
+):
+    """Byte-streaming passthrough to upstream OpenAI-compatible /v1/chat/completions (true SSE)."""
+    url = f"{VLLM_OPENAI_BASE_URL}/v1/chat/completions"
+    body: Dict[str, Any] = {
+        "model": model,
+        "messages": _openai_messages_dicts(messages),
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": True,
+        "top_p": top_p,
+        "frequency_penalty": frequency_penalty,
+        "presence_penalty": presence_penalty,
+    }
+    timeout = httpx.Timeout(UPSTREAM_OPENAI_TIMEOUT_S)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        async with client.stream("POST", url, json=body, headers=_upstream_openai_headers()) as resp:
+            if resp.status_code >= 400:
+                detail = (await resp.aread())[:800].decode("utf-8", errors="replace")
+                raise HTTPException(status_code=502, detail=f"Upstream {resp.status_code}: {detail}")
+            if prepend_crisis:
+                yield _crisis_sse_chunk_bytes(model)
+            async for chunk in resp.aiter_bytes():
+                yield chunk
+
+
+async def proxy_upstream_chat_json(
+    messages: List[ChatMessage],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    top_p: float,
+    frequency_penalty: float,
+    presence_penalty: float,
+    prepend_crisis: bool,
+) -> JSONResponse:
+    url = f"{VLLM_OPENAI_BASE_URL}/v1/chat/completions"
+    body: Dict[str, Any] = {
+        "model": model,
+        "messages": _openai_messages_dicts(messages),
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": False,
+        "top_p": top_p,
+        "frequency_penalty": frequency_penalty,
+        "presence_penalty": presence_penalty,
+    }
+    timeout = httpx.Timeout(UPSTREAM_OPENAI_TIMEOUT_S)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        r = await client.post(url, json=body, headers=_upstream_openai_headers())
+        if r.status_code >= 400:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Upstream {r.status_code}: {r.text[:800]}",
+            )
+        data = r.json()
+        if prepend_crisis and isinstance(data, dict):
+            choices = data.get("choices")
+            if isinstance(choices, list) and choices:
+                msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+                if isinstance(msg, dict) and "content" in msg:
+                    msg["content"] = CRISIS_PREPEND + (msg.get("content") or "")
+        return JSONResponse(data)
+
+
 @app.get("/v1/models")
 async def list_models():
     """OpenAI-compatible model list (used by app proxy health checks)."""
+    if app_state["inference_backend"] == "proxy" and VLLM_OPENAI_BASE_URL:
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0)) as client:
+                r = await client.get(
+                    f"{VLLM_OPENAI_BASE_URL}/v1/models",
+                    headers=_upstream_openai_headers(),
+                )
+                if r.status_code == 200:
+                    return r.json()
+        except Exception as e:
+            logger.warning("proxy /v1/models upstream failed: %s", e)
     mid = app_state["model_name"] or MODEL_NAME
     return {
         "object": "list",
@@ -850,9 +1003,48 @@ async def chat_completions(
 
     crisis_detected = detect_crisis_signals(user_messages_text(request.messages))
     messages = prepare_messages_with_system(request.messages)
+    touch_session(request.session_id, len(request.messages))
     temperature = 0.7 if request.temperature is None else request.temperature
     top_p = 0.9 if request.top_p is None else request.top_p
     max_tokens = request.max_tokens or 1000
+    frequency_penalty = 0.0 if request.frequency_penalty is None else request.frequency_penalty
+    presence_penalty = 0.0 if request.presence_penalty is None else request.presence_penalty
+
+    if app_state["inference_backend"] == "proxy":
+        try:
+            if request.stream:
+                return StreamingResponse(
+                    proxy_upstream_chat_stream(
+                        messages,
+                        model,
+                        temperature,
+                        max_tokens,
+                        top_p,
+                        frequency_penalty,
+                        presence_penalty,
+                        crisis_detected,
+                    ),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                    },
+                )
+            return await proxy_upstream_chat_json(
+                messages,
+                model,
+                temperature,
+                max_tokens,
+                top_p,
+                frequency_penalty,
+                presence_penalty,
+                crisis_detected,
+            )
+        except HTTPException:
+            raise
+        except httpx.HTTPError as e:
+            logger.error("Proxy upstream error: %s", e, exc_info=True)
+            raise HTTPException(status_code=502, detail=f"Upstream unreachable: {e!s}") from e
 
     if app_state["inference_backend"] == "mock":
         if request.stream:

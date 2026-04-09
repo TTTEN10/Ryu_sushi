@@ -3,11 +3,6 @@ import logger from './logger';
 import { SUPPORTED_CHAIN_ID } from './constants';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
-
-// ES module equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * Load DID Identity Token ABI from artifact
@@ -175,7 +170,7 @@ export class DIDService {
 
     if (config.backendSignerPrivateKey) {
       this.signer = new ethers.Wallet(config.backendSignerPrivateKey, this.provider);
-      this.contract = this.contract.connect(this.signer);
+      this.contract = this.contract.connect(this.signer) as ethers.Contract;
       logger.info(`DID service initialized with backend signer (${config.useNewRegistry ? 'Registry' : 'legacy'})`);
     } else {
       logger.info(`DID service initialized without backend signer (${config.useNewRegistry ? 'Registry' : 'legacy'})`);

@@ -89,7 +89,9 @@ describe('Hero Component - Waitlist Form', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/please enter your email address/i)).toBeInTheDocument()
+      expect(
+        screen.getAllByText(/please enter your email address/i).length
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -180,7 +182,9 @@ describe('Hero Component - Waitlist Form', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Thanks! We\'ll email you product updates.')).toBeInTheDocument()
+      expect(
+        screen.getAllByText("Thanks! We'll email you product updates.").length
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -214,13 +218,15 @@ describe('Hero Component - Waitlist Form', () => {
 
   it('handles API error response', async () => {
     const user = userEvent.setup()
-    const mockResponse = { 
-      success: false, 
-      message: 'This email is already on our waitlist' 
+    const mockResponse = {
+      success: false,
+      message: 'This email is already on our waitlist',
     }
-    
+
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      status: 400,
+      text: async () => JSON.stringify(mockResponse),
       json: async () => mockResponse,
     })
 
@@ -239,7 +245,11 @@ describe('Hero Component - Waitlist Form', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText('This email is already on our waitlist')).toBeInTheDocument()
+      expect(
+        screen.getAllByText(
+          /This email is already registered\. Try signing in or use a different email address\./
+        ).length
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -263,7 +273,7 @@ describe('Hero Component - Waitlist Form', () => {
     await user.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/network error/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/network error/i).length).toBeGreaterThanOrEqual(1)
     })
   })
 

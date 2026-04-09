@@ -23,7 +23,7 @@ interface ChatRetrievalResult {
  */
 export async function retrieveChatData(
   encryptionKey: Uint8Array,
-  pointer?: string
+  _pointer?: string
 ): Promise<ChatRetrievalResult> {
   try {
     if (encryptionKey.length !== 32) {

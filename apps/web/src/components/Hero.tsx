@@ -74,7 +74,7 @@ const Hero: React.FC = () => {
     // Check if offline
     if (isOffline) {
       // Queue the action
-      const queueId = offlineQueue.add(
+      offlineQueue.add(
         `${import.meta.env.VITE_API_URL || '/api'}/subscribe`,
         {
           method: 'POST',

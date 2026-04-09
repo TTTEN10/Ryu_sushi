@@ -10,17 +10,15 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
   const method = req.method;
 
   // Override res.end to capture response status
-  const originalEnd = res.end;
-  res.end = function (chunk?: any, encoding?: any) {
+  const originalEnd = res.end.bind(res);
+  res.end = function (chunk?: unknown, encoding?: unknown, cb?: () => void): Response {
     const duration = (Date.now() - start) / 1000; // Convert to seconds
     const status = res.statusCode.toString();
 
-    // Record metrics
     httpRequestDuration.observe({ method, route, status }, duration);
     httpRequestsTotal.inc({ method, route, status });
 
-    // Call original end
-    originalEnd.call(this, chunk, encoding);
+    return originalEnd(chunk as never, encoding as never, cb) as Response;
   };
 
   next();

@@ -13,6 +13,7 @@
 
 import { ethers } from 'ethers';
 import { readDeploymentRegistry, getContractDeployment } from './deployment-registry.js';
+import { getDeploymentPrimaryAddress } from './types.js';
 
 // Minimal ABIs for smoke checks (read-only functions only)
 const DID_REGISTRY_ABI = [
@@ -298,8 +299,9 @@ export async function runSmokeCheck(
   // Check DIDRegistry
   const registryDeployment = getContractDeployment(network, 'DIDRegistry');
   if (registryDeployment) {
-    console.log(`Checking DIDRegistry at ${registryDeployment.address}...`);
-    const result = await smokeCheckDIDRegistry(provider, registryDeployment.address);
+    const regAddr = getDeploymentPrimaryAddress(registryDeployment);
+    console.log(`Checking DIDRegistry at ${regAddr}...`);
+    const result = await smokeCheckDIDRegistry(provider, regAddr);
     results.push(result);
   } else {
     console.log(`[SKIP] DIDRegistry not found in deployment registry`);
@@ -308,8 +310,9 @@ export async function runSmokeCheck(
   // Check DIDOwnership
   const ownershipDeployment = getContractDeployment(network, 'DIDOwnership');
   if (ownershipDeployment) {
-    console.log(`Checking DIDOwnership at ${ownershipDeployment.address}...`);
-    const result = await smokeCheckDIDOwnership(provider, ownershipDeployment.address);
+    const ownAddr = getDeploymentPrimaryAddress(ownershipDeployment);
+    console.log(`Checking DIDOwnership at ${ownAddr}...`);
+    const result = await smokeCheckDIDOwnership(provider, ownAddr);
     results.push(result);
   } else {
     console.log(`[SKIP] DIDOwnership not found in deployment registry`);

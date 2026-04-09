@@ -6,6 +6,10 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
 
+# CPU-only PyTorch first (~hundreds of MB) — default pip torch pulls CUDA stacks and can fill the disk.
+RUN pip install --no-cache-dir --upgrade pip \
+  && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

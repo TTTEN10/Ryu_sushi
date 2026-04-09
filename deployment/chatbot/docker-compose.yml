@@ -8,6 +8,9 @@ services:
     ports:
       - "0.0.0.0:8000:8000"
     environment:
+      # If set, chatbot proxies to this OpenAI-compatible base (vLLM); no in-process model.
+      VLLM_OPENAI_BASE_URL: "${VLLM_OPENAI_BASE_URL:-}"
+      UPSTREAM_OPENAI_API_KEY: "${UPSTREAM_OPENAI_API_KEY:-}"
       USE_GPU: "${USE_GPU:-false}"
       # Real replies on CPU (Hugging Face). Set USE_MOCK_RESPONSES=true only for tests.
       USE_MOCK_RESPONSES: "${USE_MOCK_RESPONSES:-false}"
@@ -15,7 +18,11 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       PORT: "8000"
       AI_INTERNAL_API_KEY: "${AI_INTERNAL_API_KEY:-}"
-      MODEL_NAME: "${MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}"
+      # Session metadata (optional); same compose network as redis service
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379/0}"
+      SESSION_METADATA_TTL_SEC: "${SESSION_METADATA_TTL_SEC:-86400}"
+      MODEL_NAME: "${MODEL_NAME:-dphn/Dolphin-Mistral-24B-Venice-Edition}"
+      VLLM_TOKENIZER_MODE: "${VLLM_TOKENIZER_MODE:-mistral}"
       # Persist downloaded weights on the host volume (/data on VM)
       HF_HOME: /app/data/hf
       TRANSFORMERS_CACHE: /app/data/hf
@@ -47,6 +54,11 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
 volumes:
   redis-data:

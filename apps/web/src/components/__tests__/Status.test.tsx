@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import Status from '../Status'
@@ -35,12 +35,20 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
 )
 
+const healthyFetchResponse = () =>
+  Promise.resolve({
+    ok: true,
+    status: 200,
+    text: async () => '',
+    json: async () => ({}),
+  })
+
 describe('Status Component', () => {
   beforeEach(() => {
-    mockFetch.mockClear()
+    mockFetch.mockReset()
+    mockFetch.mockImplementation(healthyFetchResponse)
     mockNavigate.mockClear()
     vi.clearAllTimers()
-    vi.useFakeTimers()
   })
 
   afterEach(() => {
@@ -48,7 +56,7 @@ describe('Status Component', () => {
   })
 
   it('renders the status page with loading state', () => {
-    mockFetch.mockImplementation(() => new Promise(() => {})) // Never resolves
+    mockFetch.mockImplementation(() => new Promise(() => {}))
 
     render(
       <TestWrapper>
@@ -61,11 +69,6 @@ describe('Status Component', () => {
   })
 
   it('displays live status when API is healthy', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-    })
-
     render(
       <TestWrapper>
         <Status />
@@ -81,10 +84,10 @@ describe('Status Component', () => {
   })
 
   it('displays offline status and redirects when API is down', async () => {
-    mockFetch
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockRejectedValueOnce(new Error('Network error'))
+    mockFetch.mockReset()
+    mockFetch.mockImplementation(() =>
+      Promise.reject(new Error('Network error'))
+    )
 
     render(
       <TestWrapper>
@@ -97,19 +100,18 @@ describe('Status Component', () => {
       expect(screen.getByText(/system is currently unavailable/i)).toBeInTheDocument()
     })
 
-    // Fast-forward time to trigger redirect
-    vi.advanceTimersByTime(3000)
-
+    // Redirect uses real setTimeout(3000); advance real time (fake timers would not fire it).
+    await act(
+      async () =>
+        await new Promise<void>((resolve) => setTimeout(resolve, 3100))
+    )
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/500', { replace: true })
-    }, { timeout: 100 })
+    })
   })
 
   it('allows manual refresh of status', async () => {
     const user = userEvent.setup({ delay: null })
-    mockFetch
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce({ ok: true })
 
     render(
       <TestWrapper>
@@ -128,11 +130,6 @@ describe('Status Component', () => {
   })
 
   it('shows status details when available', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-    })
-
     render(
       <TestWrapper>
         <Status />
@@ -141,15 +138,15 @@ describe('Status Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/status details/i)).toBeInTheDocument()
-      expect(screen.getByText(/operational/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/operational/i).length).toBeGreaterThanOrEqual(1)
     })
   })
 
   it('displays error message when health check fails', async () => {
-    mockFetch
-      .mockRejectedValueOnce(new Error('Connection timeout'))
-      .mockRejectedValueOnce(new Error('Connection timeout'))
-      .mockRejectedValueOnce(new Error('Connection timeout'))
+    mockFetch.mockReset()
+    mockFetch.mockImplementation(() =>
+      Promise.reject(new Error('Connection timeout'))
+    )
 
     render(
       <TestWrapper>
@@ -158,15 +155,18 @@ describe('Status Component', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText(/error/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/The system is currently unavailable/i)
+      ).toBeInTheDocument()
     })
   })
 
   it('tries multiple health endpoints', async () => {
+    mockFetch.mockReset()
     mockFetch
       .mockRejectedValueOnce(new Error('Endpoint 1 failed'))
       .mockRejectedValueOnce(new Error('Endpoint 2 failed'))
-      .mockResolvedValueOnce({ ok: true })
+      .mockImplementation(healthyFetchResponse)
 
     render(
       <TestWrapper>
@@ -183,31 +183,40 @@ describe('Status Component', () => {
   })
 
   it('auto-refreshes status periodically', async () => {
-    mockFetch.mockResolvedValue({ ok: true })
-
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     render(
       <TestWrapper>
         <Status />
       </TestWrapper>
     )
 
-    await waitFor(() => {
-      expect(screen.getByText(/system live/i)).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByText(/system live/i)).toBeInTheDocument()
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
 
     const initialCallCount = mockFetch.mock.calls.length
-
-    // Fast-forward 30 seconds to trigger auto-refresh
-    vi.advanceTimersByTime(30000)
-
-    await waitFor(() => {
-      expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount)
+    await act(async () => {
+      vi.advanceTimersByTime(30000)
     })
+
+    await waitFor(
+      () => {
+        expect(mockFetch.mock.calls.length).toBeGreaterThan(initialCallCount)
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
+    vi.useRealTimers()
   })
 
   it('stops auto-refresh after 10 attempts', async () => {
-    const user = userEvent.setup({ delay: null })
-    mockFetch.mockResolvedValue({ ok: true })
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({
+      delay: null,
+      advanceTimers: vi.advanceTimersByTime,
+    })
 
     render(
       <TestWrapper>
@@ -215,9 +224,12 @@ describe('Status Component', () => {
       </TestWrapper>
     )
 
-    await waitFor(() => {
-      expect(screen.getByText(/system live/i)).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByText(/system live/i)).toBeInTheDocument()
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
 
     // Should show remaining auto-refreshes initially
     expect(screen.getByText(/auto-refreshing every 30 seconds/i)).toBeInTheDocument()
@@ -225,17 +237,21 @@ describe('Status Component', () => {
 
     // Fast-forward 10 auto-refreshes (10 * 30 seconds = 300 seconds)
     for (let i = 0; i < 10; i++) {
-      vi.advanceTimersByTime(30000)
-      await waitFor(() => {
-        // Wait for the fetch to complete
-      }, { timeout: 100 })
+      await act(async () => {
+        vi.advanceTimersByTime(30000)
+      })
     }
 
     // Should show quota limit reached message
-    await waitFor(() => {
-      expect(screen.getByText(/auto-refresh limit reached/i)).toBeInTheDocument()
-      expect(screen.getByText(/automatic refreshes have been disabled/i)).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByText(/auto-refresh limit reached/i)).toBeInTheDocument()
+        expect(
+          screen.getByText(/automatic refreshes have been disabled/i)
+        ).toBeInTheDocument()
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
 
     // Manual refresh button should still work
     const refreshButton = screen.getByRole('button', { name: /refresh status/i })
@@ -245,51 +261,59 @@ describe('Status Component', () => {
     // Fast-forward more time - should not auto-refresh
     const callCountBefore = mockFetch.mock.calls.length
     vi.advanceTimersByTime(30000)
-    
+
     // Give it a moment, then verify no new calls were made
-    await new Promise(resolve => setTimeout(resolve, 100))
+    vi.advanceTimersByTime(100)
     expect(mockFetch.mock.calls.length).toBe(callCountBefore)
 
     // Manual refresh should still work
     await user.click(refreshButton)
-    await waitFor(() => {
-      expect(mockFetch.mock.calls.length).toBeGreaterThan(callCountBefore)
-    })
+    await waitFor(
+      () => {
+        expect(mockFetch.mock.calls.length).toBeGreaterThan(callCountBefore)
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
+    vi.useRealTimers()
   })
 
   it('shows remaining auto-refresh count', async () => {
-    mockFetch.mockResolvedValue({ ok: true })
-
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     render(
       <TestWrapper>
         <Status />
       </TestWrapper>
     )
 
-    await waitFor(() => {
-      expect(screen.getByText(/system live/i)).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByText(/system live/i)).toBeInTheDocument()
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
 
     // Initially should show 10 remaining (or close to it)
     expect(screen.getByText(/remaining/i)).toBeInTheDocument()
 
     // Trigger a few auto-refreshes
     for (let i = 0; i < 3; i++) {
-      vi.advanceTimersByTime(30000)
-      await waitFor(() => {
-        // Wait for updates
-      }, { timeout: 100 })
+      await act(async () => {
+        vi.advanceTimersByTime(30000)
+      })
     }
 
     // Should still show remaining count (should be less than 10)
-    await waitFor(() => {
-      expect(screen.getByText(/remaining/i)).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByText(/remaining/i)).toBeInTheDocument()
+      },
+      { advanceTimers: (ms) => vi.advanceTimersByTime(ms) }
+    )
+    vi.useRealTimers()
   })
 
   it('manual refresh does not count towards quota', async () => {
     const user = userEvent.setup({ delay: null })
-    mockFetch.mockResolvedValue({ ok: true })
 
     render(
       <TestWrapper>
@@ -301,8 +325,13 @@ describe('Status Component', () => {
       expect(screen.getByText(/system live/i)).toBeInTheDocument()
     })
 
-    // Get initial remaining count
-    const initialRemainingText = screen.getByText(/remaining/i).textContent
+    const remainingFrom = (text: string | null) =>
+      text?.match(/\((\d+)\s+remaining\)/)?.[1]
+
+    const initialRemaining = remainingFrom(
+      screen.getByText(/remaining/i).textContent
+    )
+    expect(initialRemaining).toBeDefined()
 
     // Manually refresh multiple times
     const refreshButton = screen.getByRole('button', { name: /refresh status/i })
@@ -313,10 +342,11 @@ describe('Status Component', () => {
       }, { timeout: 500 })
     }
 
-    // Remaining count should not have changed (manual refreshes don't count)
+    // Quota number should not change; "Last checked" may update each refresh.
     await waitFor(() => {
-      const newRemainingText = screen.getByText(/remaining/i).textContent
-      expect(newRemainingText).toBe(initialRemainingText)
+      expect(
+        remainingFrom(screen.getByText(/remaining/i).textContent)
+      ).toBe(initialRemaining)
     })
   })
 })

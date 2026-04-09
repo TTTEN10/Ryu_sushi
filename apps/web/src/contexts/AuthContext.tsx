@@ -25,6 +25,8 @@ export interface DIDInfo {
   didHash: string | null;
   isValid: boolean;
   contractAddress?: string;
+  /** ERC-721 token id string (API `tokenId`; used for explorer links / UI). */
+  tokenId?: string | null;
 }
 
 /**
@@ -94,7 +96,7 @@ function clearSessionToken(): void {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const { wallet, connectWallet, disconnectWallet, signMessage } = useWallet();
+  const { wallet, disconnectWallet, signMessage } = useWallet();
   const [authState, setAuthState] = useState<AuthState>({
     walletAddress: null,
     network: null,
@@ -248,11 +250,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(data.message || 'Failed to check DID status');
       }
 
+      const tid =
+        data.data.tokenId !== undefined && data.data.tokenId !== null
+          ? String(data.data.tokenId)
+          : null;
       const didInfo: DIDInfo = {
         hasDid: data.data.hasDid,
-        did: data.data.tokenId || null,
-        didHash: data.data.tokenId || null,
+        did: tid,
+        didHash: tid,
         isValid: data.data.hasDid,
+        tokenId: tid,
       };
 
       setAuthState((prev) => ({

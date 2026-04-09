@@ -1,3 +1,5 @@
+import { toBufferSource } from './crypto-helpers';
+
 /**
  * AES-256-GCM Encryption Utility for Frontend
  * Uses Web Crypto API for browser-compatible encryption
@@ -46,7 +48,7 @@ export async function encrypt(data: string, key: Uint8Array): Promise<string> {
   // Import the key
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    toBufferSource(key),
     { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt']
@@ -97,7 +99,7 @@ export async function decrypt(encryptedData: string, key: Uint8Array): Promise<s
   // Import the key
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    toBufferSource(key),
     { name: 'AES-GCM', length: 256 },
     false,
     ['decrypt']
@@ -107,11 +109,11 @@ export async function decrypt(encryptedData: string, key: Uint8Array): Promise<s
   const decrypted = await crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
-      iv: iv,
+      iv: toBufferSource(iv),
       tagLength: 128,
     },
     cryptoKey,
-    encrypted
+    toBufferSource(encrypted)
   );
 
   // Convert to string
@@ -149,7 +151,7 @@ export async function deriveKey(
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: toBufferSource(salt),
       iterations: 100000,
       hash: 'SHA-256',
     },

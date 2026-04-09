@@ -293,7 +293,8 @@ router.post(
 router.delete('/document/:documentId', adminAuth, async (req: AdminRequest, res: Response) => {
   let documentId: string | undefined;
   try {
-    documentId = req.params.documentId;
+    const raw = req.params.documentId;
+    documentId = typeof raw === 'string' ? raw : raw?.[0];
 
     if (!documentId) {
       return res.status(400).json({

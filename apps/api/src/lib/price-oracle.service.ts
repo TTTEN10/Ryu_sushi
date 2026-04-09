@@ -71,7 +71,7 @@ export class PriceOracleService {
         throw new Error(`CoinGecko API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { ethereum?: { usd?: number } };
       const price = data.ethereum?.usd;
 
       if (!price || typeof price !== 'number') {

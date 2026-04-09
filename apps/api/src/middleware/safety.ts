@@ -632,7 +632,9 @@ function processObject(
       const fieldPath = path ? `${path}.${key}` : key;
       // Check if this is an auth-related field
       const isAuth = isAuthField || 
-        ['password', 'token', 'secret', 'key', 'signature', 'address', 'wallet'].some(
+        // Preserve identity/routing fields from redaction so business logic keeps working.
+        // (Redaction for logs is handled separately; this avoids breaking subscribe/contact flows.)
+        ['password', 'token', 'secret', 'key', 'signature', 'address', 'wallet', 'email'].some(
           authTerm => key.toLowerCase().includes(authTerm)
         );
       

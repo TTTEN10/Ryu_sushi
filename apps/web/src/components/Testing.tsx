@@ -44,19 +44,15 @@ export default function Testing() {
               </div>
             </div>
 
-            {/* DID Profile */}
-            <div className="mb-8 sm:mb-12 fade-in">
-              <DIDProfile />
-            </div>
-
-            {/* DID Token Visualization */}
-            <div className="mb-8 sm:mb-12 fade-in">
-              <DIDTokenVisualization />
-            </div>
-
             {/* Chat Widget Section */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-12 sm:mb-16 fade-in card-hover">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-lg border border-neutral-200 dark:border-white/10 mb-12 sm:mb-16 fade-in card-hover">
               <ChatWidget />
+            </div>
+
+            {/* Wallet / DID (below chat) */}
+            <div className="space-y-8 sm:space-y-12 mb-12 sm:mb-16 fade-in">
+              <DIDProfile />
+              <DIDTokenVisualization />
             </div>
           </div>
         </section>

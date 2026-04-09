@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { toBufferSource } from './crypto-helpers';
 
 /**
  * DID-Based Encryption Utilities
@@ -97,7 +98,7 @@ export async function encryptSymmetricKey(
     
     // Derive 32-byte KEK using SHA-256 hash
     // This is deterministic: same wallet + same message = same KEK
-    const hash = await crypto.subtle.digest('SHA-256', combined);
+    const hash = await crypto.subtle.digest('SHA-256', toBufferSource(combined));
     const derivedKey = new Uint8Array(hash);
     
     // Encrypt symmetric key with derived key
@@ -130,7 +131,7 @@ export async function encryptSymmetricKey(
 export async function decryptSymmetricKey(
   encryptedKey: string,
   walletAddress: string,
-  signer: ethers.JsonRpcSigner
+  _signer: ethers.JsonRpcSigner
 ): Promise<Uint8Array> {
   try {
     const [signature, encrypted] = encryptedKey.split(':');
@@ -163,7 +164,7 @@ export async function decryptSymmetricKey(
     combined.set(walletBytes, signatureBytes.length);
     
     // SHA-256 hash to derive KEK (deterministic: same inputs = same KEK)
-    const hash = await crypto.subtle.digest('SHA-256', combined);
+    const hash = await crypto.subtle.digest('SHA-256', toBufferSource(combined));
     const derivedKey = new Uint8Array(hash);
     
     // Decrypt symmetric key
@@ -184,7 +185,7 @@ async function encryptWithAES(
 ): Promise<string> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    toBufferSource(key),
     { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt']
@@ -192,9 +193,9 @@ async function encryptWithAES(
   
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
   const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: toBufferSource(iv) },
     cryptoKey,
-    data
+    toBufferSource(data)
   );
   
   // Return: IV (hex) + encrypted data (hex)
@@ -220,16 +221,16 @@ async function decryptWithAES(
   
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    toBufferSource(key),
     { name: 'AES-GCM', length: 256 },
     false,
     ['decrypt']
   );
   
   const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: toBufferSource(iv) },
     cryptoKey,
-    encrypted
+    toBufferSource(encrypted)
   );
   
   return new Uint8Array(decrypted);

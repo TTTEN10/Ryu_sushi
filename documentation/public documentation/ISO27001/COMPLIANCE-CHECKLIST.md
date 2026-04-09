@@ -12,7 +12,7 @@ To enable security event logging (auth success/failure), apply the `SecurityAudi
 ## Pre-release / Pre-deploy
 
 - [ ] **Vulnerability scan:** `npm run security:audit` and `npm run security:check`; resolve or document exceptions.
-- [ ] **Trivy:** Run Trivy on Dockerfiles and fix critical/high where feasible (see `.trivy/trivy-sast-report.txt`).
+- [ ] **Semgrep:** Run Semgrep on the codebase (`semgrep scan`) and fix critical/high where feasible.
 - [ ] **Secrets:** No secrets in code or in repo; use Secret Manager / env vars.
 - [ ] **Dependencies:** Lockfiles committed; overrides for known CVEs (qs, parse-duration, axios, react-router) in place.
 - [ ] **Config:** `.env.example` updated; no production values in examples.

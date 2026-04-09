@@ -11,7 +11,7 @@ import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 
 export default function ConnectWallet() {
-  const { wallet, connectWallet, disconnectWallet, isLoading: walletLoading, error: walletError } = useWallet();
+  const { wallet, connectWallet, isLoading: walletLoading, error: walletError } = useWallet();
   const { authState, verifyWallet, logout, checkDID } = useAuth();
   const { showToast, ToastContainer } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);

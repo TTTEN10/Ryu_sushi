@@ -10,7 +10,8 @@
     "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,json}\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:contracts": "tsc --noEmit -p tsconfig.contracts.json",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "db:generate": "prisma generate",
@@ -27,7 +28,7 @@
     "@aws-sdk/client-s3": "^3.712.0",
     "@openzeppelin/contracts": "^5.1.0",
     "@openzeppelin/contracts-upgradeable": "^5.4.0",
-    "@prisma/client": "6.19.2",
+    "@prisma/client": "^6.19.1",
     "@qdrant/js-client-rest": "^1.16.2",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
@@ -59,6 +60,7 @@
     "winston": "^3.15.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
@@ -76,6 +78,7 @@
     "@typescript-eslint/parser": "^8.18.2",
     "chai": "^4.3.10",
     "eslint": "^9.18.0",
+    "globals": "^14.0.0",
     "hardhat": "^2.22.0",
     "hardhat-gas-reporter": "^1.0.8",
     "nodemon": "^3.1.9",
@@ -86,6 +89,7 @@
     "tsx": "^4.19.2",
     "typechain": "^8.3.2",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.58.0",
     "vitest": "^2.1.8"
   }
 }

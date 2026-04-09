@@ -110,7 +110,7 @@ export class QdrantService {
     try {
       const client = await this.getClient();
       const collections = await client.getCollections();
-      const exists = collections.collections.some((c) => c.name === collectionName);
+      const exists = collections.collections.some((c: { name: string }) => c.name === collectionName);
 
       if (!exists) {
         const client = await this.getClient();
@@ -150,7 +150,7 @@ export class QdrantService {
         points: points.map((point) => ({
           id: point.id,
           vector: point.vector,
-          payload: point.payload as Record<string, unknown>,
+          payload: { ...(point.payload as object) } as Record<string, unknown>,
         })),
       });
       logger.info(`Upserted ${points.length} vectors into ${collectionName}`);
@@ -208,7 +208,7 @@ export class QdrantService {
         with_payload: true,
       });
 
-      return searchResult.map((result) => ({
+      return searchResult.map((result: { id: string | number; score?: number; payload?: unknown }) => ({
         id: result.id,
         score: result.score || 0,
         payload: result.payload as DocumentPayload,

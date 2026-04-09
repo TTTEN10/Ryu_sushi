@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -26,13 +25,10 @@ import { sanitizeMiddleware } from "./middleware/sanitize";
 import { rateLimitMiddleware } from "./lib/ratelimit";
 import { metricsMiddleware } from "./middleware/metrics";
 import { getMetrics } from "./lib/metrics";
+import { startLlmUpstreamHealthPoller } from "./lib/llm-upstream-health";
 
-// ES module equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load environment variables
-dotenv.config();
+// Load environment variables from monorepo root (single .env; avoids Prisma vs apps/api duplicate)
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 // Initialize secret manager configuration (async, but don't block startup)
 initializeConfig().catch((error) => {
@@ -218,6 +214,7 @@ try {
   server = app.listen(PORT, () => {
     try {
       logger.info(`SafePsy API listening on :${PORT}`);
+      startLlmUpstreamHealthPoller();
       
       // Validate IP_SALT on startup if hashing is enabled
       if (process.env.IP_HASHING_ENABLED === 'true') {

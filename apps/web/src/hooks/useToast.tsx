@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, type FC } from 'react';
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -14,7 +14,7 @@ interface UseToastReturn {
   toasts: Toast[];
   showToast: (type: ToastType, message: string, duration?: number) => void;
   removeToast: (id: string) => void;
-  ToastContainer: React.FC;
+  ToastContainer: FC;
 }
 
 export function useToast(): UseToastReturn {
@@ -38,7 +38,7 @@ export function useToast(): UseToastReturn {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const ToastContainer: React.FC = () => {
+  const ToastContainer: FC = () => {
     if (toasts.length === 0) return null;
 
     const icons = {

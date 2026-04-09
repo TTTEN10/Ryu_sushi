@@ -21,10 +21,17 @@
 import 'dotenv/config';
 import { ethers } from 'ethers';
 import * as readline from 'readline';
-import { DeploymentConfig, DeploymentResult } from './types.js';
+import {
+  DeploymentConfig,
+  DeploymentResult,
+  getDeploymentBlock,
+  getDeploymentPrimaryAddress,
+  getDeploymentTx,
+} from './types.js';
 import {
   isContractDeployed,
   getContractDeployment,
+  readDeploymentRegistry,
   updateDeploymentRegistry,
 } from './deployment-registry.js';
 import { runSmokeCheck } from './smoke-check.js';
@@ -116,18 +123,22 @@ async function deployContract(
   
   if (isDeployed && !config.force) {
     const existing = getContractDeployment(config.network, contractName);
-    console.log(`[SKIP] ${contractName} already deployed at ${existing?.address}`);
-    console.log(`       Transaction: ${existing?.txHash}`);
-    console.log(`       Block: ${existing?.blockNumber}`);
-    
-    // Get block timestamp for existing deployment
-    const block = await provider.getBlock(existing!.blockNumber);
+    if (!existing) {
+      throw new Error(`Expected deployment entry for ${contractName} but registry is missing data`);
+    }
+    const primary = getDeploymentPrimaryAddress(existing);
+    console.log(`[SKIP] ${contractName} already deployed at ${primary}`);
+    console.log(`       Transaction: ${getDeploymentTx(existing)}`);
+    console.log(`       Block: ${getDeploymentBlock(existing)}`);
+
+    const registry = readDeploymentRegistry(config.network);
+    const block = await provider.getBlock(getDeploymentBlock(existing));
     return {
       contractName,
-      address: existing!.address,
-      deployer: existing!.deployer,
-      txHash: existing!.txHash,
-      blockNumber: existing!.blockNumber,
+      address: primary,
+      deployer: registry?.deployer ?? wallet.address,
+      txHash: getDeploymentTx(existing),
+      blockNumber: getDeploymentBlock(existing),
       timestamp: block?.timestamp || Math.floor(Date.now() / 1000),
     };
   }
@@ -136,8 +147,8 @@ async function deployContract(
     const existing = getContractDeployment(config.network, contractName);
     console.log(`\n[FORCE DEPLOY] Existing deployment will be replaced:`);
     console.log(`  Contract: ${contractName}`);
-    console.log(`  Existing address: ${existing?.address}`);
-    console.log(`  Existing tx: ${existing?.txHash}`);
+    console.log(`  Existing address: ${existing ? getDeploymentPrimaryAddress(existing) : 'unknown'}`);
+    console.log(`  Existing tx: ${existing ? getDeploymentTx(existing) : 'unknown'}`);
     
     // Require confirmation unless ALLOW_FORCE_DEPLOY is set
     if (process.env.ALLOW_FORCE_DEPLOY !== 'true') {

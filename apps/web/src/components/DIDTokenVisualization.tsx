@@ -5,6 +5,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { getDIDProfile } from '../utils/did-contract';
 import { decryptChatHistory } from '../utils/did-encryption';
 import { useChatEncryption } from '../hooks/useChatEncryption';
+import { toEthersReadProvider } from '../utils/ethers-helpers';
 
 interface DIDTokenVisualizationProps {
   className?: string;
@@ -28,14 +29,16 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
   }, [authState.didInfo, wallet, provider]);
 
   const loadDIDData = async () => {
-    if (!wallet?.address || !provider) return;
+    if (!wallet?.address) return;
+    const readProvider = toEthersReadProvider(provider);
+    if (!readProvider) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
       // Load profile from contract
-      const didProfile = await getDIDProfile(provider, wallet.address);
+      const didProfile = await getDIDProfile(readProvider, wallet.address);
       setProfile(didProfile);
 
       // Load encrypted chat if key is available
@@ -105,7 +108,8 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
   }
 
   const contractAddress = import.meta.env.VITE_DID_IDENTITY_TOKEN_ADDRESS || '';
-  const etherscanUrl = `https://etherscan.io/token/${contractAddress}?a=${authState.didInfo.tokenId}`;
+  const displayTokenId = authState.didInfo.tokenId ?? authState.didInfo.did ?? '';
+  const etherscanUrl = `https://etherscan.io/token/${contractAddress}?a=${displayTokenId}`;
 
   return (
     <div className={`p-6 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 rounded-2xl border border-indigo-200 dark:border-indigo-800 shadow-xl ${className}`}>
@@ -123,7 +127,7 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">SafePsy DID Token</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Token ID: #{authState.didInfo.tokenId}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Token ID: #{displayTokenId}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

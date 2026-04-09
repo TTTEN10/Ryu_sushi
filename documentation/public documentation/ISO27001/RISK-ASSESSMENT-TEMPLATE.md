@@ -18,7 +18,7 @@ Use this template to record **information security risks**, **treatment**, and *
 |----|-------------------|-------|--------------|------------------|------------|-------|-----------|---------------|---------|
 | R1 | Unauthorized access to user or chat data | Weak auth or compromised key | 5 | 2 | 10 M | Tech | Strong auth (SIWE), encryption, access control | Low | 5.15, 5.17, 8.5 |
 | R2 | Data breach (PII / mental health) | Insufficient access control or logging | 5 | 2 | 10 M | Tech | Access control, encryption, log redaction, audit log | Low | 5.34, 8.11, 8.15 |
-| R3 | Supply chain / dependency vulnerability | Malicious or vulnerable dependency | 4 | 3 | 12 M | Tech | npm audit, Trivy, overrides, lockfiles | Medium | 5.21, 8.8 |
+| R3 | Supply chain / dependency vulnerability | Malicious or vulnerable dependency | 4 | 3 | 12 M | Tech | npm audit, Semgrep, overrides, lockfiles | Medium | 5.21, 8.8 |
 | R4 | Unavailability of service | Infra failure, DDoS, misconfiguration | 4 | 2 | 8 L | Ops | Backups, WAF, rate limit, runbooks | Low | 5.30, 8.20 |
 | R5 | … | … | … | … | … | … | … | … | … |
 

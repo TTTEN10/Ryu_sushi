@@ -8,7 +8,6 @@ import { DIDService } from '../lib/did.service';
 import { ethers } from 'ethers';
 import { aiGatewayService, ChatCompletionRequest } from '../lib/ai-gateway.service';
 import { safetyResponseInterceptor } from '../middleware/safety';
-import { chatRateLimitMiddleware } from '../lib/ratelimit';
 import { optionalQuotaMiddleware } from '../middleware/quota';
 import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { QuotaService } from '../lib/quota.service';
@@ -17,8 +16,10 @@ import { priceOracleService } from '../lib/price-oracle.service';
 import { storageService } from '../lib/storage.service';
 import { encryptAES256GCM, generateEncryptionKey } from '../lib/crypto';
 import { prisma } from '../lib/prisma';
-import { getRetrieverService } from '../lib/retriever.service';
 import { DR_SAFE_SYSTEM_PROMPT } from '../lib/dr-safe-system-prompt';
+import { mountChatCompletions } from './chat-completions';
+import { getUpstreamHealthSnapshot } from '../lib/llm-upstream-health';
+import { requireUpstreamStatusAuth } from '../middleware/upstream-status-auth';
 
 const router = Router();
 
@@ -39,97 +40,6 @@ const chatSaveSchema = Joi.object({
     })
   ).optional(), // Optional: messages for summary generation (if not provided, summary will be basic)
 });
-
-/**
- * Retrieve relevant FAQs/ToS context for a query
- * Returns empty string if retrieval fails (non-blocking)
- */
-async function retrieveRelevantContext(query: string): Promise<string> {
-  try {
-    const retrieverService = getRetrieverService();
-    
-    // Search for FAQs and ToS content
-    const result = await retrieverService.retrieve(query, {
-      limit: 3, // Get top 3 most relevant documents
-      minScore: 0.5, // Minimum similarity score
-      source: undefined, // Search both FAQs and ToS
-    });
-
-    if (result.documents.length === 0) {
-      return '';
-    }
-
-    // Format retrieved documents as context
-    const contextSections = result.documents.map((doc, index) => {
-      const sourceType = doc.source === 'faq' ? 'FAQ' : 'Terms of Service';
-      return `[${sourceType} - Reference ${index + 1}]\n${doc.text}`;
-    });
-
-    return `\n\nRelevant information from SafePsy FAQs and Terms of Service:\n${contextSections.join('\n\n')}`;
-  } catch (error: any) {
-    // Non-blocking: log error but don't fail the request
-    logger.warn('RAG retrieval failed, continuing without context:', error.message);
-    return '';
-  }
-}
-
-/**
- * Enhance chat request with RAG context
- * Extracts user query and injects relevant FAQs/ToS into system message
- */
-async function enhanceWithRAG(request: ChatCompletionRequest): Promise<ChatCompletionRequest> {
-  try {
-    // Extract user messages to find the query
-    const userMessages = request.messages.filter((msg) => msg.role === 'user');
-    if (userMessages.length === 0) {
-      return request; // No user query to enhance
-    }
-
-    // Use the last user message as the query
-    const lastUserMessage = userMessages[userMessages.length - 1];
-    const query = lastUserMessage.content;
-
-    // Retrieve relevant context (non-blocking)
-    const context = await retrieveRelevantContext(query);
-
-    if (!context) {
-      return request; // No relevant context found
-    }
-
-    // Find or create system message
-    let systemMessage = request.messages.find((msg) => msg.role === 'system');
-    const baseSystemPrompt = DR_SAFE_SYSTEM_PROMPT;
-
-    if (systemMessage) {
-      // Append context to existing system message
-      systemMessage = {
-        ...systemMessage,
-        content: `${systemMessage.content}${context}`,
-      };
-    } else {
-      // Create new system message with context
-      systemMessage = {
-        role: 'system',
-        content: `${baseSystemPrompt}${context}`,
-      };
-      // Insert at the beginning
-      request.messages.unshift(systemMessage);
-      return request;
-    }
-
-    // Update the system message in the messages array
-    const systemIndex = request.messages.findIndex((msg) => msg.role === 'system');
-    if (systemIndex >= 0) {
-      request.messages[systemIndex] = systemMessage;
-    }
-
-    return request;
-  } catch (error: any) {
-    // Non-blocking: log error but return original request
-    logger.warn('Failed to enhance with RAG, using original request:', error.message);
-    return request;
-  }
-}
 
 /**
  * Generate a chat summary from messages
@@ -171,7 +81,8 @@ Summary:`;
       stream: false,
     });
 
-    return completion.content || conversationMessages;
+    const text = completion.choices[0]?.message?.content;
+    return text || conversationMessages;
   } catch (error: any) {
     logger.error('Error generating chat summary:', error);
     // Fallback: return first 500 chars of conversation
@@ -592,167 +503,19 @@ router.get(
 );
 
 /**
- * Validation schema for chat completions
+ * GET /api/chat/upstream-status
+ * Last probe result per configured LLM base URL (from env). Optional secret: AI_UPSTREAM_STATUS_SECRET.
  */
-const chatCompletionSchema = Joi.object({
-  messages: Joi.array()
-    .items(
-      Joi.object({
-        role: Joi.string().valid('user', 'assistant', 'system').required(),
-        content: Joi.string().min(1).max(10000).required(),
-        timestamp: Joi.date().optional(),
-      })
-    )
-    .min(1)
-    .max(100)
-    .required(),
-  model: Joi.string().max(100).optional(),
-  temperature: Joi.number().min(0).max(2).optional(),
-  maxTokens: Joi.number().integer().min(1).max(4000).optional(),
-  stream: Joi.boolean().optional(),
-  userId: Joi.string().max(255).optional(),
-  sessionId: Joi.string().max(255).optional(),
-  /** `guest`: process and return completion only; no persistence, no quota increment, no identity linkage. */
-  mode: Joi.string().valid('guest', 'authenticated').optional(),
+router.get('/upstream-status', requireUpstreamStatusAuth, (_req, res) => {
+  res.json({
+    success: true,
+    skipHealthCheck: process.env.AI_SKIP_UPSTREAM_HEALTH_CHECK === '1',
+    upstreams: getUpstreamHealthSnapshot(),
+  });
 });
 
-/**
- * POST /api/chat/completions
- * Main chat completion endpoint with optional SSE streaming
- *
- * Auth: Optional (wallet session recommended for encrypted chat).
- *
- * Body `mode`:
- * - `guest` — process messages in memory for the AI call only; do not increment DID quota, persist
- *   transcripts, or associate with identity. Logs must not include message bodies.
- * - `authenticated` or omitted — normal wallet/DID quota and persistence rules on the client after stream.
- */
-router.post(
-  '/completions',
-  chatRateLimitMiddleware,
-  optionalAuthenticateWallet,
-  chatConcurrencyMiddleware, // Enforce one-chat-at-a-time per DID
-  optionalQuotaMiddleware, // Check quota but allow if not authenticated
-  validate(chatCompletionSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const request: ChatCompletionRequest = req.body;
-      const shouldStream = request.stream !== false; // Default to streaming
-      const isGuestMode = request.mode === 'guest';
-
-      // Guest mode: completions are ephemeral — do not increment DID quota or persist (client sends mode: 'guest').
-      if (isGuestMode) {
-        logger.debug('Chat completion: guest mode — skipping quota increment and persistence');
-      }
-
-      // Check quota if DID is authenticated (never for explicit guest mode)
-      if (!isGuestMode && req.quota && req.wallet) {
-        const { did, service } = req.quota;
-        const walletAddress = req.wallet.walletAddress.toLowerCase();
-        const incrementResult = await service.incrementUsage(did);
-        
-        // Update quota status with subscription limits
-        const quotaStatus = await service.getQuotaStatus(did, walletAddress);
-        
-        if (!incrementResult.success) {
-          // Get pricing information for paywall (dynamic ETH price)
-          const premiumPricing = await priceOracleService.getPremiumPricing();
-          const pricing = {
-            PREMIUM: {
-              crypto: {
-                ETH: premiumPricing.ETH,
-                USDT: premiumPricing.USDT,
-                USDC: premiumPricing.USDC,
-              },
-            },
-          };
-
-          const paywallData = {
-            error: 'QUOTA_EXCEEDED',
-            message: 'Chat quota exceeded. Upgrade to Premium to continue.',
-            quota: {
-              dailyUsed: incrementResult.status.dailyUsed,
-              dailyLimit: incrementResult.status.dailyLimit,
-              monthlyUsed: incrementResult.status.monthlyUsed,
-              monthlyLimit: incrementResult.status.monthlyLimit,
-              resetDailyAt: incrementResult.status.resetDailyAt,
-              resetMonthlyAt: incrementResult.status.resetMonthlyAt,
-            },
-            paywall: {
-              showPaywall: true,
-              pricing,
-              paymentRecipient: process.env.CRYPTO_PAYMENT_CONTRACT_ADDRESS || null,
-            },
-          };
-
-          if (shouldStream) {
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
-            res.write(`event: error\n`);
-            res.write(`data: ${JSON.stringify(paywallData)}\n\n`);
-            res.end();
-          } else {
-            res.status(429).json(paywallData);
-          }
-          return;
-        }
-      }
-
-      // Check if withContext query parameter is set
-      const withContext = req.query.withContext === 'true' || req.query.withContext === true;
-      
-      // Enhance request with RAG context only if withContext=true (non-blocking)
-      const enhancedRequest = withContext 
-        ? await enhanceWithRAG(request)
-        : request;
-
-      if (shouldStream) {
-        // Set SSE headers
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
-
-        // Send connected event
-        res.write(`event: connected\n`);
-        res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
-
-        try {
-          // Stream completion with enhanced context
-          for await (const sseMessage of aiGatewayService.generateCompletionStream(enhancedRequest)) {
-            const eventLine = `event: ${sseMessage.event}\n`;
-            const dataLine = `data: ${sseMessage.data}\n`;
-            const idLine = sseMessage.id ? `id: ${sseMessage.id}\n` : '';
-            const retryLine = sseMessage.retry ? `retry: ${sseMessage.retry}\n` : '';
-            
-            res.write(eventLine + dataLine + idLine + retryLine + '\n');
-          }
-        } catch (streamError: any) {
-          logger.error('Streaming error:', streamError);
-          res.write(`event: error\n`);
-          res.write(`data: ${JSON.stringify({ error: 'Streaming error', message: streamError.message })}\n\n`);
-        } finally {
-          res.end();
-        }
-      } else {
-        // Non-streaming response with enhanced context
-        const completion = await aiGatewayService.generateCompletion(enhancedRequest);
-        res.json(completion);
-      }
-    } catch (error: any) {
-      logger.error('Chat completion error:', error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          success: false,
-          error: 'Internal server error',
-          message: error.message || 'Failed to generate completion',
-          code: error.code || 'COMPLETION_ERROR',
-        });
-      }
-    }
-  }
-);
+/** POST /api/chat/completions — shared with /beta/chat/completions (see chat-completions.ts) */
+mountChatCompletions(router);
 
 /**
  * GET /api/chat/quota

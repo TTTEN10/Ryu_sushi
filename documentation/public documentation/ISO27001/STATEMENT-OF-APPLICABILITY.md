@@ -19,7 +19,7 @@ This document states which Annex A controls are **applicable** to the SafePsy IS
 | 5.4 | Management responsibilities | Yes | Partial | Management approval of policy; formalize in org |
 | 5.5 | Contact with authorities | Yes | Partial | Document process for regulatory contact |
 | 5.6 | Contact with special interest groups | Yes | No | N/A unless required |
-| 5.7 | Threat intelligence | Yes | Partial | Use of Trivy, npm audit; consider threat intel feed |
+| 5.7 | Threat intelligence | Yes | Partial | Use of Semgrep, npm audit; consider threat intel feed |
 | 5.8 | Information security in project management | Yes | Partial | Security in sprint/review; formalize in SDLC |
 | 5.9 | Inventory of information and other assets | Yes | Partial | ISMS-SCOPE.md; extend to full asset register |
 | 5.10 | Use of information and other assets | Yes | Partial | Acceptable use in policy; enforce via access control |
@@ -48,7 +48,7 @@ This document states which Annex A controls are **applicable** to the SafePsy IS
 | 5.33 | Protection of records | Yes | Partial | Audit logs (RAG, security_audit_log); retention policy |
 | 5.34 | Privacy and PII | Yes | Yes | Privacy policy; PII redaction in logs; encryption; consent |
 | 5.35 | Use of cryptography | Yes | Yes | TLS; AES-256 for chat; hashing (IP, integrity); key management |
-| 5.36 | Security in development | Yes | Yes | Secure SDLC; validation; Trivy; security headers; rate limit |
+| 5.36 | Security in development | Yes | Yes | Secure SDLC; validation; Semgrep; security headers; rate limit |
 | 5.37 | Secure system architecture and design | Yes | Partial | Document architecture; threat model; SoA |
 
 ---
@@ -100,7 +100,7 @@ This document states which Annex A controls are **applicable** to the SafePsy IS
 | 8.5 | Secure authentication | Yes | Yes | SIWE; nonce; expiration; no default credentials |
 | 8.6 | Capacity management | Yes | Partial | Monitor resources; scale as needed |
 | 8.7 | Protection against malware | Yes | Partial | Dependencies (npm audit); no arbitrary uploads |
-| 8.8 | Technical vulnerability management | Yes | Yes | Trivy; npm audit; overrides; patch process |
+| 8.8 | Technical vulnerability management | Yes | Yes | Semgrep; npm audit; overrides; patch process |
 | 8.9 | Configuration management | Yes | Partial | Env-based config; .env.example; Secret Manager |
 | 8.10 | Information deletion | Yes | Partial | Retention; secure deletion where required |
 | 8.11 | Data masking | Yes | Yes | Log redaction (PII, wallet, keys); hashed IP |
@@ -121,7 +121,7 @@ This document states which Annex A controls are **applicable** to the SafePsy IS
 | 8.26 | Application security requirements | Yes | Partial | Security requirements in SoA and checklist |
 | 8.27 | Secure system architecture and design | Yes | Partial | Document; threat model |
 | 8.28 | Secure coding | Yes | Yes | Validation; parameterized queries (Prisma); no eval |
-| 8.29 | Security testing in development | Yes | Partial | Trivy; tests; add security test suite |
+| 8.29 | Security testing in development | Yes | Partial | Semgrep; tests; add security test suite |
 | 8.30 | Outsourced development | Yes | Partial | If any; contract and review |
 | 8.31 | Separation of environments | Yes | Partial | Dev/staging/prod; document |
 | 8.32 | Change management | Yes | Partial | Git; pipelines; formalize change approval |

@@ -21,7 +21,7 @@
 
 import 'dotenv/config';
 import { ethers } from 'ethers';
-import { DeploymentConfig, DeploymentResult } from './types.js';
+import { DeploymentConfig, DeploymentResult, getDeploymentPrimaryAddress } from './types.js';
 import {
   isContractDeployed,
   getContractDeployment,
@@ -245,7 +245,6 @@ async function deployUpgradeableContract(
         // Try again after compilation
         if (fs.existsSync(altPath)) {
           proxyArtifact = JSON.parse(fs.readFileSync(altPath, 'utf-8'));
-          foundPath = altPath;
         } else {
           throw new Error('ERC1967Proxy still not found after compilation');
         }
@@ -312,28 +311,33 @@ async function deployAllUpgradeableContracts(config: DeploymentConfig): Promise<
 
   // Get required contract addresses
   // Use environment variables or registry, with fallback to known deployed addresses
-  let registryAddress = process.env.DID_REGISTRY;
-  let ownershipAddress = process.env.DID_OWNERSHIP;
-  
+  let registryAddress = process.env.DID_REGISTRY?.trim();
+  let ownershipAddress = process.env.DID_OWNERSHIP?.trim();
+
   if (!registryAddress || !ownershipAddress) {
     const registryDeployment = getContractDeployment(config.network, 'DIDRegistryV2');
     const ownershipDeployment = getContractDeployment(config.network, 'DIDOwnershipV2');
-    
-    // Fallback to known deployed addresses if registry lookup fails
-    if (!registryDeployment || !('address' in registryDeployment)) {
+
+    if (!registryDeployment || !ownershipDeployment) {
       if (config.network === 'sepolia') {
         console.log('⚠️  Registry lookup failed, using known Sepolia addresses');
         registryAddress = '0x8e5F41f2B8B3E28a8966e37181B257f9E2725bA5';
         ownershipAddress = '0xac5Ad1482d73d0E09ED3960C02EebF428Ad63722';
       } else {
-        throw new Error('DIDRegistryV2 must be deployed before upgradeable contracts. Set DID_REGISTRY and DID_OWNERSHIP env vars or ensure registry file is correct.');
+        throw new Error(
+          'DIDRegistryV2 must be deployed before upgradeable contracts. Set DID_REGISTRY and DID_OWNERSHIP env vars or ensure registry file is correct.'
+        );
       }
     } else {
-      registryAddress = registryDeployment.address;
-      ownershipAddress = ownershipDeployment.address;
+      registryAddress = getDeploymentPrimaryAddress(registryDeployment);
+      ownershipAddress = getDeploymentPrimaryAddress(ownershipDeployment);
     }
   }
-  
+
+  if (!registryAddress || !ownershipAddress) {
+    throw new Error('Registry and ownership addresses are required for upgradeable deployment');
+  }
+
   console.log(`\n✅ Using Registry address: ${registryAddress}`);
   console.log(`✅ Using Ownership address: ${ownershipAddress}`);
   

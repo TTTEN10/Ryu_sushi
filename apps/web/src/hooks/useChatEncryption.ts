@@ -7,7 +7,6 @@ import {
   decryptSymmetricKey,
   encryptChatHistory,
   decryptChatHistory,
-  hashEncryptedChat,
 } from '../utils/did-encryption';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';

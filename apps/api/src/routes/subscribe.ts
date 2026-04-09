@@ -88,6 +88,32 @@ router.post("/", async (req, res) => {
       // Don't throw - email failures shouldn't break the subscription flow
     });
 
+    // Notify SafePsy admin about new subscription (non-blocking)
+    emailService.sendAdminNotificationEmail({
+      subject: 'New SafePsy waitlist signup',
+      textBody: [
+        'A new user joined the SafePsy waitlist.',
+        '',
+        `Email: ${email}`,
+        `Full name: ${fullName ?? '(not provided)'}`,
+        `Role: ${role ?? '(not provided)'}`,
+        `Consent given: ${consentGiven ? 'yes' : 'no'}`,
+        `Timestamp: ${new Date().toISOString()}`,
+      ].join('\n'),
+      htmlBody: `
+        <p><strong>A new user joined the SafePsy waitlist.</strong></p>
+        <ul>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Full name:</strong> ${fullName ?? '(not provided)'}</li>
+          <li><strong>Role:</strong> ${role ?? '(not provided)'}</li>
+          <li><strong>Consent given:</strong> ${consentGiven ? 'yes' : 'no'}</li>
+          <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>
+        </ul>
+      `,
+    }).catch((error) => {
+      console.error('Failed to send admin notification email:', error);
+    });
+
     // Log to Google Sheets (non-blocking)
     const googleSheetsService = createGoogleSheetsService();
     if (googleSheetsService.isEnabled()) {

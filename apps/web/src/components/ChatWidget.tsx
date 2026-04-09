@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatEncryption } from '../hooks/useChatEncryption';
-import { encryptChatMessage, decryptChatMessage } from '../utils/did-encryption';
 import { updateChatReference } from '../utils/did-contract';
 import { useOffline } from '../hooks/useOffline';
 import { useToast } from '../hooks/useToast';
@@ -69,7 +68,6 @@ export default function ChatWidget() {
   const [paywallData, setPaywallData] = useState<PaywallData | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
-  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [guestPromptCount, setGuestPromptCount] = useState(0);
@@ -195,22 +193,6 @@ export default function ChatWidget() {
       setIsLoadingHistory(false);
     }
   }, [symmetricKey, encryptionLoading, loadChat, showToast, authState.isVerified]);
-
-  // Encrypt message content using DID encryption
-  const encryptMessage = async (content: string): Promise<string> => {
-    if (!symmetricKey) {
-      throw new Error('Encryption key not initialized');
-    }
-    return await encryptChatMessage(content, symmetricKey);
-  };
-
-  // Decrypt message content using DID encryption
-  const decryptMessage = async (encryptedContent: string): Promise<string> => {
-    if (!symmetricKey) {
-      throw new Error('Encryption key not initialized');
-    }
-    return await decryptChatMessage(encryptedContent, symmetricKey);
-  };
 
   // Check if message can be edited (within 30 seconds)
   useEffect(() => {
@@ -670,22 +652,17 @@ export default function ChatWidget() {
           }}
         />
       )}
-      <div className="flex flex-col h-[600px] bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-lg border border-neutral-dark/20 dark:border-white/20 shadow-sm">
+      <div className="flex flex-col h-[600px] bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-white/10 shadow-sm">
       {/* Header */}
       <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg space-y-2">
         {isGuest ? (
-          <>
-            <p
-              className="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-center"
-              role="status"
-            >
-              Guest mode: your chat is not saved and will disappear when you leave or refresh. Connect a
-              wallet to encrypt and keep your sessions.
-            </p>
-            <p className="text-xs text-body opacity-60 text-center">
-              {guestPromptCount}/{GUEST_PROMPT_LIMIT} guest messages used this session
-            </p>
-          </>
+          <p
+            className="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-center"
+            role="status"
+          >
+            Guest mode: your chat is not saved and will disappear when you leave or refresh. Connect a
+            wallet to encrypt and keep your sessions.
+          </p>
         ) : (
           <p className="text-xs text-body opacity-60 text-center">
             All the exchanged data will be encrypted and stored in your personal wallet. Nobody except you
@@ -695,7 +672,7 @@ export default function ChatWidget() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white/70 dark:bg-black/30">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-neutral-50 dark:bg-neutral-950">
         {isLoadingHistory ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -842,7 +819,7 @@ export default function ChatWidget() {
                 guestAtLimit
               }
               maxLength={MAX_MESSAGE_LENGTH}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-black/30 text-heading placeholder:text-body placeholder:opacity-50"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-neutral-950 text-heading placeholder:text-body placeholder:opacity-50"
             />
             {/* Character Counter */}
             <div className="absolute bottom-1 right-2 text-xs text-body opacity-50">
