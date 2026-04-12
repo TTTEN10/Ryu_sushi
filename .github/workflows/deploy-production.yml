@@ -1,8 +1,7 @@
 # Production Deployment Workflow
-# Deploys SafePsy to scw-new-psy (62.210.238.160) via deployment/deploy-safepsy.sh (Terraform when configured, else app stack only).
-# Requires GitHub secrets: SSH_PRIVATE_KEY (key authorized on the instance), DATABASE_PASSWORD.
+# Deploys SafePsy app stack to scw-happy-app (51.159.149.66) via SSH; FastAPI chatbot on scw-new-psy (62.210.238.160).
+# Requires GitHub secrets: SSH_PRIVATE_KEY (key attached to the app instance), DATABASE_PASSWORD.
 # Trigger: Actions tab → Deploy Production → Run workflow.
-# Note: If SSH times out from your Mac, the runner may also timeout; see fix_ssh.md / deployment_issue.md.
 name: Deploy Production
 
 on:
@@ -13,7 +12,10 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     env:
-      SSH_SERVER_IP: "62.210.238.160"
+      SSH_SERVER_IP: "51.159.149.66"
+      API_IP: "62.210.238.160"
+      SKIP_VLLM_DEPLOY: "1"
+      DEPLOY_VIA_RSYNC: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,26 +37,27 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${SSH_SERVER_IP}" >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH_KEY_FILE=$HOME/.ssh/id_ed25519" >> $GITHUB_ENV
+          ssh-keyscan -H "${{ env.SSH_SERVER_IP }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_KEY=$HOME/.ssh/id_ed25519" >> $GITHUB_ENV
 
       - name: Deploy
         run: |
-          export SSH_KEY="${HOME}/.ssh/id_ed25519"
-          chmod +x deployment/deploy-safepsy.sh deployment/deploy.sh deployment/deploy-app.sh
+          chmod +x deployment/deploy-safepsy.sh
+          export APP_IP="${{ env.SSH_SERVER_IP }}"
+          export API_IP="${{ env.API_IP }}"
+          export SKIP_VLLM_DEPLOY="${{ env.SKIP_VLLM_DEPLOY }}"
           bash deployment/deploy-safepsy.sh
 
       - name: Verify deployment
         continue-on-error: true
         run: |
           sleep 30
-          IP="${SSH_SERVER_IP}"
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -sf --connect-timeout 10 "http://${IP}/api/healthz"; then
-              echo "✅ App reachable at http://${IP}/api/healthz"
+            if curl -sf --connect-timeout 10 "http://${{ env.SSH_SERVER_IP }}/api/healthz"; then
+              echo "✅ App reachable at http://${{ env.SSH_SERVER_IP }}/api/healthz"
               exit 0
             fi
-            if curl -sf --connect-timeout 10 "https://safepsy.com/api/healthz"; then
+            if curl -sf --connect-timeout 10 https://safepsy.com/api/healthz; then
               echo "✅ App reachable at https://safepsy.com/api/healthz"
               exit 0
             fi

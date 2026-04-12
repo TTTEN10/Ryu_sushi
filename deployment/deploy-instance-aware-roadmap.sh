@@ -26,7 +26,7 @@ set -euo pipefail
 #
 # LLM routing: see deploy-app.sh (LLM_UPSTREAM_URL, APP_PRIVATE_IP). Same variables apply here.
 
-APP_IP="${APP_IP:-62.210.238.160}"
+APP_IP="${APP_IP:-51.159.149.66}"
 API_IP="${API_IP:-62.210.238.160}"
 # Canonical browser URL (used in success output / checks)
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"

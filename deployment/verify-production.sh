@@ -3,7 +3,7 @@
 # Usage: bash deployment/verify-production.sh
 # Optional env:
 #   APP_DOMAIN=safepsy.com
-#   APP_IP=62.210.238.160
+#   APP_IP=51.159.149.66
 #   TIMEOUT=15
 #   CHECK_LLM=1
 
@@ -11,7 +11,7 @@ set -euo pipefail
 
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
 # Default matches prod app instance when DNS for APP_DOMAIN points here; override if needed.
-APP_IP="${APP_IP:-62.210.238.160}"
+APP_IP="${APP_IP:-51.159.149.66}"
 TIMEOUT="${TIMEOUT:-15}"
 CHECK_LLM="${CHECK_LLM:-0}"
 

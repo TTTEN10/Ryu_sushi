@@ -22,9 +22,9 @@ DEBUG_NDJSON="${DEPLOY_LOG_DIR}/debug-fcc1a0.log"
 
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-safepsy.com, www.safepsy.com}"
-# Defaults: prod single instance scw-new-psy (public IPv4). Override for split-host layouts.
+# Defaults: scw-new-psy (chatbot / OpenAI-compatible API) + scw-happy-app (Caddy + SPA + Python proxy)
 CHATBOT_HOST="${CHATBOT_HOST:-62.210.238.160}"
-APP_HOST="${APP_HOST:-62.210.238.160}"
+APP_HOST="${APP_HOST:-51.159.149.66}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
@@ -380,27 +380,21 @@ deploy_log_struct "terraform_apply_done" "{\"CHATBOT_HOST\":\"${CHATBOT_HOST}\",
 check_ssh_host "app" "${APP_HOST}" || die "Cannot deploy: app host SSH failed."
 
 COLOCATE_CHATBOT_ON_APP=0
-if [[ "${APP_HOST}" == "${CHATBOT_HOST}" ]]; then
-  log "[INFO] SINGLE_INSTANCE: APP_HOST and CHATBOT_HOST are the same (${APP_HOST}) — colocated compose (one VM)."
-  deploy_log_struct "single_instance_colocate" "{\"host\":\"${APP_HOST}\"}"
-  COLOCATE_CHATBOT_ON_APP=1
-else
-  _ts0="$(python3 -c 'import time; print(int(time.time()*1000))')"
-  set +e
-  retry ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "exit" >/dev/null 2>&1
-  CHATBOT_SSH_RC=$?
-  set -e
-  _ts1="$(python3 -c 'import time; print(int(time.time()*1000))')"
-  CHATBOT_SSH_MS=$((_ts1 - _ts0))
-  agent_dbg_log H1 "chatbot_ssh_probe" "{\"host\":\"${CHATBOT_HOST}\",\"exitCode\":${CHATBOT_SSH_RC},\"durationMs\":${CHATBOT_SSH_MS}}"
+_ts0="$(python3 -c 'import time; print(int(time.time()*1000))')"
+set +e
+retry ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "exit" >/dev/null 2>&1
+CHATBOT_SSH_RC=$?
+set -e
+_ts1="$(python3 -c 'import time; print(int(time.time()*1000))')"
+CHATBOT_SSH_MS=$((_ts1 - _ts0))
+agent_dbg_log H1 "chatbot_ssh_probe" "{\"host\":\"${CHATBOT_HOST}\",\"exitCode\":${CHATBOT_SSH_RC},\"durationMs\":${CHATBOT_SSH_MS}}"
 
-  if [[ "${CHATBOT_SSH_RC}" -ne 0 ]]; then
-    COLOCATE_CHATBOT_ON_APP=1
-    log "WARN — Cannot SSH to chatbot host ${CHATBOT_HOST}. [FALLBACK] Colocating chatbot on app ${APP_HOST}."
-    deploy_log_struct "fallback_colocate_ssh" "{\"reason\":\"chatbot_ssh\",\"chatbotHost\":\"${CHATBOT_HOST}\"}"
-    agent_dbg_log H2 "colocate_branch_selected" "{\"reason\":\"chatbot_ssh_nonzero\",\"chatbotSshExitCode\":${CHATBOT_SSH_RC}}"
-    log "Hint — allow Scaleway inbound TCP/22 from: ${OUTBOUND_IP:-unknown}"
-  fi
+if [[ "${CHATBOT_SSH_RC}" -ne 0 ]]; then
+  COLOCATE_CHATBOT_ON_APP=1
+  log "WARN — Cannot SSH to chatbot host ${CHATBOT_HOST}. [FALLBACK] Colocating chatbot on app ${APP_HOST}."
+  deploy_log_struct "fallback_colocate_ssh" "{\"reason\":\"chatbot_ssh\",\"chatbotHost\":\"${CHATBOT_HOST}\"}"
+  agent_dbg_log H2 "colocate_branch_selected" "{\"reason\":\"chatbot_ssh_nonzero\",\"chatbotSshExitCode\":${CHATBOT_SSH_RC}}"
+  log "Hint — allow Scaleway inbound TCP/22 from: ${OUTBOUND_IP:-unknown}"
 fi
 
 if [[ "${COLOCATE_CHATBOT_ON_APP}" -eq 1 ]]; then

@@ -84,7 +84,7 @@ echo "=== Step 3: sync apps/ai-chatbot + deployment/chatbot → ${REMOTE_BASE} =
 [[ -d "${REPO_ROOT}/apps/ai-chatbot" ]] || { echo "Missing ${REPO_ROOT}/apps/ai-chatbot"; exit 1; }
 [[ -d "${REPO_ROOT}/deployment/chatbot" ]] || { echo "Missing ${REPO_ROOT}/deployment/chatbot"; exit 1; }
 
-tar -C "${REPO_ROOT}" -cf - apps/ai-chatbot deployment/chatbot | run_ssh "mkdir -p '${REMOTE_BASE}' && tar -C '${REMOTE_BASE}' -xf -"
+COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - apps/ai-chatbot deployment/chatbot | run_ssh "mkdir -p '${REMOTE_BASE}' && tar -C '${REMOTE_BASE}' -xf -"
 
 echo ""
 echo "=== Step 3b: docker compose up -d --build ==="

@@ -20,9 +20,9 @@ if [[ -f "${REPO_ROOT}/infra/terraform/envs/prod/terraform.tfvars" ]] || {
   exec "${SCRIPT_DIR}/deploy.sh" "$@"
 fi
 
-printf '\n[%s] deploy-safepsy: no prod terraform.tfvars / TF_VAR_scaleway_* — app stack only (scw-new-psy defaults).\n' "$(date '+%Y-%m-%d %H:%M:%S')"
-export APP_IP="${APP_IP:-62.210.238.160}"
+printf '\n[%s] deploy-safepsy: no prod terraform.tfvars / TF_VAR_scaleway_* — app stack only (split-host defaults: scw-happy-app + scw-new-psy).\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+export APP_IP="${APP_IP:-51.159.149.66}"
 export API_IP="${API_IP:-62.210.238.160}"
-export SINGLE_HOST="${SINGLE_HOST:-1}"
+export SINGLE_HOST="${SINGLE_HOST:-0}"
 export SKIP_VLLM_DEPLOY="${SKIP_VLLM_DEPLOY:-1}"
 exec "${SCRIPT_DIR}/deploy-app.sh" "$@"

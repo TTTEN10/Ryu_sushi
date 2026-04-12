@@ -424,7 +424,7 @@ deploy/
 ```
 deployment/
 ├── deploy.sh                          # Terraform + chatbot compose (dedicated host, or colocated on app if SSH to chatbot fails) + deploy-app.sh — Shell
-├── deploy-safepsy.sh                  # Prod entry: full deploy.sh when tfvars/TF_VAR present, else app-only with scw-new-psy defaults — Shell
+├── deploy-safepsy.sh                  # Entry: full deploy.sh if TF credentials exist, else deploy-app.sh with prod split-host defaults — Shell
 ├── deploy-app.sh                      # Application deploy (Caddy + SPA + Python proxy) — Shell
 ├── deploy-instance-aware-roadmap.sh   # Legacy instance-aware deploy (restored; replaced by deploy.sh in commit 08de24c6e) — Shell
 ├── deploy-issue.md                    # Known deploy blockers + Scaleway / SSH checklist — Markdown

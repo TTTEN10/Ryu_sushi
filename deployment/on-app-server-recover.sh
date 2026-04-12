@@ -4,7 +4,7 @@
 #
 # Env:
 #   APP_USER           default safepsy
-#   APP_IP             post-deploy HTTP check (default scw-new-psy public IPv4)
+#   APP_IP             post-deploy HTTP check (default 51.159.149.66 — scw-happy-app)
 #   APP_BASE_DIR       default /home/${APP_USER}/app
 #   MONITOR_ROOT       if set, logs go only to ${MONITOR_ROOT}/logs/deploy.log (avoids duplicate lines with cron redirect)
 #   COMPOSE_UP_ARGS    optional extra args (e.g. --build)
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 APP_USER="${APP_USER:-safepsy}"
-APP_IP="${APP_IP:-62.210.238.160}"
+APP_IP="${APP_IP:-51.159.149.66}"
 APP_BASE_DIR="${APP_BASE_DIR:-/home/${APP_USER}/app}"
 COMPOSE_FILE="${COMPOSE_FILE:-${APP_BASE_DIR}/docker-compose.yml}"
 RECOVER_HEALTH_RETRIES="${RECOVER_HEALTH_RETRIES:-20}"

@@ -1,6 +1,6 @@
 # Deployment blockers and mitigations
 
-This document summarizes issues that have blocked or complicated production deployment for SafePsy (`./deployment/deploy.sh` and related scripts). **Current prod target:** single Scaleway instance **scw-new-psy** (`60a5e86a-07a8-4e17-aa3b-862ae586d030`), public IPv4 **62.210.238.160** — Terraform defaults and deploy scripts use this IP; point **`safepsy.com` DNS A** at this host when going live. Override with `APP_HOST`, `CHATBOT_HOST`, etc. if you split services again.
+This document summarizes issues that have blocked or complicated production deployment for SafePsy (`./deployment/deploy.sh` and related scripts). **Prod defaults (split host):** app **`scw-happy-app`** `51.159.149.66`, chatbot / LLM API **`scw-new-psy`** `62.210.238.160`. Override with `APP_HOST`, `CHATBOT_HOST`, etc. if your infrastructure differs.
 
 ---
 

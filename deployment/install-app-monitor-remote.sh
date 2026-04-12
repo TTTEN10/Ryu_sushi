@@ -3,7 +3,7 @@
 # Installs under /opt/spapp-monitor: monitor.sh (includes healthcheck), on-app-server-recover.sh
 #
 # Env:
-#   APP_IP                default 62.210.238.160 (see deployment/deploy-app.sh)
+#   APP_IP                default 51.159.149.66 (see deployment/deploy-app.sh)
 #   APP_USER              default safepsy (informational for cron env)
 #   MONITOR_REMOTE_ROOT   default /opt/spapp-monitor
 #   SSH_KEY               optional -i path for ssh/scp
@@ -16,7 +16,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-APP_IP="${APP_IP:-62.210.238.160}"
+APP_IP="${APP_IP:-51.159.149.66}"
 APP_USER="${APP_USER:-safepsy}"
 MONITOR_REMOTE_ROOT="${MONITOR_REMOTE_ROOT:-/opt/spapp-monitor}"
 
