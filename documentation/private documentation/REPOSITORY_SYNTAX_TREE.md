@@ -8,7 +8,7 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 
 ```
 ./
-├── package.json                    # Monorepo root: workspaces (`apps/*`), scripts (dev/build/test/lint/db), engines — JSON
+├── package.json                    # Monorepo root: workspaces (`apps/*`), scripts (dev/build/test/lint/db; `test`/`test:web`/`test:api` → `vitest run` for CI-clean exits), engines — JSON
 ├── package-lock.json               # npm lockfile — JSON
 ├── env.example                     # Root env template — Text
 ├── .dockerignore                   # Docker build ignore rules — Text
@@ -439,7 +439,7 @@ deployment/
 ├── systemd/
 │   ├── app-monitor.service            # systemd unit — Unit file
 │   └── app-monitor.timer              # systemd timer — Unit file
-└── deployment-logs/                   # Historical deploy logs (optional/local) — Text
+└── deployment-logs/                   # Historical deploy logs; deploy.sh may write debug-fcc1a0.log (NDJSON) here — Text
 ```
 
 ---
