@@ -24,7 +24,7 @@ CHATBOT_HOST="${CHATBOT_HOST:-}"
 if [[ -z "${CHATBOT_HOST}" ]] && [[ -d "${TF_DIR}" ]] && command -v terraform >/dev/null 2>&1; then
   CHATBOT_HOST="$(cd "${TF_DIR}" && terraform output -raw chatbot_public_ip 2>/dev/null)" || true
 fi
-CHATBOT_HOST="${CHATBOT_HOST:-51.159.118.165}"
+CHATBOT_HOST="${CHATBOT_HOST:-62.210.238.160}"
 
 if [[ -n "${SSH_KEY}" ]]; then
   SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout="${SSH_CONNECT_TIMEOUT}" -o StrictHostKeyChecking=accept-new -i "${SSH_KEY}")

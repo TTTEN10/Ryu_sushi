@@ -3,7 +3,7 @@
 # Usage: bash deployment/verify-production.sh
 # Optional env:
 #   APP_DOMAIN=safepsy.com
-#   APP_IP=51.159.117.169
+#   APP_IP=62.210.238.160
 #   TIMEOUT=15
 #   CHECK_LLM=1
 
@@ -11,7 +11,7 @@ set -euo pipefail
 
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
 # Default matches prod app instance when DNS for APP_DOMAIN points here; override if needed.
-APP_IP="${APP_IP:-51.159.149.66}"
+APP_IP="${APP_IP:-62.210.238.160}"
 TIMEOUT="${TIMEOUT:-15}"
 CHECK_LLM="${CHECK_LLM:-0}"
 
@@ -54,12 +54,15 @@ check_http_code "Chat route HTTPS" "https://${APP_DOMAIN}/chat" "200"
 check_http_code "Direct app IP HTTP" "http://${APP_IP}" "200"
 check_http_code "Direct app IP API health" "http://${APP_IP}/api/healthz" "200"
 
-models_json="$(curl -fsS --max-time "$TIMEOUT" "https://${APP_DOMAIN}/api/v1/models" 2>/dev/null || true)"
-if [[ -n "$models_json" ]] && echo "$models_json" | grep -q "\"data\""; then
-  model_id="$(echo "$models_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("data",[{}])[0].get("id",""))' 2>/dev/null || true)"
-  pass "Models endpoint reachable (model: ${model_id:-unknown})"
+if models_json="$(curl -fsS --max-time "$TIMEOUT" "https://${APP_DOMAIN}/api/v1/models")"; then
+  if echo "$models_json" | grep -q "\"data\""; then
+    model_id="$(echo "$models_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("data",[{}])[0].get("id",""))' 2>/dev/null || true)"
+    pass "Models endpoint reachable (model: ${model_id:-unknown})"
+  else
+    failf "Models JSON missing data[] (https://${APP_DOMAIN}/api/v1/models)"
+  fi
 else
-  failf "Models endpoint failed (https://${APP_DOMAIN}/api/v1/models)"
+  failf "Models endpoint failed (HTTP or TLS; curl --fail https://${APP_DOMAIN}/api/v1/models)"
 fi
 
 if [[ "$CHECK_LLM" == "1" && -n "${model_id:-}" ]]; then

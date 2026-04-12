@@ -4,11 +4,11 @@
 #   chmod +x deployment/test-llm-route-from-app.sh
 #   ./deployment/test-llm-route-from-app.sh
 # Optional:
-#   APP_IP=51.159.117.169 LLM_BASE=http://51.159.160.246:8000 ./deployment/test-llm-route-from-app.sh
+#   APP_IP=62.210.238.160 LLM_BASE=http://62.210.238.160:8000 ./deployment/test-llm-route-from-app.sh
 set -euo pipefail
 
-APP_IP="${APP_IP:-51.159.117.169}"
-LLM_BASE="${LLM_BASE:-http://51.159.160.246:8000}"
+APP_IP="${APP_IP:-62.210.238.160}"
+LLM_BASE="${LLM_BASE:-http://62.210.238.160:8000}"
 LLM_HOST="${LLM_BASE#*://}"
 LLM_HOST="${LLM_HOST%%[:/]*}"
 SSH_KEY="${SSH_KEY:-}"

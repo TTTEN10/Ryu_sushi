@@ -26,8 +26,8 @@ set -euo pipefail
 #
 # LLM routing: see deploy-app.sh (LLM_UPSTREAM_URL, APP_PRIVATE_IP). Same variables apply here.
 
-APP_IP="${APP_IP:-51.159.117.169}"
-API_IP="${API_IP:-51.159.160.246}"
+APP_IP="${APP_IP:-62.210.238.160}"
+API_IP="${API_IP:-62.210.238.160}"
 # Canonical browser URL (used in success output / checks)
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
 # Hostnames Caddy will terminate TLS for (must match DNS A/AAAA to this server)

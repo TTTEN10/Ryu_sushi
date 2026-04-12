@@ -10,7 +10,7 @@
 #
 # Env:
 #   MONITOR_ROOT         default /opt/spapp-monitor (or parent of this script if named monitor.sh)
-#   APP_IP               default 51.159.117.169
+#   APP_IP               default 62.210.238.160 (scw-new-psy)
 #   RECOVER_SCRIPT       default ${MONITOR_ROOT}/on-app-server-recover.sh
 #   DEPLOY_COOLDOWN_SEC  default 600
 
@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MONITOR_ROOT="${MONITOR_ROOT:-${SCRIPT_DIR}}"
-APP_IP="${APP_IP:-51.159.117.169}"
+APP_IP="${APP_IP:-62.210.238.160}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://${APP_IP}/api/healthz}"
 HEALTHCHECK_RETRIES="${HEALTHCHECK_RETRIES:-3}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-10}"

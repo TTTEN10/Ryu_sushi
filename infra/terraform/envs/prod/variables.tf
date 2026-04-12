@@ -50,12 +50,12 @@ variable "ai_service_container_image" {
 
 variable "chatbot_instance_id" {
   type        = string
-  description = "Existing Scaleway Instance ID for chatbot (scw-nervous-psy)"
-  default     = "ed389fab-244a-45e5-9de9-53754272cdfd"
+  description = "Scaleway Instance ID for chatbot / LLM host (prod: scw-new-psy when colocated with app)"
+  default     = "60a5e86a-07a8-4e17-aa3b-862ae586d030"
 }
 
 variable "app_instance_id" {
   type        = string
-  description = "Existing Scaleway Instance ID for app (scw-happy-app)"
-  default     = "51c98b35-29cf-4650-9acd-927bf0bbb2cf"
+  description = "Scaleway Instance ID for app + Caddy + frontend (prod: scw-new-psy — same as chatbot when single VM)"
+  default     = "60a5e86a-07a8-4e17-aa3b-862ae586d030"
 }

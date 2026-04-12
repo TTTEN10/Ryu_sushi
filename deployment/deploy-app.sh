@@ -27,14 +27,15 @@ set -euo pipefail
 #   Default: safepsy.com, www.safepsy.com
 #
 # SINGLE_HOST=1: run vLLM on APP_IP only (bind 127.0.0.1:8000). Use when SSH to API_IP fails or there is no separate API VM.
-#   Example: SINGLE_HOST=1 APP_IP=51.159.117.169 ./deployment/deploy-app.sh
+#   Example: SINGLE_HOST=1 APP_IP=62.210.238.160 ./deployment/deploy-app.sh
 #
 # REUSE_CONTAINERS=1: restart existing Docker containers only (docker restart vllm; docker compose restart).
 #   No rm/run, no compose --build, no frontend sync. Requires a prior full deploy on the host(s).
 
-APP_IP="${APP_IP:-51.159.117.169}"
-API_IP="${API_IP:-51.159.160.246}"
-SINGLE_HOST="${SINGLE_HOST:-0}"
+# Defaults: single prod VM scw-new-psy (Caddy + SPA + proxy + colocated chatbot). Override for split-host.
+APP_IP="${APP_IP:-62.210.238.160}"
+API_IP="${API_IP:-62.210.238.160}"
+SINGLE_HOST="${SINGLE_HOST:-1}"
 REUSE_CONTAINERS="${REUSE_CONTAINERS:-0}"
 # When 1, do not run the vLLM docker container; use an external FastAPI chatbot (e.g. docker compose on API_IP).
 SKIP_VLLM_DEPLOY="${SKIP_VLLM_DEPLOY:-0}"
