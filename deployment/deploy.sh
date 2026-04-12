@@ -75,37 +75,78 @@ fi
 CHATBOT_PRIVATE_IP="$(cd "${TF_DIR}" && terraform output -raw chatbot_private_ip)"
 [[ -n "${CHATBOT_PRIVATE_IP}" ]] || die "terraform output chatbot_private_ip empty"
 
-log "STEP 3 — Sync repo slice and start chatbot compose on ${CHATBOT_HOST}"
-tar -C "${REPO_ROOT}" -cf - apps/ai-chatbot deployment/chatbot | ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "mkdir -p '${REMOTE_BASE}' && tar -C '${REMOTE_BASE}' -xf -"
+# Prefer dedicated chatbot VM. If SSH (or routing) to it fails, colocate chatbot on the app server so
+# deploy-app.sh can use SINGLE_HOST + host.docker.internal (avoids broken app↔chatbot public paths).
+COLOCATE_CHATBOT_ON_APP=0
+if ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "exit" 2>/dev/null; then
+  log "STEP 3 — Sync repo slice and start chatbot compose on ${CHATBOT_HOST}"
+  COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - apps/ai-chatbot deployment/chatbot | ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "mkdir -p '${REMOTE_BASE}' && tar -C '${REMOTE_BASE}' -xf -"
 
-run_ssh "${CHATBOT_HOST}" "bash -lc '
-  set -euo pipefail
-  mkdir -p /data
-  cd \"${REMOTE_BASE}/deployment/chatbot\"
-  docker compose pull || true
-  docker compose up -d --build
-  docker compose ps
-'"
+  run_ssh "${CHATBOT_HOST}" "bash -lc '
+    set -euo pipefail
+    mkdir -p /data
+    cd \"${REMOTE_BASE}/deployment/chatbot\"
+    docker compose pull || true
+    docker compose up -d --build
+    docker compose ps
+  '"
 
-log "STEP 4 — Verify chatbot /health (up to 5 attempts)"
-ok=0
-for i in 1 2 3 4 5; do
-  if curl -fsS --max-time 5 "http://${CHATBOT_HOST}:8000/health" >/dev/null 2>&1; then
-    ok=1
-    break
-  fi
-  sleep 3
-done
-[[ "${ok}" -eq 1 ]] || die "Chatbot health check failed at http://${CHATBOT_HOST}:8000/health"
+  log "STEP 4 — Verify chatbot /health (local curl and/or on-host curl)"
+  ok=0
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if curl -fsS --max-time 5 "http://${CHATBOT_HOST}:8000/health" >/dev/null 2>&1; then
+      ok=1
+      break
+    fi
+    if ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "curl -fsS --max-time 5 http://127.0.0.1:8000/health" >/dev/null 2>&1; then
+      ok=1
+      break
+    fi
+    sleep 3
+  done
+  [[ "${ok}" -eq 1 ]] || die "Chatbot health check failed on ${CHATBOT_HOST} (public :8000 and on-host loopback)"
+else
+  COLOCATE_CHATBOT_ON_APP=1
+  log "WARN — Cannot SSH to chatbot host ${CHATBOT_HOST} (timeout/refused). Colocating chatbot on app server ${APP_HOST}."
+  log "STEP 3b — Sync chatbot compose to ${APP_HOST} and start it"
+  COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - apps/ai-chatbot deployment/chatbot | ssh "${SSH_OPTS[@]}" "root@${APP_HOST}" "mkdir -p '${REMOTE_BASE}' && tar -C '${REMOTE_BASE}' -xf -"
+
+  run_ssh "${APP_HOST}" "bash -lc '
+    set -euo pipefail
+    mkdir -p /data
+    cd \"${REMOTE_BASE}/deployment/chatbot\"
+    docker compose pull || true
+    docker compose up -d --build
+    docker compose ps
+  '"
+
+  log "STEP 4b — Verify colocated chatbot /health on app host (loopback)"
+  ok=0
+  for i in $(seq 1 36); do
+    if ssh "${SSH_OPTS[@]}" "root@${APP_HOST}" "curl -fsS --max-time 8 http://127.0.0.1:8000/health" >/dev/null 2>&1; then
+      ok=1
+      break
+    fi
+    sleep 5
+  done
+  [[ "${ok}" -eq 1 ]] || die "Colocated chatbot health check failed on ${APP_HOST} (http://127.0.0.1:8000/health)"
+fi
 
 log "STEP 5 — App stack (deploy-app.sh with SKIP_VLLM_DEPLOY + chatbot URL)"
 export APP_DOMAIN
 export CADDY_SITE_NAMES
 export APP_IP="${APP_HOST}"
-export API_IP="${CHATBOT_HOST}"
 export SKIP_VLLM_DEPLOY=1
 export CHATBOT_HEALTH_PATH=/health
-# Primary: public host (routable from app Docker → internet → chatbot SG). Alt: Terraform IP (e.g. same or VPC).
-export MODEL_API_URL_FOR_COMPOSE="http://${CHATBOT_HOST}:8000"
-export MODEL_API_URL_ALT_FOR_COMPOSE="http://${CHATBOT_PRIVATE_IP}:8000"
+if [[ "${COLOCATE_CHATBOT_ON_APP}" -eq 1 ]]; then
+  export SINGLE_HOST=1
+  export API_IP="${APP_HOST}"
+  unset MODEL_API_URL_FOR_COMPOSE || true
+  unset MODEL_API_URL_ALT_FOR_COMPOSE || true
+else
+  export SINGLE_HOST=0
+  export API_IP="${CHATBOT_HOST}"
+  export MODEL_API_URL_FOR_COMPOSE="http://${CHATBOT_HOST}:8000"
+  export MODEL_API_URL_ALT_FOR_COMPOSE="http://${CHATBOT_PRIVATE_IP}:8000"
+fi
 exec "${SCRIPT_DIR}/deploy-app.sh" "$@"

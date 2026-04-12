@@ -423,7 +423,7 @@ deploy/
 
 ```
 deployment/
-├── deploy.sh                          # Terraform + chatbot compose + deploy-app.sh — Shell
+├── deploy.sh                          # Terraform + chatbot compose (dedicated host, or colocated on app if SSH to chatbot fails) + deploy-app.sh — Shell
 ├── deploy-app.sh                      # Application deploy (Caddy + SPA + Python proxy) — Shell
 ├── deploy-instance-aware-roadmap.sh   # Legacy instance-aware deploy (restored; replaced by deploy.sh in commit 08de24c6e) — Shell
 ├── bootstrap-chatbot-host.sh          # SSH: verify host, sync chatbot slice, compose up — Shell

@@ -2,6 +2,7 @@
 AI Chatbot Service - vLLM-based OpenAI-compatible API
 Default GPU model: dphn/Dolphin-Mistral-24B-Venice-Edition (set VLLM_TOKENIZER_MODE=mistral).
 """
+import asyncio
 import os
 import time
 import json
@@ -350,24 +351,39 @@ def initialize_model():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown"""
-    # Startup
     logger.info("Starting AI Chatbot Service...")
     logger.info(f"USE_GPU={app_state['use_gpu']}")
     logger.info(f"USE_MOCK_RESPONSES={USE_MOCK_RESPONSES}")
     logger.info(f"MODEL_NAME={MODEL_NAME} CPU_MODEL_NAME={CPU_MODEL_NAME}")
     logger.info(f"inference_backend={app_state.get('inference_backend')}")
-    
-    # Initialize model in background (non-blocking)
+
+    def _init_safe() -> None:
+        try:
+            initialize_model()
+        except Exception as e:
+            logger.error("Model initialization failed: %s", e, exc_info=True)
+            app_state["model_loaded"] = False
+
+    # Heavy model load runs off the event loop so /health stays reachable (deploy probes, LB checks).
+    init_task = asyncio.create_task(asyncio.to_thread(_init_safe))
+
+    def _log_init_task(t: asyncio.Task) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            logger.error("Background model init task failed: %s", exc)
+
+    init_task.add_done_callback(_log_init_task)
     try:
-        initialize_model()
-    except Exception as e:
-        logger.error(f"Model initialization failed: {e}", exc_info=True)
-        app_state["model_loaded"] = False
-    
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down AI Chatbot Service...")
+        yield
+    finally:
+        init_task.cancel()
+        try:
+            await init_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Shutting down AI Chatbot Service...")
 
 
 app = FastAPI(

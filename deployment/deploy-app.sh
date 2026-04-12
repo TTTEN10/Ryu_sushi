@@ -277,7 +277,7 @@ else
 
   log "STEP 5a: Sync local apps/web -> ${APP_IP}:${APP_BASE_DIR}/frontend"
   run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/frontend && rm -rf ${APP_BASE_DIR}/frontend/*'"
-  tar -C "${WEB_SRC_DIR}" -cf - . | run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/frontend -xf -'"
+  COPYFILE_DISABLE=1 tar -C "${WEB_SRC_DIR}" -cf - . | run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/frontend -xf -'"
 
   run_ssh "${APP_IP}" "bash -lc '
   set -euo pipefail
