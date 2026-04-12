@@ -50,7 +50,7 @@ variable "ai_service_container_image" {
 
 variable "chatbot_instance_id" {
   type        = string
-  description = "Existing Scaleway Instance ID for chatbot / LLM API (scw-new-psy, DEV1-M PAR2)"
+  description = "Existing Scaleway Instance ID for chatbot (scw-new-psy, DEV1-M PAR2)"
   default     = "60a5e86a-07a8-4e17-aa3b-862ae586d030"
 }
 

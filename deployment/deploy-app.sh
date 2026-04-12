@@ -32,7 +32,7 @@ set -euo pipefail
 # REUSE_CONTAINERS=1: restart existing Docker containers only (docker restart vllm; docker compose restart).
 #   No rm/run, no compose --build, no frontend sync. Requires a prior full deploy on the host(s).
 
-# Prod split-host defaults: scw-happy-app + scw-new-psy (FastAPI chatbot on API_IP when SKIP_VLLM_DEPLOY=1)
+# Defaults: scw-happy-app (app+frontend) and scw-new-psy (FastAPI chatbot / LLM API)
 APP_IP="${APP_IP:-51.159.149.66}"
 API_IP="${API_IP:-62.210.238.160}"
 SINGLE_HOST="${SINGLE_HOST:-0}"

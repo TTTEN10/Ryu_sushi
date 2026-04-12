@@ -22,7 +22,6 @@ DEBUG_NDJSON="${DEPLOY_LOG_DIR}/debug-fcc1a0.log"
 
 APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-safepsy.com, www.safepsy.com}"
-# Defaults: scw-new-psy (chatbot / OpenAI-compatible API) + scw-happy-app (Caddy + SPA + Python proxy)
 CHATBOT_HOST="${CHATBOT_HOST:-62.210.238.160}"
 APP_HOST="${APP_HOST:-51.159.149.66}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/safepsy}"

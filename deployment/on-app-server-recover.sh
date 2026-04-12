@@ -4,7 +4,7 @@
 #
 # Env:
 #   APP_USER           default safepsy
-#   APP_IP             post-deploy HTTP check (default 51.159.149.66 — scw-happy-app)
+#   APP_IP             post-deploy HTTP check (default 51.159.149.66 — matches Caddy plain HTTP site)
 #   APP_BASE_DIR       default /home/${APP_USER}/app
 #   MONITOR_ROOT       if set, logs go only to ${MONITOR_ROOT}/logs/deploy.log (avoids duplicate lines with cron redirect)
 #   COMPOSE_UP_ARGS    optional extra args (e.g. --build)
