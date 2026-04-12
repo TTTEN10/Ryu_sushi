@@ -178,6 +178,10 @@ else
   log "WARN — Cannot SSH to chatbot host ${CHATBOT_HOST} (timeout/refused). Colocating chatbot on app server ${APP_HOST}."
   # #region agent log
   agent_dbg_log H2 "colocate_branch_selected" "{\"reason\":\"chatbot_ssh_nonzero\",\"chatbotSshExitCode\":${CHATBOT_SSH_RC}}"
+  _outbound_pub=""
+  _outbound_pub="$( (curl -4 -fsS --max-time 5 https://ifconfig.me/ip 2>/dev/null || curl -4 -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo "") | tr -d '\n\r' )"
+  agent_dbg_log H6 "client_outbound_ipv4_hint" "{\"ifconfig_or_ipify\":\"${_outbound_pub}\"}"
+  log "Hint — allow Scaleway inbound TCP/22 to app + chatbot from this machine's public IPv4 (detected): ${_outbound_pub:-<unknown — check https://ifconfig.me>}"
   _ts2="$(python3 -c 'import time; print(int(time.time()*1000))')"
   set +e
   ssh "${SSH_OPTS[@]}" "root@${APP_HOST}" "exit" >/dev/null 2>&1
@@ -187,7 +191,7 @@ else
   APP_PREFLIGHT_MS=$((_ts3 - _ts2))
   agent_dbg_log H2 "app_ssh_preflight_before_tar" "{\"host\":\"${APP_HOST}\",\"exitCode\":${APP_PREFLIGHT_SSH_RC},\"durationMs\":${APP_PREFLIGHT_MS}}"
   # #endregion
-  [[ "${APP_PREFLIGHT_SSH_RC}" -eq 0 ]] || die "Cannot SSH to app host ${APP_HOST} for colocated chatbot (ssh exit ${APP_PREFLIGHT_SSH_RC}, ${APP_PREFLIGHT_MS} ms). Check Scaleway: inbound TCP 22 from your current public IP on the app instance security group; confirm APP_HOST matches terraform app_public_ip (${APP_TF_PUBLIC_IP:-unknown}). NDJSON: ${_AGENT_DEBUG_LOG_FALLBACK} (and ${_AGENT_DEBUG_LOG_PRIMARY} if writable)"
+  [[ "${APP_PREFLIGHT_SSH_RC}" -eq 0 ]] || die "Cannot SSH to app host ${APP_HOST} for colocated chatbot (ssh exit ${APP_PREFLIGHT_SSH_RC}, ${APP_PREFLIGHT_MS} ms). Check Scaleway: inbound TCP 22 from your public IP (see Hint line above) on the app instance security group; confirm APP_HOST matches terraform app_public_ip (${APP_TF_PUBLIC_IP:-unknown}). NDJSON: ${_AGENT_DEBUG_LOG_FALLBACK} (and ${_AGENT_DEBUG_LOG_PRIMARY} if writable)"
   log "STEP 3b — Sync chatbot compose to ${APP_HOST} and start it"
   # #region agent log
   agent_dbg_log H2 "app_colocate_tar_ssh_start" "{\"host\":\"${APP_HOST}\"}"
