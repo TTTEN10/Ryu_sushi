@@ -26,7 +26,6 @@ module "app_instance" {
   server_id = var.app_instance_id
 }
 
-# Firewall: restrict chatbot :8000 to the app instance (scw-happy-app) private/public IP in the Scaleway console
-# Chatbot host: scw-new-psy (see var.chatbot_instance_id).
-# (safepsy-dev-ai-service-sg). Avoid managing security_group_rules in Terraform here: the
-# scaleway_instance_security_group_rules resource replaces the full rule set and can lock SSH.
+# Firewall: on chatbot (scw-new-psy), restrict :8000 to the app host (scw-happy-app) public or private IP
+# in the Scaleway console (e.g. safepsy-dev-ai-service-sg). Avoid managing security_group_rules
+# in Terraform here: scaleway_instance_security_group_rules replaces the full rule set and can lock SSH.
