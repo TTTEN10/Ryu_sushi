@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import Explore from "./components/Explore";
@@ -9,7 +10,6 @@ import Maintenance from "./components/Maintenance";
 import Cookies from "./components/Cookies";
 import CookieBanner from "./components/CookieBanner";
 import SEOHead from "./components/SEOHead";
-import Testing from "./components/Testing";
 import DPIA from "./components/DPIA";
 import AboutMe from "./components/AboutMe";
 import TermsOfService from "./components/TermsOfService";
@@ -25,6 +25,8 @@ import { useFocusManagement, useKeyboardNavigation } from "./hooks/useFocusManag
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { WalletProvider } from "./contexts/WalletContext";
 import { AuthProvider } from "./contexts/AuthContext";
+
+const Testing = lazy(() => import("./components/Testing"));
 
 // Component to handle SEO for each route
 function RouteWithSEO({ children }: { children: React.ReactNode }) {
@@ -96,7 +98,9 @@ export default function App() {
           } />
           <Route path="/beta/chat" element={
             <RouteWithSEO>
-              <Testing />
+              <Suspense fallback={<div className="p-6 text-body">Loading chat…</div>}>
+                <Testing />
+              </Suspense>
             </RouteWithSEO>
           } />
           <Route path="/chat" element={<Navigate to="/beta/chat" replace />} />

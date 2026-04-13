@@ -1,8 +1,22 @@
 import { SEOConfig } from '../types/seo';
 
-const baseUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://safepsy.com' 
-  : 'http://localhost:5173';
+function getBaseUrl(): string {
+  // Prefer runtime origin in-browser (correct for any host, including previews).
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  // Optional build-time override for crawlers/static contexts.
+  const explicit = import.meta.env.VITE_PUBLIC_ORIGIN as string | undefined;
+  if (explicit && typeof explicit === 'string') {
+    return explicit.replace(/\/$/, '');
+  }
+
+  // Build-time fallback (must not rely on process.env in the browser bundle).
+  return import.meta.env.PROD ? 'https://safepsy.com' : 'http://localhost:5173';
+}
+
+const baseUrl = getBaseUrl();
 
 const defaultImage = `${baseUrl}/Logotransparent.png`;
 

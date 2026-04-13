@@ -135,12 +135,42 @@ router.post(
 );
 
 /**
+ * GET /api/auth/me
+ * Same contract as GET /api/auth/session (mobile-friendly alias).
+ */
+router.get(
+  '/me',
+  authenticateWallet,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Not authenticated',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          walletAddress: req.wallet.walletAddress,
+          chainId: req.wallet.chainId,
+          isVerified: req.wallet.isVerified,
+        },
+      });
+    } catch (error) {
+      logger.error('Session (/me) error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
  * GET /api/auth/session
- * Get current session information
- * 
- * Auth: Required (wallet session)
- * 
- * Output: { success: true, data: { walletAddress, chainId, isVerified } }
+ * Get current session information (canonical name; /me is an alias).
  */
 router.get(
   '/session',

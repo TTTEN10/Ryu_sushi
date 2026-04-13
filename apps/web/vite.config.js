@@ -1,3 +1,4 @@
+// @ts-nocheck — duplicate Vite typings from hoisted vs apps/web node_modules (monorepo)
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';

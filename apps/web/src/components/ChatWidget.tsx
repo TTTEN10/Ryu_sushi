@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare } from 'lucide-react';
+import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare, Copy } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatEncryption } from '../hooks/useChatEncryption';
 import { updateChatReference } from '../utils/did-contract';
 import { useOffline } from '../hooks/useOffline';
-import { useToast } from '../hooks/useToast';
+import { useToast, type ToastType } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
@@ -49,6 +49,12 @@ const MAX_MESSAGE_LENGTH = 2000;
 const EDIT_WINDOW_MS = 30000; // 30 seconds
 /** Guest mode: max user messages per browser session (in-memory only; resets on refresh). */
 const GUEST_PROMPT_LIMIT = 5;
+
+const FIRST_MESSAGE_SUGGESTIONS = [
+  "What's been on your mind more than usual lately?",
+  'Do you feel more overwhelmed or more empty right now?',
+  "What's something you haven't said out loud yet?",
+];
 
 export default function ChatWidget() {
   const [searchParams] = useSearchParams();
@@ -304,8 +310,9 @@ export default function ChatWidget() {
   // Handle sending a message.
   // Guest mode: messages stay in React state only; API requests include mode: 'guest' (no server persistence).
   // Authenticated: wallet-derived encryption + saveChat + quota path.
-  const handleSend = async () => {
-    if (!input.trim() || isStreaming || input.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
+  const handleSend = async (contentOverride?: string) => {
+    const trimmed = (typeof contentOverride === 'string' ? contentOverride : input).trim();
+    if (!trimmed || isStreaming || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
     if (!isGuest && (!symmetricKey || encryptionLoading)) return;
 
     if (isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT) {
@@ -328,7 +335,7 @@ export default function ChatWidget() {
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: trimmed,
       timestamp: new Date(),
       encrypted: false,
       canEdit: true,
@@ -660,8 +667,8 @@ export default function ChatWidget() {
             className="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-center"
             role="status"
           >
-            Guest mode: your chat is not saved and will disappear when you leave or refresh. Connect a
-            wallet to encrypt and keep your sessions.
+            Guest mode: this chat lives in this tab only — refresh clears it. When you&apos;re ready, save it securely
+            with a wallet (ownership + privacy tool — not a payment).
           </p>
         ) : (
           <p className="text-xs text-body opacity-60 text-center">
@@ -682,21 +689,38 @@ export default function ChatWidget() {
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <EmptyState
-            icon={MessageSquare}
-            title="Start a conversation"
-            description={
-              isGuest
-                ? 'Send a message to try Dr. Safe instantly. Guest chats stay in this tab only (not saved). Connect a wallet for encrypted history across sessions.'
-                : 'Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet.'
-            }
-          />
+          <div className="py-6 px-3">
+            <EmptyState
+              icon={MessageSquare}
+              title="Start in one tap"
+              description={
+                isGuest
+                  ? 'No login. Pick a first line or write your own — Dr.Safe meets you where you are.'
+                  : 'Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet.'
+              }
+            />
+            <div className="max-w-md mx-auto mt-6 space-y-2">
+              <p className="text-xs text-center text-body opacity-70 mb-2">Try an opening that feels real</p>
+              {FIRST_MESSAGE_SUGGESTIONS.map((line) => (
+                <button
+                  key={line}
+                  type="button"
+                  disabled={guestAtLimit || isOffline || isStreaming}
+                  onClick={() => void handleSend(line)}
+                  className="w-full text-left text-sm px-4 py-3 rounded-xl border border-primary-200 dark:border-primary-800 bg-white/80 dark:bg-neutral-900/60 text-heading hover:bg-primary-50 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {line}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : (
           messages.map((message) => (
             <MessageBubble
               key={message.id}
               message={message}
               displayMessage={displayMessage}
+              showToast={showToast}
               isEditing={editingMessageId === message.id}
               editContent={editContent}
               onEdit={handleEditMessage}
@@ -742,12 +766,12 @@ export default function ChatWidget() {
         )}
         {guestOneLeft && !guestAtLimit && (
           <p className="mb-2 text-xs text-amber-700 dark:text-amber-300" role="status">
-            1 guest message left this session. Connect a wallet for unlimited, saved chats.
+            One try left in guest mode. Save this conversation securely to keep going with unlimited chat.
           </p>
         )}
         {guestAtLimit && (
           <p className="mb-2 text-xs text-amber-800 dark:text-amber-200 font-medium" role="alert">
-            Guest limit reached. Connect or create a wallet to continue.
+            Guest limit reached — keep this space yours with Save & sync.
             <button
               type="button"
               onClick={() => setShowGuestLimitModal(true)}
@@ -808,7 +832,7 @@ export default function ChatWidget() {
                 editingMessageId
                   ? 'Edit your message...'
                   : isGuest
-                    ? 'Type your message (guest mode — not saved)...'
+                    ? 'Say it in your own words...'
                     : 'Type your message...'
               }
               disabled={
@@ -857,7 +881,7 @@ export default function ChatWidget() {
             </button>
           ) : (
             <button
-              onClick={handleSend}
+              onClick={() => void handleSend()}
               disabled={
                 !input.trim() ||
                 (!isGuest && (!symmetricKey || encryptionLoading)) ||
@@ -895,6 +919,7 @@ export default function ChatWidget() {
 function MessageBubble({
   message,
   displayMessage,
+  showToast,
   isEditing = false,
   editContent = '',
   onEdit,
@@ -905,6 +930,7 @@ function MessageBubble({
 }: {
   message: Message;
   displayMessage: (message: Message) => Promise<string>;
+  showToast?: (type: ToastType, message: string, duration?: number) => void;
   isEditing?: boolean;
   editContent?: string;
   onEdit?: (id: string) => void;
@@ -988,7 +1014,24 @@ function MessageBubble({
         ) : (
           <>
             <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{decryptedContent}</p>
-            
+            {!isUser && decryptedContent.trim() && (
+              <button
+                type="button"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
+                onClick={async () => {
+                  const block = `${decryptedContent.trim()}\n\n— SafePsy`;
+                  try {
+                    await navigator.clipboard.writeText(block);
+                    showToast?.('success', 'Copied — plain text, subtle credit');
+                  } catch {
+                    showToast?.('error', 'Could not copy — try selecting the text');
+                  }
+                }}
+              >
+                <Copy className="w-3.5 h-3.5" aria-hidden />
+                Copy reflection
+              </button>
+            )}
             {/* Action Buttons (for user messages) */}
             {isUser && showActions && message.canEdit && !isEditing && (
               <div className="absolute -top-8 right-0 flex gap-1 bg-gray-800 dark:bg-gray-700 rounded-lg p-1">

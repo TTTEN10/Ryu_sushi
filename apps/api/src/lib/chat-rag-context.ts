@@ -1,6 +1,6 @@
 import logger from './logger';
 import { getRetrieverService } from './retriever.service';
-import { DR_SAFE_SYSTEM_PROMPT } from './dr-safe-system-prompt';
+import { resolveDrSafeSystemPrompt } from './dr-safe-system-prompt';
 import type { ChatCompletionRequest } from './ai-gateway.service';
 
 async function retrieveRelevantContext(query: string): Promise<string> {
@@ -47,7 +47,7 @@ export async function enhanceWithRAG(request: ChatCompletionRequest): Promise<Ch
     }
 
     let systemMessage = request.messages.find((msg) => msg.role === 'system');
-    const baseSystemPrompt = DR_SAFE_SYSTEM_PROMPT;
+    const baseSystemPrompt = resolveDrSafeSystemPrompt(request.mode);
 
     if (systemMessage) {
       systemMessage = {

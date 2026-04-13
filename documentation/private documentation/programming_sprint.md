@@ -1,6 +1,6 @@
 # Programming sprint & implementation roadmap
 
-> Restored from `COMPLETE_IMPLEMENTATION_SUMMARY.md` (last revision before deletion in commit `a45b56c14`). The **MVP launch** section below is the live operator view; **Part 1 onward** is a historical implementation snapshot—verify against `apps/web`, `apps/api`, and `apps/ai-chatbot` before relying on any checkbox.
+> Restored from `COMPLETE_IMPLEMENTATION_SUMMARY.md` (last revision before deletion in commit `a45b56c14`). The **MVP launch** section is the live operator view. **Part 1 / Part 2** below were reconciled with `apps/web`, `apps/api`, and `apps/ai-chatbot` on **2026-04-12** (see **Repository verification**).
 
 ---
 
@@ -11,6 +11,12 @@
 ### Canonical activation (what “launched” means)
 
 Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user reaches value when **(1) DID exists** and **(2) at least one real exchange with Dr. Safe** has happened. Funnel metrics: visits → wallet connect attempts → successful session → DID mint → first chat completion → support/feedback.
+
+### ✅ Repository verification (2026-04-12)
+
+- ✅ **`npm run lint`** (root: web + api): passing  
+- ✅ **Unit tests:** root **`npm test`** runs `vitest run` for web then API (exits cleanly for CI); per-app `cd apps/web && npm test` / `cd apps/api && npm test` are equivalent. All passing; `Status.test.tsx` uses `act()` around timer-driven updates so the suite stays warning-free.  
+- ✅ **`npm run build`** (web + api): passing after pinning Tailwind to **`apps/web/tailwind.config.ts`** in **`apps/web/postcss.config.cjs`** so `vite build --config apps/web/vite.config.ts` from the monorepo root loads theme/content correctly  
 
 ### Operator checklist — ship and learn
 
@@ -38,39 +44,38 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 
 ---
 
-## Part 1: End-to-End Encryption for ChatWidget ✅
+## ✅ Part 1: End-to-End Encryption for ChatWidget
 
 ### Files Created/Modified
 
 #### Backend
 1. **Database Schema** (`apps/api/schema.prisma`)
-   - Added `EncryptedChat` model for off-chain storage
+   - ✅ `EncryptedChat` model for off-chain storage
 
-2. **API Endpoints** (`apps/api/src/routes/chat.ts`)
-   - `POST /api/chat/save` - Save encrypted chat (✅ Complete)
-   - `GET /api/chat/load` - Load encrypted chat (✅ Complete)
-   - Note: Completions endpoint needs to be added back (see below)
+2. **API Endpoints** (`apps/api/src/routes/chat.ts` + `apps/api/src/routes/chat-completions.ts`)
+   - ✅ `POST /api/chat/save` — save encrypted chat
+   - ✅ `GET /api/chat/load` — load encrypted chat
+   - ✅ `POST /api/chat/completions` — mounted via `mountChatCompletions(router)` (shared handler with rate limits, guest mode, streaming)
 
 3. **Encryption Utilities** (`apps/web/src/utils/did-encryption.ts`)
-   - Wallet-based key encryption/decryption (✅ Complete)
-   - AES-GCM chat encryption (✅ Complete)
+   - ✅ Wallet-based key encryption/decryption
+   - ✅ AES-GCM chat encryption
 
 #### Frontend
 1. **Encryption Hook** (`apps/web/src/hooks/useChatEncryption.ts`)
-   - Key management (✅ Complete)
-   - Chat load/save with encryption (✅ Complete)
+   - ✅ Key management and chat load/save with encryption (verified-wallet path)
+   - ⚠️ **Refinement:** symmetric key still falls back to **localStorage** when loading from DID metadata is incomplete; `saveKeyToDID` does not yet submit on-chain metadata (comments reference legacy `setDidData` wording — V2 flow uses **`updateChatReference`** from the widget)
 
-2. **ChatWidget Integration** (Needs Update)
-   - Replace session-based encryption with DID-based
-   - Use `useChatEncryption` hook
-   - Auto-save encrypted chat
+2. **ChatWidget Integration** (`apps/web/src/components/ChatWidget.tsx`)
+   - ✅ Uses `useChatEncryption` for verified sessions; guest mode stays in-memory with capped prompts
+   - ✅ After save, when the API returns `requiresDidUpdate`, calls **`updateChatReference`** (`apps/web/src/utils/did-contract.ts`) to update the on-chain chat reference
 
 ### Encryption Scheme Details
 
 **Key Material:**
 - **Symmetric Key**: 32-byte AES-256-GCM key (generated client-side)
 - **Encrypted Key**: Symmetric key encrypted with wallet signature
-- **Storage**: Encrypted key in DID's `encryptedData` field
+- **Storage**: Encrypted key in DID's `encryptedData` field (target); interim localStorage path remains in hook
 
 **Data Flow:**
 1. Generate symmetric key (client-side)
@@ -85,62 +90,76 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 - Symmetric key never stored unencrypted
 - Only wallet owner can decrypt (requires private key)
 
-## Part 2: Production API Refactoring ⚠️
+---
 
-### Current Testing Endpoints
-- `POST /api/testing/wallet/connect`
-- `POST /api/testing/wallet/verify`
-- `GET /api/testing/wallet/info`
-- `POST /api/testing/did/verify`
-- `POST /api/testing/did/check`
+## ✅ Part 2: Production API Refactoring (core complete)
 
-### Proposed Production Endpoints
-- `POST /api/auth/wallet/connect` ✅ (Create)
-- `POST /api/auth/wallet/verify` ✅ (Create)
-- `GET /api/auth/session` ✅ (Create)
-- `POST /api/did/check` ✅ (Already exists)
-- `POST /api/did/create` ✅ (Already exists)
-- `GET /api/did/info` ✅ (Already exists)
-- `POST /api/chat/save` ✅ (Already exists)
-- `GET /api/chat/load` ✅ (Already exists)
+### Legacy / parallel testing endpoints (`apps/api/src/routes/testing.ts`)
 
-### Next Steps for API Refactoring
-1. Create `/api/auth/*` routes
-2. Move wallet auth logic to production endpoints
-3. Keep testing endpoints but mark as dev-only
-4. Create shared utilities for validation/error handling
+Still mounted at **`/api/testing/*`** for backward compatibility (e.g. `POST /api/testing/wallet/connect`, `POST /api/testing/wallet/verify`, `GET /api/testing/wallet/info`, `POST /api/testing/did/verify`, `POST /api/testing/did/check`). **Not automatically disabled in production** — treat as a **hardening backlog** item if you want dev-only exposure.
+
+### ✅ Production endpoints (implemented)
+
+- ✅ `POST /api/auth/wallet/connect` — `apps/api/src/routes/auth.ts`
+- ✅ `POST /api/auth/wallet/verify` — same
+- ✅ `GET /api/auth/session` — same
+- ✅ `POST /api/auth/logout` — same
+- ✅ `POST /api/did/check` — DID routes
+- ✅ `POST /api/did/create` — DID routes
+- ✅ `GET /api/did/info` — DID routes
+- ✅ `POST /api/chat/save` — `chat.ts`
+- ✅ `GET /api/chat/load` — `chat.ts`
+
+### API refactoring — status
+
+1. ✅ Create **`/api/auth/*`** routes (`routes/auth.ts`, mounted in `index.ts`)
+2. ✅ Wallet session logic available on production auth routes (testing routes remain parallel)
+3. ⚠️ Optionally **disable or gate `/api/testing`** when `NODE_ENV === 'production'` (not done as of 2026-04-12)
+4. ✅ **Shared request validation** — `validate()` + Joi in `apps/api/src/middleware/validation.ts` (used across routes)
+
+---
 
 ## Implementation Status
 
-### ✅ Completed
-- [x] Encryption utilities (AES-GCM, wallet-based key encryption)
-- [x] Database schema for encrypted chat storage
-- [x] Backend chat save/load endpoints
-- [x] Frontend encryption hook
-- [x] DID integration for key storage
+### ✅ Completed (verified in repo)
 
-### ⚠️ In Progress
-- [ ] ChatWidget integration with encryption hook
-- [ ] DID contract interaction (setDidData from frontend)
-- [ ] Add completions endpoint back to chat.ts
-- [ ] Production API refactoring
+- [x] ✅ Encryption utilities (AES-GCM, wallet-based key encryption)
+- [x] ✅ Database schema for encrypted chat storage
+- [x] ✅ Backend chat save/load + **completions** (`chat-completions.ts`)
+- [x] ✅ Frontend encryption hook
+- [x] ✅ DID-aware chat persistence path (widget + contract `updateChatReference` when required)
+- [x] ✅ ChatWidget integration with `useChatEncryption`
+- [x] ✅ Production **`/api/auth/*`** endpoints
 
-### 📝 Remaining Tasks
-1. Update ChatWidget to use `useChatEncryption`
-2. Add contract interaction for `setDidData`
-3. Create production auth endpoints
-4. Add shared API utilities
-5. Test end-to-end flow
+### ⚠️ Backlog / refinements
+
+- [ ] **Persist encrypted symmetric key** via DID/contract metadata (reduce reliance on localStorage in `useChatEncryption`)
+- [ ] **Gate or remove `/api/testing` in production** if security posture requires it
+- [ ] **Key rotation mechanism** (security checklist)
+- [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)
+- [ ] **Continuous E2E** beyond unit tests (wallet + chain smoke in staging)
+
+### ~~Remaining Tasks~~ (historical — superseded by verification above)
+
+1. ~~Update ChatWidget to use `useChatEncryption`~~ → ✅ Done  
+2. ~~Add contract interaction for on-chain chat reference~~ → ✅ `updateChatReference` from ChatWidget  
+3. ~~Create production auth endpoints~~ → ✅ Done  
+4. ~~Add shared API utilities~~ → ✅ `middleware/validation` pattern in place  
+5. **Test end-to-end flow** — operator/staging responsibility (see MVP checklist)
+
+---
 
 ## Quick Start Guide
 
 ### 1. Run Database Migration
+
 ```bash
 cd apps/api
 npx prisma migrate dev --name add_encrypted_chats
 ```
 
 ### 2. Update Environment Variables
+
 ```env
 # Backend
 DATABASE_URL=postgresql://...
@@ -150,6 +169,7 @@ JWT_SECRET=your-secret-key
 ```
 
 ### 3. Test Endpoints
+
 ```bash
 # Save encrypted chat
 curl -X POST http://localhost:3001/api/chat/save \
@@ -207,19 +227,17 @@ router.post('/save', authenticateWallet, async (req, res) => {
 
 ## Security Checklist
 
-- [x] Symmetric key generated client-side
-- [x] Key encrypted with wallet signature
-- [x] Plaintext never sent to backend
-- [x] Only ciphertext stored
-- [x] DID ownership verified
-- [x] Network validation (Ethereum Mainnet only)
+- [x] ✅ Symmetric key generated client-side
+- [x] ✅ Key encrypted with wallet signature
+- [x] ✅ Plaintext never sent to backend
+- [x] ✅ Only ciphertext stored
+- [x] ✅ DID ownership verified
+- [x] ✅ Network validation (Ethereum Mainnet only)
 - [ ] Key rotation mechanism
 - [ ] Contract failure handling
 
 ## Notes
 
-- The completions endpoint was overwritten and needs to be restored
-- DID contract `setDidData` must be called by wallet owner (frontend)
+- V2 DID contract uses **`updateChatReference`** / **`updateChatDataReference`** (`did-contract.ts`); older `setDidData` wording in hook comments is misleading — prefer aligning comments with the live ABI.
 - Key rotation requires re-encrypting all chat history
 - Network failures: chat saved locally, DID update retried later
-

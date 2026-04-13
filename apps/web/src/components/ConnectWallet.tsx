@@ -62,7 +62,7 @@ export default function ConnectWallet() {
       await new Promise(resolve => setTimeout(resolve, 500));
       setVerificationStep('complete');
       
-      showToast('success', 'Wallet verified successfully!', 3000);
+      showToast('success', 'This space now belongs to you — wallet verified.', 3000);
       
       setTimeout(() => {
         setVerificationStep('idle');
@@ -99,7 +99,7 @@ export default function ConnectWallet() {
       case 'requesting':
         return 'Requesting verification...';
       case 'signing':
-        return 'Please sign the message in your wallet';
+        return 'Sign in your wallet — confirms identity; no funds are used';
       case 'verifying':
         return 'Verifying signature...';
       case 'complete':
@@ -165,12 +165,12 @@ export default function ConnectWallet() {
           {/* Verification Info Tooltip - drops down from wallet address */}
           {showVerificationInfo && !authState.isVerified && (
             <div className="absolute top-full left-0 mt-2 max-w-xs p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-800 dark:text-blue-300 z-50 shadow-lg">
-              <p className="font-semibold mb-2">Why verify your wallet?</p>
+              <p className="font-semibold mb-2">Why verify?</p>
               <ul className="space-y-1 list-disc list-inside">
-                <li>Proves you own the wallet</li>
-                <li>Enables secure authentication</li>
-                <li>Unlocks all platform features</li>
-                <li>Protects your account security</li>
+                <li>Keeps this space yours — saved chats link to keys you control</li>
+                <li>One signature — like a secure ID check, not a payment</li>
+                <li>Unlocks encrypted history and continuity across sessions</li>
+                <li>No funds are moved for verification</li>
               </ul>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowVerificationInfo(false); }}
@@ -210,7 +210,7 @@ export default function ConnectWallet() {
             <button
               onClick={handleVerify}
               className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
-              title="Verify wallet signature to access full features"
+              title="Confirm identity in your wallet — no funds used"
             >
               <CheckCircle className="w-4 h-4 text-white" />
               <span className="hidden sm:inline text-white">Verify</span>
@@ -260,13 +260,13 @@ export default function ConnectWallet() {
         onClick={handleConnect}
         disabled={walletLoading}
         className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-8 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none min-h-[44px] flex items-center justify-center gap-2"
-        title="Connect wallet"
+        title="Secure this space — wallet is for identity and encryption, not payments"
       >
         <Wallet className="w-4 h-4 text-white" />
         <span className="hidden sm:inline text-white">
-          {walletLoading ? 'Connecting...' : 'Connect Wallet'}
+          {walletLoading ? 'Connecting...' : 'Save & sync'}
         </span>
-        <span className="sm:hidden text-white">Connect</span>
+        <span className="sm:hidden text-white">Save</span>
       </button>
       {walletError && (
         <div className="absolute top-full mt-2 right-0 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs z-50">

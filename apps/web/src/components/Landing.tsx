@@ -84,27 +84,24 @@ export default function Landing() {
             <div className="max-w-5xl mx-auto bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-3xl border border-neutral-dark/20 dark:border-white/20 p-6 sm:p-8 lg:p-12 hover-soft-fade">
               <p className="inline-flex items-center gap-2 text-sm sm:text-base text-heading mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 rounded-full px-4 py-2">
                 <Sparkles className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                Mental Health, Rebuilt on Privacy
+                Private reflection · You-first onboarding
               </p>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl text-heading leading-tight font-normal fade-in">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold">
-                  Your safe space for mental wellness
+                  A private space to understand what you feel
                 </span>
               </h1>
               <p className="text-lg sm:text-xl text-body leading-relaxed mt-6 max-w-3xl">
-                Reflect, prepare, and make sense of your thoughts with structured AI support—so every session goes deeper.
+                Talk with Dr.Safe without signing in. When you want continuity, your wallet becomes an ownership and
+                privacy tool — encrypted history you control, not a crypto feature.
                 <br />
                 <br />
-                Try SafePsy instantly in guest mode, or connect a wallet to securely save your sessions with encryption you control.
-                <br />
-                <br />
-                Built for privacy-first users: your data stays yours.
-                <br />
-                We don’t train on your conversations. Wallet mode stores ciphertext only; guest mode does not persist chats on our servers.
+                We don't train on your conversations. Guest chats stay in your browser only; wallet mode stores ciphertext,
+                not readable content, on our servers.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Link to="/beta/chat" className="btn-try-beta" aria-label="Try SafePsy beta chat">
-                  Try beta
+                <Link to="/beta/chat" className="btn-try-beta" aria-label="Start talking with Dr. Safe, no login">
+                  Start talking (no login)
                   <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
                 </Link>
                 <Link
@@ -153,13 +150,13 @@ export default function Landing() {
               {[
                 {
                   icon: Wallet,
-                  title: '1. Connect your wallet',
-                  copy: 'Optional for your first try—open the beta chat as a guest. When you are ready, use any decentralized wallet compatible with WalletConnect (e.g. MetaMask, Trust Wallet, Ledger…).',
+                  title: '1. Start in guest mode',
+                  copy: 'Open the beta chat and send a few messages with no wallet. When you want saved, private history, add a wallet as an identity anchor — still optional for your first try.',
                 },
                 {
                   icon: FilePenLine,
-                  title: '2. Sign to verify ownership',
-                  copy: 'Sign a one-time verification message—no gas cost.',
+                  title: "2. Sign to verify it's you",
+                  copy: 'One signature confirms your identity — no gas, no payment, no funds moved.',
                 },
                 {
                   icon: BadgeCheck,

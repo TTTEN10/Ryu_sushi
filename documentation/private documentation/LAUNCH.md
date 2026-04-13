@@ -162,7 +162,7 @@ Covers: encryption (E2E?, who can read?, key loss), compliance (HIPAA, GDPR, ISO
 
 2. **`terraform.tfvars`** in that directory (from `terraform.tfvars.example`; gitignored).
 
-**SSH + hosts** (optional): `SSH_KEY`, `APP_HOST`, `CHATBOT_HOST`, `APP_DOMAIN`, `CADDY_SITE_NAMES` — see `deployment/deploy.sh` defaults (`safepsy.com`, app **51.159.149.66** / chatbot **62.210.238.160**).
+**SSH + hosts** (optional): `SSH_KEY`, `APP_HOST`, `CHATBOT_HOST`, `APP_DOMAIN`, `CADDY_SITE_NAMES` — see `deployment/deploy.sh` defaults (`safepsy.com`, app/chatbot IPs).
 
 **Full deploy:** `./deployment/deploy.sh` from repo root. **App-only:** `DEPLOY_LEGACY=1 ./deployment/deploy.sh`.
 

@@ -23,9 +23,10 @@ export default function SEOHead({ config }: SEOHeadProps) {
     noindex = false,
   } = config;
 
-  const baseUrl = (typeof window !== 'undefined' && window.location) 
-    ? `${window.location.protocol}//${window.location.host}`
-    : (process.env.NODE_ENV === 'production' ? 'https://safepsy.com' : 'http://localhost:5173');
+  const baseUrl =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : (import.meta.env.VITE_PUBLIC_ORIGIN || (import.meta.env.PROD ? 'https://safepsy.com' : 'http://localhost:5173'));
   
   const fullOgImage = ogImage?.startsWith('http') ? ogImage : `${baseUrl}${ogImage || '/Logotransparent.png'}`;
   const fullTwitterImage = twitterImage?.startsWith('http') ? twitterImage : `${baseUrl}${twitterImage || '/Logotransparent.png'}`;

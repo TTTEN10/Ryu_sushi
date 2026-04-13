@@ -591,29 +591,31 @@ app.use(helmet({
 
 ## 📋 Priority Action Items
 
+**Status key (verified against repo, April 2026):** ✅ means implemented in this codebase; ⚠️ means materially improved but not matching the original “full” recommendation; ⬜ means still open. **Repo checks:** `npm run build`, `npm run lint`, and **`npm test`** at the repo root (runs `vitest run` for `apps/web` then `apps/api`) exit cleanly—suitable for CI and one-off runs; workspace `cd apps/web && npm test` / `cd apps/api && npm test` also use `vitest run`.
+
 ### Immediate (This Week)
-1. ✅ Fix CORS configuration (3.1)
-2. ✅ Add request ID tracking (3.2)
-3. ✅ Implement error message sanitization (3.3)
-4. ✅ Add CSRF protection (3.4)
-5. ✅ Fix accessibility contrast issues (2.1)
-6. ✅ Improve error messages with context (1.3)
+1. ✅ Fix CORS configuration (3.1) — allowlist in `apps/api/src/index.ts`, no `*` default in production
+2. ✅ Add request ID tracking (3.2) — `apps/api/src/middleware/request-id.ts`, `X-Request-ID` exposed
+3. ✅ Implement error message sanitization (3.3) — `apps/api/src/middleware/error-handler.ts`
+4. ⚠️ CSRF / cross-site writes (3.4) — mitigations in place (strict CORS allowlist, `SameSite: 'strict'` + `httpOnly` wallet session cookie in `apps/api/src/routes/auth.ts`, JWT in `Authorization` for many flows); classic double-submit CSRF tokens are **not** implemented—add them if cookie-session POSTs grow beyond current patterns.
+5. ✅ Fix accessibility contrast issues (2.1) — `apps/web/src/styles.css` (`text-body`, headings, placeholders, `focus-visible`)
+6. ✅ Improve error messages with context (1.3) — `apps/web/src/utils/errorMessages.ts` + usage in forms / wallet / chat
 
 ### Short Term (This Month)
-7. ✅ Add offline detection and recovery (1.2)
-8. ✅ Implement toast notification system (2.5)
-9. ✅ Add form autofill support (1.5)
-10. ✅ Improve wallet connection UX (1.6)
-11. ✅ Add input sanitization (3.6)
-12. ✅ Enhance session security (3.5)
+7. ✅ Add offline detection and recovery (1.2) — `useOffline`, queued actions in Hero / forms / `Landing`
+8. ✅ Implement toast notification system (2.5) — `useToast` + `ToastContainer` pattern
+9. ✅ Add form autofill support (1.5) — `autoComplete` on email/name fields (Hero, EmailSignup, ContactUs, Landing)
+10. ✅ Improve wallet connection UX (1.6) — `ConnectWallet.tsx`: steps, network guide, verification explainer, wrong-network banner
+11. ✅ Add input sanitization (3.6) — `sanitizeMiddleware` + DOMPurify path in `apps/api/src/middleware/sanitize.ts`
+12. ✅ Enhance session security (3.5) — secure cookie flags on wallet session; JWT verification middleware (`apps/api/src/middleware/auth.ts`)
 
 ### Medium Term (Next Quarter)
-13. ✅ Chat widget improvements (1.7)
-14. ✅ Mobile navigation overhaul (2.4)
-15. ✅ Search functionality for long pages (1.8)
-16. ✅ Standardize loading states (2.3)
-17. ✅ Add audit logging (3.12)
-18. ✅ Implement API versioning (3.11)
+13. ✅ Chat widget improvements (1.7) — character count, 30s edit window, delete confirm, offline/guest flows, loading for history/encryption (`ChatWidget.tsx`)
+14. ⬜ Mobile navigation overhaul (2.4) — **open:** `Header.tsx` has no mobile drawer / expanded nav; desktop-first bar only
+15. ⚠️ Search functionality for long pages (1.8) — **partial:** sticky TOC + section search on `DPIA.tsx` via `TableOfContents.tsx`; still **to do:** wire the same pattern into `TermsOfService.tsx` and `SecurityAndPrivacyPolicy.tsx`
+16. ✅ Standardize loading states (2.3) — shared `LoadingSpinner` / `SkeletonLoader`; chat/wallet/forms use spinners and explicit loading flags
+17. ✅ Add audit logging (3.12) — `security-audit.ts` + `SecurityAuditLog` / RAG audit (`apps/api/schema.prisma`, wallet-auth integration)
+18. ⬜ Implement API versioning (3.11) — **open:** no first-class `/api/v1` routing; plan before breaking public contracts
 
 ---
 
@@ -663,6 +665,6 @@ This document began as a **UX, UI, and security** repository review (`REVIEW_UX_
 ---
 
 **Document lineage:** Restored from `REVIEW_UX_UI_SECURITY.md` (deleted in commit `a45b56c14`).  
-**Last updated:** April 2026 (appendix: launch readiness).  
+**Last updated:** April 12, 2026 — Priority Action Items cross-checked against codebase; status key added; repo-check note aligned with root `npm test` → `vitest run`.  
 **Next review:** Quarterly or before major public launch / audit.
 

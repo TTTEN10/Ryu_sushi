@@ -1,6 +1,6 @@
 import logger from './logger';
 import axios, { AxiosInstance } from 'axios';
-import { DR_SAFE_SYSTEM_PROMPT } from './dr-safe-system-prompt';
+import { resolveDrSafeSystemPrompt } from './dr-safe-system-prompt';
 import { registerUpstreamUrls, isUpstreamHealthy } from './llm-upstream-health';
 
 /**
@@ -230,7 +230,7 @@ class AIGatewayService {
     if (!hasSystemMessage) {
       cleanMessages.unshift({
         role: 'system',
-        content: DR_SAFE_SYSTEM_PROMPT,
+        content: resolveDrSafeSystemPrompt(request.mode),
       });
     }
     return cleanMessages;
@@ -513,21 +513,8 @@ class AIGatewayService {
     }
 
     try {
-      // Prepare messages for Scaleway - ONLY send role and content (no metadata)
-      // Explicitly sanitize to prevent metadata leakage (no userId, sessionId, timestamps, wallet addresses, DID, IP)
-      const scalewayMessages = request.messages.map((msg) => ({
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content, // Only message content, no identifiers
-      }));
-
-      // Add system message if not present
-      const hasSystemMessage = scalewayMessages.some((msg) => msg.role === 'system');
-      if (!hasSystemMessage) {
-        scalewayMessages.unshift({
-          role: 'system',
-          content: DR_SAFE_SYSTEM_PROMPT,
-        });
-      }
+      // Same system prompt + guest-mode handling as self-hosted path (single code path).
+      const scalewayMessages = this.buildSanitizedMessages(request);
 
       // Create Scaleway API request - ONLY send model, messages, temperature, max_tokens
       // DO NOT send: userId, sessionId, wallet addresses, DID, IP addresses, or any other metadata
@@ -771,21 +758,7 @@ class AIGatewayService {
     }
 
     try {
-      // Prepare messages for Scaleway - ONLY send role and content (no metadata)
-      // Explicitly sanitize to prevent metadata leakage (no userId, sessionId, timestamps, wallet addresses, DID, IP)
-      const scalewayMessages = request.messages.map((msg) => ({
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content, // Only message content, no identifiers
-      }));
-
-      // Add system message if not present
-      const hasSystemMessage = scalewayMessages.some((msg) => msg.role === 'system');
-      if (!hasSystemMessage) {
-        scalewayMessages.unshift({
-          role: 'system',
-          content: DR_SAFE_SYSTEM_PROMPT,
-        });
-      }
+      const scalewayMessages = this.buildSanitizedMessages(request);
 
       // Call Scaleway API - ONLY send model, messages, temperature, max_tokens
       // DO NOT send: userId, sessionId, wallet addresses, DID, IP addresses, or any other metadata

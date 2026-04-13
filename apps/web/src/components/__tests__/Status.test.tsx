@@ -260,10 +260,11 @@ describe('Status Component', () => {
 
     // Fast-forward more time - should not auto-refresh
     const callCountBefore = mockFetch.mock.calls.length
-    vi.advanceTimersByTime(30000)
-
-    // Give it a moment, then verify no new calls were made
-    vi.advanceTimersByTime(100)
+    await act(async () => {
+      vi.advanceTimersByTime(30000)
+      // Give it a moment, then verify no new calls were made
+      vi.advanceTimersByTime(100)
+    })
     expect(mockFetch.mock.calls.length).toBe(callCountBefore)
 
     // Manual refresh should still work

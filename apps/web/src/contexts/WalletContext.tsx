@@ -1,13 +1,19 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { EthereumProvider } from '@walletconnect/ethereum-provider';
 import {
   SUPPORTED_CHAIN_ID,
   SUPPORTED_CHAIN_ID_HEX,
 } from '../config/supportedChain';
 
-// Type for EthereumProvider instance
-type EthereumProviderType = Awaited<ReturnType<typeof EthereumProvider.init>>;
+type WalletConnectProvider = {
+  accounts: string[];
+  chainId: number;
+  session?: unknown;
+  request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  on: (event: string, cb: (...args: any[]) => void) => void;
+};
 
 interface WalletInfo {
   address: string;
@@ -17,7 +23,7 @@ interface WalletInfo {
 
 interface WalletContextType {
   wallet: WalletInfo | null;
-  provider: ethers.BrowserProvider | EthereumProviderType | null;
+  provider: ethers.BrowserProvider | null;
   signer: ethers.JsonRpcSigner | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
@@ -54,11 +60,19 @@ const SEPOLIA_CHAIN_PARAMS = {
 
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
-  const [provider, setProvider] = useState<ethers.BrowserProvider | EthereumProviderType | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [walletConnectProvider, setWalletConnectProvider] = useState<EthereumProviderType | null>(null);
+  const [walletConnectProvider, setWalletConnectProvider] = useState<WalletConnectProvider | null>(null);
+
+  const clearWalletState = useCallback(() => {
+    setWallet(null);
+    setProvider(null);
+    setSigner(null);
+    localStorage.removeItem('wallet_verification_message');
+    localStorage.removeItem('wallet_verification_nonce');
+  }, []);
 
   // Initialize WalletConnect provider (lazy initialization - will be created on connect if needed)
   // This effect only sets up the provider if it's already connected from a previous session
@@ -70,6 +84,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       }
 
       try {
+        const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
         // Only initialize if we want to check for existing sessions
         // The provider will be created on-demand when user clicks connect
         const provider = await EthereumProvider.init({
@@ -108,7 +123,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           if (numericChainId !== SUPPORTED_CHAIN_ID) {
             console.warn('Unsupported chain detected. Disconnecting wallet.');
             setError('Please switch to Sepolia Testnet to use SafePsy.');
-            disconnectWallet();
+            try {
+              provider.disconnect();
+            } finally {
+              clearWalletState();
+            }
           } else {
             setWallet((prev) => prev ? { ...prev, chainId: numericChainId } : null);
           }
@@ -127,7 +146,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           }
         });
 
-        setWalletConnectProvider(provider);
+        setWalletConnectProvider(provider as unknown as WalletConnectProvider);
       } catch (err) {
         console.error('WalletConnect initialization error:', err);
       }
@@ -182,7 +201,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           
           if (accounts.length > 0) {
             // Create ethers provider from WalletConnect
-            const ethersProvider = new ethers.BrowserProvider(walletConnectProvider);
+          const ethersProvider = new ethers.BrowserProvider(walletConnectProvider);
             const signer = await ethersProvider.getSigner();
             setProvider(ethersProvider);
             setSigner(signer);
@@ -247,55 +266,72 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       // Prioritize WalletConnect if Project ID is configured
       if (WALLETCONNECT_PROJECT_ID) {
+        const ensureWalletConnectProvider = async (): Promise<WalletConnectProvider | null> => {
+          if (walletConnectProvider) return walletConnectProvider;
+          try {
+            const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
+            const wc = (await EthereumProvider.init({
+              projectId: WALLETCONNECT_PROJECT_ID,
+              chains: [SUPPORTED_CHAIN_ID],
+              optionalChains: [],
+              showQrModal: true,
+              metadata: {
+                name: 'SafePsy',
+                description: 'Safe Online-Therapy Platform',
+                url: window.location.origin,
+                icons: [`${window.location.origin}/LogoTransparent1.png`],
+              },
+            })) as unknown as WalletConnectProvider;
+
+            wc.on('disconnect', () => {
+              console.log('WalletConnect disconnected');
+              setWallet(null);
+              setProvider(null);
+              setSigner(null);
+            });
+
+            wc.on('chainChanged', (chainId: number | string) => {
+              const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 16) : chainId;
+              console.log('Chain changed:', numericChainId);
+              if (numericChainId !== SUPPORTED_CHAIN_ID) {
+                console.warn('Unsupported chain detected. Disconnecting wallet.');
+                setError('Please switch to Sepolia Testnet to use SafePsy.');
+                try {
+                  wc.disconnect();
+                } finally {
+                  clearWalletState();
+                }
+              } else {
+                setWallet((prev) => (prev ? { ...prev, chainId: numericChainId } : null));
+              }
+            });
+
+            wc.on('accountsChanged', (accounts: string[]) => {
+              console.log('Accounts changed:', accounts);
+              if (accounts.length > 0) {
+                setWallet((prev) => (prev ? { ...prev, address: accounts[0] } : null));
+              } else {
+                setWallet(null);
+                setProvider(null);
+                setSigner(null);
+                localStorage.removeItem('wallet_verification_message');
+                localStorage.removeItem('wallet_verification_nonce');
+              }
+            });
+
+            setWalletConnectProvider(wc);
+            return wc;
+          } catch (e) {
+            console.error('WalletConnect initialization error:', e);
+            return null;
+          }
+        };
+
         // Use existing provider or wait for it to be initialized
-        const providerToUse = walletConnectProvider;
+        const providerToUse = await ensureWalletConnectProvider();
         
         if (!providerToUse) {
-          // Provider not yet initialized, wait a bit and try again
-          // This handles the case where useEffect is still initializing
-          await new Promise(resolve => setTimeout(resolve, 100));
-          const providerAfterWait = walletConnectProvider;
-          if (providerAfterWait) {
-            // Provider initialized, use it
-            try {
-              await (providerAfterWait as EthereumProviderType).connect();
-              const accounts = (providerAfterWait as EthereumProviderType).accounts;
-              const chainId = (providerAfterWait as EthereumProviderType).chainId;
-
-              // Validate chain ID
-              if (chainId !== SUPPORTED_CHAIN_ID) {
-                throw new Error('Please switch to Sepolia Testnet to use SafePsy. Unsupported network detected.');
-              }
-
-              if (accounts.length > 0) {
-                const ethersProvider = new ethers.BrowserProvider(providerAfterWait);
-                const signer = await ethersProvider.getSigner();
-
-                setProvider(ethersProvider);
-                setSigner(signer);
-                setWallet({
-                  address: accounts[0],
-                  chainId,
-                  isConnected: true,
-                });
-
-                // Request verification message from API
-                await requestVerificationMessage(accounts[0], chainId);
-                return;
-              }
-            } catch (wcError: any) {
-              // If user cancels WalletConnect, try MetaMask
-              if (wcError.message?.includes('User rejected') || wcError.code === 5001 || wcError.code === 'USER_REJECTED') {
-                console.log('WalletConnect cancelled, trying MetaMask...');
-              } else {
-                console.error('WalletConnect error:', wcError);
-                // Continue to MetaMask fallback
-              }
-            }
-          } else {
-            console.warn('WalletConnect provider not initialized yet');
-            // Fall through to MetaMask
-          }
+          // Fall through to MetaMask
         } else {
           // Provider already initialized, try to connect
           try {
@@ -400,7 +436,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [walletConnectProvider]);
+  }, [walletConnectProvider, clearWalletState]);
 
   const requestVerificationMessage = async (address: string, chainId: number) => {
     try {
@@ -429,13 +465,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (walletConnectProvider && walletConnectProvider.session) {
       walletConnectProvider.disconnect();
     }
-    setWallet(null);
-    setProvider(null);
-    setSigner(null);
+    clearWalletState();
     setError(null);
-    localStorage.removeItem('wallet_verification_message');
-    localStorage.removeItem('wallet_verification_nonce');
-  }, [walletConnectProvider]);
+  }, [walletConnectProvider, clearWalletState]);
 
   const signMessage = useCallback(async (message: string): Promise<string> => {
     if (!signer) {

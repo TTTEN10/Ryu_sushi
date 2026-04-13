@@ -1,10 +1,25 @@
 import { Router, Response } from 'express';
+import Joi from 'joi';
+import { ethers } from 'ethers';
 import logger from '../lib/logger';
 import { authenticateWallet, AuthenticatedRequest } from '../middleware/auth';
+import { validate } from '../middleware/validation';
 import { DIDService } from '../lib/did.service';
 import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 
 const router = Router();
+
+/**
+ * Prepare calldata for DIDIdentityToken.updateChatReference (client signs & broadcasts).
+ * Requires DID_IDENTITY_TOKEN_ADDRESS — the legacy token that exposes profile + updateChatReference.
+ */
+const didUpdatePrepareSchema = Joi.object({
+  chatReference: Joi.string().min(1).max(4096).required(),
+  encryptedKeyMetadataHex: Joi.string()
+    .pattern(/^0x([0-9a-fA-F]{2})*$/)
+    .optional()
+    .default('0x'),
+});
 
 /**
  * POST /api/did/check
@@ -293,6 +308,106 @@ router.post(
       });
     } catch (error: any) {
       logger.error('DID revoke error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/did/update
+ * Option A (backend-driven prepare): verifies JWT + DID ownership, returns unsigned tx calldata.
+ * The mobile/web client must sign and send the transaction (same trust model as direct contract calls).
+ */
+router.post(
+  '/update',
+  authenticateWallet,
+  validate(didUpdatePrepareSchema, 'body'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
+        return res.status(400).json({
+          success: false,
+          message: 'Only Sepolia Testnet is supported',
+          error: 'UNSUPPORTED_CHAIN',
+        });
+      }
+
+      const didService = DIDService.getInstance();
+      if (!didService) {
+        return res.status(503).json({
+          success: false,
+          message: 'DID service not configured',
+          error: 'SERVICE_UNAVAILABLE',
+        });
+      }
+
+      const walletAddress = req.wallet.walletAddress.toLowerCase();
+      const has = await didService.hasDid(walletAddress);
+      if (!has) {
+        return res.status(404).json({
+          success: false,
+          message: 'No DID for this wallet',
+          error: 'DID_NOT_FOUND',
+        });
+      }
+
+      const writeContractAddress = process.env.DID_IDENTITY_TOKEN_ADDRESS?.trim();
+      if (!writeContractAddress) {
+        return res.status(503).json({
+          success: false,
+          message:
+            'On-chain chat reference updates require DID_IDENTITY_TOKEN_ADDRESS (identity token with updateChatReference).',
+          error: 'DID_WRITE_CONTRACT_UNAVAILABLE',
+        });
+      }
+
+      const { chatReference, encryptedKeyMetadataHex } = req.body as {
+        chatReference: string;
+        encryptedKeyMetadataHex: string;
+      };
+
+      let metadataBytes: Uint8Array;
+      try {
+        metadataBytes =
+          encryptedKeyMetadataHex === '0x'
+            ? new Uint8Array(0)
+            : ethers.getBytes(encryptedKeyMetadataHex);
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid encryptedKeyMetadataHex',
+          error: 'INVALID_METADATA_HEX',
+        });
+      }
+
+      const iface = new ethers.Interface([
+        'function updateChatReference(string calldata newRef, bytes calldata newEncryptedKeyMetadata) external',
+      ]);
+      const data = iface.encodeFunctionData('updateChatReference', [chatReference, metadataBytes]);
+
+      logger.info(`Prepared DID updateChatReference calldata for wallet ${walletAddress.slice(0, 10)}…`);
+
+      res.json({
+        success: true,
+        data: {
+          to: writeContractAddress,
+          data,
+          chainId: SUPPORTED_CHAIN_ID,
+          value: '0x0',
+        },
+      });
+    } catch (error: any) {
+      logger.error('DID /update prepare error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',

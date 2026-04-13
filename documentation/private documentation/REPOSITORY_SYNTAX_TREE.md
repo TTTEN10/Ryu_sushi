@@ -8,7 +8,7 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 
 ```
 ./
-├── package.json                    # Monorepo root: workspaces (`apps/*`), scripts (dev/build/test/lint/db; `test`/`test:web`/`test:api` → `vitest run` for CI-clean exits), engines — JSON
+├── package.json                    # Monorepo root: workspaces (`apps/*`), scripts (dev/build/test/lint/db; `dev:mobile` → Expo `safepsy-mobile`; `mobile:eas:build:ios` / `mobile:eas:submit:ios` → EAS TestFlight; `test`/`test:web`/`test:api` → `vitest run` for CI-clean exits), engines — JSON
 ├── package-lock.json               # npm lockfile — JSON
 ├── env.example                     # Root env template — Text
 ├── .dockerignore                   # Docker build ignore rules — Text
@@ -117,12 +117,12 @@ apps/api/
 │   ├── shims-jsdom.d.ts      # Ambient `jsdom` declaration for typecheck — TypeScript
 │   │
 │   ├── routes/
-│   │   ├── auth.ts           # Auth routes: login, register, session, logout — TypeScript
+│   │   ├── auth.ts           # Auth routes: wallet connect/verify, GET /api/auth/session & /me, logout — TypeScript
 │   │   ├── beta-chat.ts      # Legacy POST /beta/chat forward + OpenAI POST /beta/chat/completions — TypeScript
 │   │   ├── chat-completions.ts # Shared mount for OpenAI-style completions (used by chat + beta) — TypeScript
 │   │   ├── chat.ts           # Chat: completions, upstream-status, history, streaming — TypeScript
 │   │   ├── contact.ts        # Contact form submit — TypeScript
-│   │   ├── did.ts            # DID: register, metadata, services, verify — TypeScript
+│   │   ├── did.ts            # DID: register, metadata, services, verify; POST /api/did/update (auth, prepares updateChatReference calldata) — TypeScript
 │   │   ├── payment.ts        # Payment & pricing — TypeScript
 │   │   ├── rag.ts            # RAG: ingest, query, document delete, health — TypeScript
 │   │   ├── subscribe.ts      # Email subscription — TypeScript
@@ -147,6 +147,7 @@ apps/api/
 │   ├── lib/
 │   │   ├── ai-gateway.service.ts    # AI gateway (LLM/completions) — TypeScript
 │   │   ├── chat-rag-context.ts      # RAG enhancement for chat completions — TypeScript
+│   │   ├── dr-safe-system-prompt.ts # Dr.Safe system prompt (response rules, soft exit, turn 2–3 retention, guest append) — TypeScript
 │   │   ├── llm-upstream-health.ts   # Periodic /health probes for self-hosted LLM bases — TypeScript
 │   │   ├── api-helpers.ts           # Shared API helpers — TypeScript
 │   │   ├── config.ts                # Config & secret manager init — TypeScript
@@ -233,8 +234,9 @@ apps/web/
 ├── tailwind.config.ts        # Tailwind config — TypeScript
 ├── postcss.config.cjs        # PostCSS config — JavaScript
 ├── .eslintrc.cjs             # ESLint config — JavaScript
-├── public/                   # Static assets (favicon, sitemap, robots, marketing imagery) — mixed
-│
+├── public/                   # Static assets (favicon, sitemap, robots, marketing imagery); `.well-known/apple-app-site-association` + README for iOS Universal Links — mixed
+├── scripts/
+│   └── validate-aasa.mjs     # CLI: fetch AASA, check status/JSON/redirects — JavaScript (ESM)
 ├── src/
 │   ├── main.tsx              # React entry, root render — TypeScript (TSX)
 │   ├── App.tsx               # Router, routes, Theme/Wallet/Auth providers, SEO — TypeScript (TSX)
@@ -332,6 +334,59 @@ apps/web/
 
 ---
 
+## apps/safepsy-mobile
+
+```
+apps/safepsy-mobile/
+├── package.json              # Expo client: WC, ethers, quick-crypto, worklets, Gifted Chat, navigation, SecureStore, AsyncStorage, Sentry; EAS scripts — JSON
+├── eas.json                  # EAS Build (dev internal, preview, production store); production `env` pins API + Universal + APP_DOMAIN — JSON
+├── app.json                  # Expo: display name SafePsy, scheme `safepsy://`, iOS bundleId + applinks + ITSAppUsesNonExemptEncryption, plugins — JSON
+├── babel.config.js           # babel-preset-expo + Reanimated plugin — JavaScript
+├── env.example               # EXPO_PUBLIC_*, TestFlight/EAS notes — Text
+├── App.tsx                   # validateProductionEnvironment, Sentry init, QueryClient, WalletConnectProvider, hydrate + restoreSession, AppState resume — TypeScript (TSX)
+├── index.ts                  # url-polyfill, WC compat, quick-crypto install, RNGH, registerRootComponent — TypeScript
+├── tsconfig.json             # TypeScript (strict, skipLibCheck) — JSON
+├── assets/                   # Expo icon/splash/favicon — PNG
+└── src/
+    ├── config/
+    │   ├── constants.ts      # Sepolia chain id / hex / addChain params — TypeScript
+    │   ├── domains.ts        # UNIVERSAL_LINK_ORIGINS (sync with app.json applinks) — TypeScript
+    │   ├── env.ts            # API_BASE_URL, UNIVERSAL_LINK_BASE, APP_DOMAIN_LOCK, WC project id — TypeScript
+    │   └── productionEnv.ts  # validateProductionEnvironment(): release throws FATAL on domain/WC env mismatch — TypeScript
+    ├── contexts/
+    │   └── WalletConnectContext.tsx # WC provider: auth phases, timeouts, account-change crypto reset, disconnect — TypeScript (TSX)
+    ├── lib/
+    │   ├── cryptoHelpers.ts  # BufferSource helper for WebCrypto — TypeScript
+    │   └── didEncryption.ts  # AES-GCM chat + wallet-wrapped DEK (parity with web did-encryption) — TypeScript
+    ├── navigation/
+    │   ├── types.ts          # Native stack param list — TypeScript
+    │   ├── linking.ts        # Deep link / Universal Link prefixes (safepsy:// + https hosts) — TypeScript
+    │   └── RootNavigator.tsx # NavigationContainer + linking + stack — TypeScript (TSX)
+    ├── screens/
+    │   ├── HomeScreen.tsx              # Hub, API + session hints — TypeScript (TSX)
+    │   ├── SafetyDisclaimerScreen.tsx  # Crisis / non-clinical + privacy policy link — TypeScript (TSX)
+    │   ├── ChatScreen.tsx              # Guest + wallet chat, SSE phases, encrypted save/load + DID after save — TypeScript (TSX)
+    │   └── WalletAuthScreen.tsx        # WalletConnect + /api/auth/wallet/* + SecureStore JWT — TypeScript (TSX)
+    ├── services/
+    │   ├── api.ts            # Axios + Bearer + retry/backoff — TypeScript
+    │   ├── chatHistoryService.ts # DEK in SecureStore; GET/POST /api/chat/load|save; optional DID trigger after save — TypeScript
+    │   ├── chatSessionLifecycle.ts # Reset symmetric key + DEK + AsyncStorage on wallet change / logout — TypeScript
+    │   ├── chatStream.ts     # POST /api/chat/completions SSE + retries + delta buffering + stream phases — TypeScript
+    │   ├── didService.ts     # POST /api/did/update then wallet sendTransaction (chat reference) — TypeScript
+    │   ├── secureToken.ts    # SecureStore: JWT + wrapped DEK per wallet — TypeScript
+    │   ├── walletApi.ts      # fetch helpers: wallet connect/verify, /me, logout — TypeScript
+    │   └── walletService.ts  # Sepolia switch, sign-in orchestration — TypeScript
+    ├── instrumentation/
+    │   ├── sentry.ts         # initSentry (release from expo-constants), captureException / monitoring — TypeScript
+    │   └── activation.ts     # trackActivation funnel (Sentry breadcrumbs + messages) — TypeScript
+    ├── store/
+    │   └── authStore.ts      # Zustand: token, session fields, hydrate, restoreSession — TypeScript
+    └── types/
+        └── walletconnect.ts  # WcEthereumProvider type alias — TypeScript
+```
+
+---
+
 ## apps/ai-chatbot
 
 ```
@@ -424,7 +479,6 @@ deploy/
 ```
 deployment/
 ├── deploy.sh                          # Terraform + chatbot compose (dedicated host, or colocated on app if SSH to chatbot fails) + deploy-app.sh — Shell
-├── deploy-safepsy.sh                  # Entry: full deploy.sh if TF credentials exist, else deploy-app.sh with prod split-host defaults — Shell
 ├── deploy-app.sh                      # Application deploy (Caddy + SPA + Python proxy) — Shell
 ├── deploy-instance-aware-roadmap.sh   # Legacy instance-aware deploy (restored; replaced by deploy.sh in commit 08de24c6e) — Shell
 ├── deploy-issue.md                    # Known deploy blockers + Scaleway / SSH checklist — Markdown
@@ -564,6 +618,8 @@ documentation/
     ├── GOVERNANCE.md
     ├── INCIDENT_ESCALATION_AND_COMMS.md
     ├── LAUNCH.md
+    ├── MOBILE_LAUNCH_STRESS_TEST.md  # Pre-ship device checklist (WC, DID, deep links, compliance) — Markdown
+    ├── PRODUCTION_ENV_LOCK.md        # API + Universal Link + AASA same-domain matrix; EAS secrets — Markdown
     ├── CHATBOT_TECHNICAL.md   # How chatbot + API gateway + vLLM compose work (internal)
     ├── CONTRACTS_SCRIPTS_TSC.md  # Why tsc reports errors under apps/api/src/contracts/scripts — Markdown
     ├── TYPESCRIPT_ISSUES_REPORT.md  # Snapshot of remaining TS diagnostics (esp. apps/web) — Markdown

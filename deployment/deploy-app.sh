@@ -434,7 +434,7 @@ EOF
 services:
   frontend:
     build: ./frontend
-    restart: always
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -444,7 +444,7 @@ services:
     build: ./backend
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    restart: always
+    restart: unless-stopped
     environment:
       - MODEL_API_URL=${MODEL_API_URL_FOR_COMPOSE}
       - MODEL_API_URL_ALT=${MODEL_API_URL_ALT_FOR_COMPOSE:-}
@@ -455,7 +455,7 @@ services:
 
   caddy:
     image: caddy:latest
-    restart: always
+    restart: unless-stopped
     ports:
       - \"80:80\"
       - \"443:443\"
