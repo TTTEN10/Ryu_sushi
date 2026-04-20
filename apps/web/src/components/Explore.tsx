@@ -10,7 +10,7 @@ const Explore: React.FC = () => {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showBackButton={true} />
+      <Header />
 
       {/* Main Content */}
       <main id="main-content" className="flex-1" role="main" aria-label="About SafePsy" tabIndex={-1}>
@@ -42,7 +42,7 @@ const Explore: React.FC = () => {
                 </p>
                 <p className="text-body leading-relaxed">
                   <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent font-bold text-xl sm:text-2xl lg:text-3xl">
-                    Ethical AI assistance. Blockchain-secured identity. End-to-end encrypted.
+                    Ethical AI assistance. Blockchain-secured identity. Encrypted at rest with user-controlled keys.
                   </span>
                 </p>
                 <p className="text-body leading-relaxed pt-2 font-medium text-heading">
@@ -69,7 +69,7 @@ const Explore: React.FC = () => {
                 </div>
                 <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-secondary-600">Ethical</h3>
                 <p className="text-body">
-                  In adequacy with APA guidelines and psychologists deontology, we uphold the highest standards of professional ethics in mental health online services.
+                  We aim to operate in line with professional ethics and guidelines for psychological services. The AI assistant is not a substitute for professional care and does not provide medical advice, diagnosis, or treatment.
                 </p>
               </div>
 
@@ -92,7 +92,7 @@ const Explore: React.FC = () => {
                 </span>
               </h2>
               <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-8 sm:mb-12 px-4">
-                SafePsy integrates artificial intelligence, blockchain, and secure digital identity to transform the way therapy and mental health support are delivered worldwide. Users control their own data through decentralized identity, verified directly on the blockchain, ensuring privacy and compliance at every step. An AI-powered therapy assistant provides immediate support, helping users prepare for sessions, reflect between appointments, and access guidance in moments of need.
+                SafePsy integrates AI, blockchain, and secure digital identity to support mental wellness and therapy-adjacent use cases worldwide. Users control their data through decentralized identity and wallet-derived encryption keys. To generate AI responses, message content is processed by a third-party AI provider and decrypted temporarily in server memory during the request; plaintext is not written to disk, logs, or the database.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -102,7 +102,7 @@ const Explore: React.FC = () => {
                   </div>
                   <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">AI-Powered</h3>
                   <p className="text-body">
-                    Our AI assistant don't use your data for training, it evolves through psychology-informed training. It helps users prepare, reflect, and complement human psychologists.
+                    We do not use your chat content to train our models. The assistant supports reflection and session preparation, and is designed to complement (not replace) licensed care.
                   </p>
                 </div>
 
@@ -144,7 +144,7 @@ const Explore: React.FC = () => {
                 Ready to Experience the Future of Mental Health Care?
               </h2>
               <p className="text-base sm:text-lg text-body mb-6 sm:mb-8 max-w-2xl mx-auto stagger-item">
-                Join our waitlist to be among the first to experience safe online-therapy.
+                Join our waitlist to be among the first to experience privacy-first mental wellness support.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center stagger-item">
                 <button

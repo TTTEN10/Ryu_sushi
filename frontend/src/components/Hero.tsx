@@ -13,13 +13,12 @@ const Hero: React.FC = () => {
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
                 Revolutionizing{' '}
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                  Online Therapy
+                  Mental Wellness Support
                 </span>{' '}
                 with Privacy-First Technology
               </h1>
               <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
-                SafePsy offers a secure, AI-powered platform for online counseling, 
-                powered by blockchain and digital identity.
+                SafePsy offers a secure, AI-assisted space for reflection and between-session support, powered by wallet-based identity and encrypted storage.
               </p>
             </div>
             
@@ -67,7 +66,7 @@ const Hero: React.FC = () => {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900">Secure</h3>
                 <p className="text-gray-600">
-                  End-to-end encryption and blockchain technology ensure your privacy and data security.
+                  Chat and summary data are encrypted at rest using AES-256-GCM (only ciphertext is stored). Keys are derived from your wallet and not stored on our servers. To generate AI responses, content is decrypted temporarily in server memory during the request (not strict end-to-end encryption).
                 </p>
               </div>
               

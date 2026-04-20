@@ -1,6 +1,8 @@
 """
-AI Chatbot Service - vLLM-based OpenAI-compatible API
-Default GPU model: dphn/Dolphin-Mistral-24B-Venice-Edition (set VLLM_TOKENIZER_MODE=mistral).
+AI Chatbot Service - OpenAI-compatible chat completions API
+
+Default deployment is lightweight CPU (Hugging Face) or "proxy" (forward to an external OpenAI-compatible upstream).
+GPU/vLLM is optional and must be explicitly enabled via USE_GPU=true.
 """
 import asyncio
 import os
@@ -45,7 +47,7 @@ app_state = {
 
 # Environment variables
 PORT = int(os.getenv("PORT", "8000"))
-MODEL_NAME = os.getenv("MODEL_NAME", "dphn/Dolphin-Mistral-24B-Venice-Edition")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
 MODEL_REVISION = os.getenv("MODEL_REVISION", "main")
 MAX_MODEL_LEN = int(os.getenv("MAX_MODEL_LEN", "8192"))
 GPU_MEMORY_UTILIZATION = float(os.getenv("GPU_MEMORY_UTILIZATION", "0.9")) if os.getenv("GPU_MEMORY_UTILIZATION") else None

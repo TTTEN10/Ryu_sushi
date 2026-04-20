@@ -30,6 +30,8 @@ APP_HOST="${APP_HOST:-51.159.149.66}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
+# When 1, deploy must NOT fail if chatbot is down; landing page must still go live.
+ALLOW_DEGRADED_CHATBOT="${ALLOW_DEGRADED_CHATBOT:-0}"
 OUTBOUND_IP=""
 DEPLOY_DIAGNOSE=0
 for _arg in "$@"; do
@@ -505,30 +507,43 @@ if [[ "${CHATBOT_SSH_RC}" -ne 0 ]]; then
 fi
 
 if [[ "${COLOCATE_CHATBOT_ON_APP}" -eq 1 ]]; then
-  sync_and_compose_chatbot_on "${APP_HOST}"
-  wait_chatbot_http_ok_ssh "${APP_HOST}" 36 5
-  wait_chatbot_model_ready_optional_ssh "${APP_HOST}" 24 5 || true
+  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+    warn "ALLOW_DEGRADED_CHATBOT=1 — skipping chatbot deployment/health on app host; continuing with app deploy."
+    log_event "chatbot_skipped_degraded" "{\"mode\":\"colocate\",\"host\":\"${APP_HOST}\"}"
+  else
+    sync_and_compose_chatbot_on "${APP_HOST}"
+    wait_chatbot_http_ok_ssh "${APP_HOST}" 36 5
+    wait_chatbot_model_ready_optional_ssh "${APP_HOST}" 24 5 || true
+  fi
 else
   log "STEP 3 — Dedicated chatbot on ${CHATBOT_HOST}"
-  sync_and_compose_chatbot_on "${CHATBOT_HOST}"
-  log "STEP 4 — Verify chatbot /health (public or on-host)"
-  ok=0
-  for _i in 1 2 3 4 5 6 7 8 9 10; do
-    if curl -fsS --max-time 5 "http://${CHATBOT_HOST}:8000/health" >/dev/null 2>&1; then
-      ok=1
-      break
-    fi
-    if ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "curl -fsS --max-time 5 http://127.0.0.1:8000/health" >/dev/null 2>&1; then
-      ok=1
-      break
-    fi
-    sleep 3
-  done
-  [[ "${ok}" -eq 1 ]] || die "Chatbot health check failed on ${CHATBOT_HOST}"
-  log_event "dedicated_chatbot_health_ok" "{\"host\":\"${CHATBOT_HOST}\"}"
-  wait_chatbot_model_ready_optional "http://${CHATBOT_HOST}:8000/health" 24 5 || true
+  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+    warn "ALLOW_DEGRADED_CHATBOT=1 — skipping dedicated chatbot deploy/health; continuing with app deploy."
+    log_event "chatbot_skipped_degraded" "{\"mode\":\"dedicated\",\"host\":\"${CHATBOT_HOST}\"}"
+  else
+    sync_and_compose_chatbot_on "${CHATBOT_HOST}"
+    log "STEP 4 — Verify chatbot /health (public or on-host)"
+    ok=0
+    for _i in 1 2 3 4 5 6 7 8 9 10; do
+      if curl -fsS --max-time 5 "http://${CHATBOT_HOST}:8000/health" >/dev/null 2>&1; then
+        ok=1
+        break
+      fi
+      if ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "curl -fsS --max-time 5 http://127.0.0.1:8000/health" >/dev/null 2>&1; then
+        ok=1
+        break
+      fi
+      sleep 3
+    done
+    [[ "${ok}" -eq 1 ]] || die "Chatbot health check failed on ${CHATBOT_HOST}"
+    log_event "dedicated_chatbot_health_ok" "{\"host\":\"${CHATBOT_HOST}\"}"
+    wait_chatbot_model_ready_optional "http://${CHATBOT_HOST}:8000/health" 24 5 || true
+  fi
 
-  if ! check_app_to_chatbot "${CHATBOT_HOST}"; then
+  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+    warn "ALLOW_DEGRADED_CHATBOT=1 — skipping app→chatbot routing check."
+    log_event "intervm_probe_skipped_degraded" "{\"from\":\"app\",\"to\":\"${CHATBOT_HOST}\",\"port\":8000}"
+  elif ! check_app_to_chatbot "${CHATBOT_HOST}"; then
     if [[ "${FORCE_COLOCATE_ON_ROUTING_FAIL:-0}" == "1" ]]; then
       warn "Inter-VM routing failed → forcing colocated mode on ${APP_HOST}"
       log_event "fallback_colocate_intervm" "{\"reason\":\"app_to_chatbot_http\"}"
@@ -559,6 +574,7 @@ else
   export MODEL_API_URL_FOR_COMPOSE="http://${CHATBOT_HOST}:8000"
   export MODEL_API_URL_ALT_FOR_COMPOSE="http://${CHATBOT_PRIVATE_IP}:8000"
 fi
+export ALLOW_DEGRADED_CHATBOT
 log_event "exec_deploy_app" "{\"SINGLE_HOST\":\"${SINGLE_HOST:-0}\",\"COLOCATE\":\"${COLOCATE_CHATBOT_ON_APP}\"}"
 export OUTBOUND_IP
 if ! "${SCRIPT_DIR}/deploy-app.sh" "$@"; then

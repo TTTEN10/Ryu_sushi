@@ -8,7 +8,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showBackButton={true} />
+      <Header />
 
       {/* Main Content */}
       <main id="main-content" className="flex-1" role="main" aria-label="Security and Privacy Policy" tabIndex={-1}>
@@ -217,7 +217,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                   </div>
                   <h3 className="text-xl text-heading text-center">Right to Erasure</h3>
                   <p className="text-body text-center">
-                    Complete data removal from all systems with cryptographic data deletion
+                    Deletion of your off-chain data (e.g. chat history, encrypted blobs) according to our process. On-chain DID lifecycle events are permanent on the blockchain and cannot be erased.
                   </p>
                 </div>
                 
@@ -554,7 +554,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                   <p className="text-body leading-relaxed">
                     SafePsy uses Decentralized Identity (DID) technology to give you complete control over your digital identity. 
                     Your DID is a unique identifier stored on the blockchain that you own and control through your cryptocurrency wallet. 
-                    Unlike traditional identity systems, your DID cannot be taken away, modified, or revoked by SafePsy or any third party.
+                    Unlike traditional identity systems, your DID is controlled by your wallet keys. Some lifecycle operations (e.g. revocation) are enforced by the smart contract rules and are recorded on-chain.
                   </p>
                 </div>
 
@@ -614,7 +614,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                         <Eye className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Revocation Rights</p>
-                          <p className="text-sm text-body">You can revoke your DID at any time, removing it from the registry</p>
+                          <p className="text-sm text-body">You can revoke your DID. Revocation is an on-chain lifecycle event and does not erase blockchain history.</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
@@ -647,7 +647,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
             <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
               <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                  AI-Powered Therapy Assistant
+                  AI assistant (mental wellness support)
                 </span>
               </h2>
               
@@ -655,7 +655,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                 <div className="space-y-4">
                   <h3 className="text-2xl text-heading mb-4">AI Service Overview</h3>
                   <p className="text-body leading-relaxed">
-                    SafePsy includes an AI-powered therapy assistant designed to complement human therapy sessions. Our AI assistant 
+                    SafePsy includes an AI assistant designed to complement human therapy sessions. Our AI assistant 
                     helps you prepare for sessions, reflect between appointments, and access guidance when needed. The AI is trained 
                     on psychology-informed principles and is designed to support, not replace, professional mental health care.
                   </p>
@@ -724,7 +724,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                         <FileText className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Third-Party AI Services</p>
-                          <p className="text-sm text-body">We use OpenAI API with strict data handling agreements</p>
+                          <p className="text-sm text-body">Chat content is processed by a third-party AI provider to generate responses. Their data handling and retention policies apply to the content they process.</p>
                         </div>
                       </div>
                     </div>
@@ -765,7 +765,7 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                     When you interact with our AI assistant, the following data is processed:
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-body text-sm ml-4">
-                    <li>Your conversation messages are sent to OpenAI API for processing</li>
+                    <li>Your conversation messages are sent to a third-party AI provider for processing</li>
                     <li>Conversation history is stored encrypted in our systems for continuity</li>
                     <li>Usage metrics (token counts, response times) are logged for service improvement</li>
                     <li>No personal identifiers are shared with AI service providers beyond what's necessary for the conversation</li>

@@ -25,7 +25,7 @@ const DPIA: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showBackButton={true} />
+      <Header />
 
       {/* Main Content */}
       <main id="main-content" className="flex-1" role="main" aria-label="Data Protection Impact Assessment" tabIndex={-1}>
@@ -82,9 +82,9 @@ const DPIA: React.FC = () => {
                       <ul className="space-y-2 text-sm sm:text-base text-body">
                         <li>• Processing of sensitive health data (mental health information)</li>
                         <li>• Decentralized identity management using blockchain technology</li>
-                        <li>• End-to-end encrypted communication and data storage</li>
+                        <li>• Client-side encryption for storage (encrypted at rest; not strict end-to-end encryption)</li>
                         <li>• Cross-border data transfers and international operations</li>
-                        <li>• Automated decision-making and AI-assisted therapy tools</li>
+                        <li>• AI-assisted mental wellness support features</li>
                       </ul>
                     </div>
                   </div>
@@ -619,10 +619,12 @@ const DPIA: React.FC = () => {
                     <div>
                       <h3 className="text-xl text-heading mb-3">Overview</h3>
                       <p className="text-body">
-                        SafePsy implements end-to-end encryption with client-side encryption before data transmission 
-                        and comprehensive encryption at rest. All sensitive health data is encrypted using AES-256-GCM 
-                        encryption, ensuring that data remains protected throughout its lifecycle - in transit, at rest, 
-                        and during processing.
+                        SafePsy uses client-side encryption for storage and comprehensive encryption at rest. Chat and
+                        summary data are encrypted at rest using AES-256-GCM and only ciphertext is stored. Data is
+                        transmitted over TLS. To provide AI replies, message content is decrypted temporarily in server
+                        memory during the request and sent to the AI provider to generate a response — so this is not
+                        strict end-to-end encryption in the sense that servers never see plaintext. Plaintext is not
+                        written to disk, logs, or the database.
                       </p>
                     </div>
                   </div>
@@ -1627,7 +1629,7 @@ const DPIA: React.FC = () => {
                         <h4 className="font-semibold text-heading mb-3">Article 25 - Data Protection by Design and by Default</h4>
                         <p className="text-sm text-body">Privacy integrated into system design from the outset:</p>
                         <ul className="mt-2 text-sm text-body space-y-1 ml-4 list-disc">
-                          <li>End-to-end encryption by default</li>
+                          <li>Encryption at rest by default (ciphertext stored; keys derived from user wallet)</li>
                           <li>Minimal data collection as default setting</li>
                           <li>User-controlled privacy settings</li>
                           <li>Privacy impact assessments for new features</li>
@@ -1663,7 +1665,7 @@ const DPIA: React.FC = () => {
                           <li>Confidentiality, integrity, and availability of systems</li>
                           <li>Regular testing and evaluation of security measures</li>
                           <li>Incident response and recovery procedures</li>
-                          <li>End-to-end encryption with client-side encryption before transmission</li>
+                          <li>Client-side encryption for storage; server-side temporary decryption in memory for AI responses</li>
                         </ul>
                       </div>
                       <div className="bg-white dark:bg-gray-800 rounded-lg p-5 border border-orange-100 dark:border-orange-900">

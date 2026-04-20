@@ -106,6 +106,23 @@ npm run security:update
 - [ ] Rate limiting is enabled
 - [ ] Security headers are configured
 
+## CSRF stance (MVP)
+
+**Current state**: classic CSRF tokens are **not implemented**.
+
+**Why this is acceptable for the current MVP**:
+- **Browser cross-site requests include an `Origin` header**, and the API enforces a **strict CORS allowlist** for any request that includes `Origin`.
+- The wallet session cookie (`walletSession`) is set with **`httpOnly`**, **`secure` in production**, and **`sameSite: 'strict'`** (see `apps/api/src/routes/auth.ts`), reducing the surface for cross-site cookie use.
+
+**Operational note**: requests without an `Origin` header (server-to-server calls, health checks, `curl`, monitoring) are permitted because CORS is a browser control; these requests are not a CSRF vector.
+
+**When you must add CSRF tokens**:
+- If you add **new state-changing endpoints** meant to be called from browsers and authenticated **purely by cookies** beyond the current patterns, implement CSRF protection (e.g., double-submit cookie or a synchronizer token) and add a `/api/csrf-token` issuance endpoint.
+
+## `/api/testing/*` production exposure
+
+`/api/testing/*` endpoints are **explicitly disabled in production** in `apps/api/src/index.ts`. Use the production routes (e.g. `/api/auth/*`, `/api/did/*`) instead.
+
 ## Known Vulnerabilities
 
 ### Low Severity (Development Dependencies)

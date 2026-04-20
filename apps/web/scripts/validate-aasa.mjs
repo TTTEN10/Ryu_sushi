@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global process, console, URL */
 /**
  * Validates Universal Links AASA hosting requirements for production.
  *
@@ -22,7 +23,12 @@ if (!base) {
 const url = new URL('/.well-known/apple-app-site-association', base.replace(/\/$/, ''));
 
 async function main() {
-  const res = await fetch(url, { redirect: 'manual' });
+  if (typeof globalThis.fetch !== 'function') {
+    console.error('FAIL: fetch() is not available. Use Node 18+ (or provide a fetch polyfill).');
+    process.exit(1);
+  }
+
+  const res = await globalThis.fetch(url, { redirect: 'manual' });
   const loc = res.headers.get('location');
   if (res.status >= 300 && res.status < 400 && loc) {
     console.error(`FAIL: redirect (${res.status}) to ${loc} — Apple requires AASA without redirects.`);

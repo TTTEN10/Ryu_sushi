@@ -353,7 +353,7 @@ body { font-size: 1rem; } /* 16px minimum */
 - **CORS**: Properly configured
 - **Safety middleware**: Injection filters, PII redaction
 - **Wallet signature verification**: Server-side verification
-- **Encryption**: E2E encryption for chat
+- **Encryption**: Chat and summary data are encrypted at rest (AES-256-GCM; ciphertext-only storage) with user-controlled keys derived from the wallet. For AI responses, content is decrypted temporarily in server memory during the request (not strict end-to-end encryption).
 
 ### 🔴 Critical Security Issues
 

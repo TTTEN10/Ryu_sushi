@@ -9,7 +9,7 @@ const Maintenance: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showBackButton={false} />
+      <Header />
 
       {/* Main Content */}
       <main id="main-content" className="flex-1" role="main" aria-label="Site maintenance" tabIndex={-1}>
@@ -79,13 +79,13 @@ const Maintenance: React.FC = () => {
                   <div className="space-y-3">
                     <h4 className="text-lg font-semibold text-heading">AI Improvements</h4>
                     <p className="text-body">
-                      Enhancing our AI therapy assistant with new capabilities and more personalized support features.
+                      Enhancing our AI assistant with new capabilities and better reflection/support features (not medical advice).
                     </p>
                   </div>
                   <div className="space-y-3">
                     <h4 className="text-lg font-semibold text-heading">User Experience</h4>
                     <p className="text-body">
-                      Improving the interface and adding new features to make your therapy sessions more effective.
+                      Improving the interface and adding features to make reflection and between-session support smoother.
                     </p>
                   </div>
                   <div className="space-y-3">

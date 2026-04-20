@@ -1,32 +1,24 @@
-import { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import Explore from "./components/Explore";
-import SecurityAndPrivacyPolicy from "./components/SecurityAndPrivacyPolicy";
-import ContactUs from "./components/ContactUs";
-import NotFound from "./components/NotFound";
-import ServerError from "./components/ServerError";
-import Maintenance from "./components/Maintenance";
-import Cookies from "./components/Cookies";
-import CookieBanner from "./components/CookieBanner";
-import SEOHead from "./components/SEOHead";
-import DPIA from "./components/DPIA";
-import AboutMe from "./components/AboutMe";
-import TermsOfService from "./components/TermsOfService";
-import HiddenPage from "./components/HiddenPage";
-import Status from "./components/Status";
-import Landing from "./components/Landing";
-import FAQ from "./components/FAQ";
-import Support from "./components/Support";
-import Feedback from "./components/Feedback";
-import { useSEO } from "./hooks/useSEO";
-import { useCookieConsent } from "./hooks/useCookieConsent";
-import { useFocusManagement, useKeyboardNavigation } from "./hooks/useFocusManagement";
-import { ThemeProvider } from "./contexts/ThemeContext";
-import { WalletProvider } from "./contexts/WalletContext";
-import { AuthProvider } from "./contexts/AuthContext";
-
-const Testing = lazy(() => import("./components/Testing"));
+import Explore from './components/Explore'
+import SecurityAndPrivacyPolicy from './components/SecurityAndPrivacyPolicy'
+import ContactUs from './components/ContactUs'
+import Maintenance from './components/Maintenance'
+import Cookies from './components/Cookies'
+import CookieBanner from './components/CookieBanner'
+import SEOHead from './components/SEOHead'
+import TermsOfService from './components/TermsOfService'
+import Landing from './components/Landing'
+import FAQ from './components/FAQ'
+import Support from './components/Support'
+import Feedback from './components/Feedback'
+import Testing from './components/Testing'
+import { useSEO } from './hooks/useSEO'
+import { useCookieConsent } from './hooks/useCookieConsent'
+import { useFocusManagement, useKeyboardNavigation } from './hooks/useFocusManagement'
+import { ThemeProvider } from './contexts/ThemeContext'
+import { WalletProvider } from './contexts/WalletContext'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Component to handle SEO for each route
 function RouteWithSEO({ children }: { children: React.ReactNode }) {
@@ -64,107 +56,103 @@ export default function App() {
         <AuthProvider>
           <HelmetProvider>
           <Router>
-          <Routes>
-          <Route path="/" element={
-            <RouteWithSEO>
-              <Landing />
-            </RouteWithSEO>
-          } />
-          <Route path="/about-us" element={<Navigate to="/explore" replace />} />
-          <Route path="/explore" element={
-            <RouteWithSEO>
-              <Explore />
-            </RouteWithSEO>
-          } />
-          <Route path="/sap-policy" element={
-            <RouteWithSEO>
-              <SecurityAndPrivacyPolicy />
-            </RouteWithSEO>
-          } />
-          <Route path="/contact-us" element={
-            <RouteWithSEO>
-              <ContactUs />
-            </RouteWithSEO>
-          } />
-          <Route path="/maintenance" element={
-            <RouteWithSEO>
-              <Maintenance />
-            </RouteWithSEO>
-          } />
-          <Route path="/cookies" element={
-            <RouteWithSEO>
-              <Cookies />
-            </RouteWithSEO>
-          } />
-          <Route path="/beta/chat" element={
-            <RouteWithSEO>
-              <Suspense fallback={<div className="p-6 text-body">Loading chat…</div>}>
-                <Testing />
-              </Suspense>
-            </RouteWithSEO>
-          } />
-          <Route path="/chat" element={<Navigate to="/beta/chat" replace />} />
-          <Route path="/app/about-me" element={
-            <RouteWithSEO>
-              <AboutMe />
-            </RouteWithSEO>
-          } />
-          <Route path="/dpia" element={
-            <RouteWithSEO>
-              <DPIA />
-            </RouteWithSEO>
-          } />
-          <Route path="/about-me" element={
-            <RouteWithSEO>
-              <AboutMe />
-            </RouteWithSEO>
-          } />
-          <Route path="/tos" element={
-            <RouteWithSEO>
-              <TermsOfService />
-            </RouteWithSEO>
-          } />
-          <Route path="/internal/admin/7x9k2m4p8q1r5t3v6w0y2z4a6b8c0d2e4f6" element={
-            <RouteWithSEO>
-              <HiddenPage />
-            </RouteWithSEO>
-          } />
-          <Route path="/status" element={
-            <RouteWithSEO>
-              <Status />
-            </RouteWithSEO>
-          } />
-          <Route path="/faq" element={
-            <RouteWithSEO>
-              <FAQ />
-            </RouteWithSEO>
-          } />
-          <Route path="/support" element={
-            <RouteWithSEO>
-              <Support />
-            </RouteWithSEO>
-          } />
-          <Route path="/feedback" element={
-            <RouteWithSEO>
-              <Feedback />
-            </RouteWithSEO>
-          } />
-          <Route path="/500" element={
-            <RouteWithSEO>
-              <ServerError />
-            </RouteWithSEO>
-          } />
-          <Route path="*" element={
-            <RouteWithSEO>
-              <NotFound />
-            </RouteWithSEO>
-          } />
-        </Routes>
-        
-          {/* Cookie Banner - appears on all routes */}
-          <CookieBanner onConsentChange={handleConsentChange} />
-        </Router>
-      </HelmetProvider>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <RouteWithSEO>
+                    <Landing />
+                  </RouteWithSEO>
+                }
+              />
+              <Route path="/about-us" element={<Navigate to="/explore" replace />} />
+              <Route
+                path="/explore"
+                element={
+                  <RouteWithSEO>
+                    <Explore />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/beta/chat"
+                element={
+                  <RouteWithSEO>
+                    <Testing />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/sap-policy"
+                element={
+                  <RouteWithSEO>
+                    <SecurityAndPrivacyPolicy />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/contact-us"
+                element={
+                  <RouteWithSEO>
+                    <ContactUs />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/maintenance"
+                element={
+                  <RouteWithSEO>
+                    <Maintenance />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/cookies"
+                element={
+                  <RouteWithSEO>
+                    <Cookies />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/tos"
+                element={
+                  <RouteWithSEO>
+                    <TermsOfService />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/faq"
+                element={
+                  <RouteWithSEO>
+                    <FAQ />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/support"
+                element={
+                  <RouteWithSEO>
+                    <Support />
+                  </RouteWithSEO>
+                }
+              />
+              <Route
+                path="/feedback"
+                element={
+                  <RouteWithSEO>
+                    <Feedback />
+                  </RouteWithSEO>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+
+            {/* Cookie Banner - appears on all routes */}
+            <CookieBanner onConsentChange={handleConsentChange} />
+          </Router>
+        </HelmetProvider>
       </AuthProvider>
       </WalletProvider>
     </ThemeProvider>

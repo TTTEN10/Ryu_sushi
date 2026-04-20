@@ -2,8 +2,8 @@
 set -e
 
 # Default values
-USE_GPU=${USE_GPU:-true}
-MODEL_NAME=${MODEL_NAME:-dphn/Dolphin-Mistral-24B-Venice-Edition}
+USE_GPU=${USE_GPU:-false}
+MODEL_NAME=${MODEL_NAME:-Qwen/Qwen2.5-1.5B-Instruct}
 
 echo "=== AI Chatbot Service Entrypoint ==="
 echo "USE_GPU: $USE_GPU"

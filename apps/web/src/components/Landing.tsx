@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Shield, Heart, Users, AlertCircle, CheckCircle, Loader2, ArrowRight, Sparkles, Wallet, FilePenLine, BadgeCheck, MessageSquare } from 'lucide-react'
+import { Shield, Heart, Users, AlertCircle, CheckCircle, Loader2, ArrowRight, Sparkles, BadgeCheck } from 'lucide-react'
 import Header from './Header'
 import Footer from './Footer'
 import { useOffline } from '../hooks/useOffline'
@@ -101,7 +101,7 @@ export default function Landing() {
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Link to="/beta/chat" className="btn-try-beta" aria-label="Start talking with Dr. Safe, no login">
-                  Start talking (no login)
+                  Start talking
                   <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
                 </Link>
                 <Link
@@ -112,69 +112,6 @@ export default function Landing() {
                   Explore
                 </Link>
               </div>
-            </div>
-          </section>
-
-          <section className="scroll-reveal" data-reveal aria-labelledby="guest-vs-wallet-heading">
-            <div className="max-w-5xl mx-auto bg-white/70 dark:bg-black/30 backdrop-blur-sm rounded-3xl border border-neutral-dark/20 dark:border-white/20 p-6 sm:p-10">
-              <h2 id="guest-vs-wallet-heading" className="text-2xl sm:text-3xl text-heading mb-6 text-center">
-                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                  Guest mode vs wallet mode
-                </span>
-              </h2>
-              <div className="grid md:grid-cols-2 gap-6 text-body text-sm sm:text-base">
-                <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/20 p-5">
-                  <h3 className="text-heading font-semibold mb-2">Guest mode</h3>
-                  <ul className="space-y-2 list-disc pl-5">
-                    <li>No wallet required to try Dr. Safe</li>
-                    <li>Up to five messages per browser session</li>
-                    <li>Chats stay in memory only—refresh clears them</li>
-                    <li>We do not store guest conversations or link them to an identity</li>
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 p-5">
-                  <h3 className="text-heading font-semibold mb-2">Wallet mode</h3>
-                  <ul className="space-y-2 list-disc pl-5">
-                    <li>Connect and verify your wallet to unlock encrypted history</li>
-                    <li>AES-256-GCM encryption with keys derived from your wallet</li>
-                    <li>Persisted ciphertext and optional DID-backed references</li>
-                    <li>Quota and subscription rules apply per verified identity</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section id="how-it-works" className="scroll-reveal" data-reveal>
-            <div className="max-w-5xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {[
-                {
-                  icon: Wallet,
-                  title: '1. Start in guest mode',
-                  copy: 'Open the beta chat and send a few messages with no wallet. When you want saved, private history, add a wallet as an identity anchor — still optional for your first try.',
-                },
-                {
-                  icon: FilePenLine,
-                  title: "2. Sign to verify it's you",
-                  copy: 'One signature confirms your identity — no gas, no payment, no funds moved.',
-                },
-                {
-                  icon: BadgeCheck,
-                  title: '3. Create your Safe ID Token',
-                  copy: 'Mint your souldbound token which will contain your chats history.',
-                },
-                {
-                  icon: MessageSquare,
-                  title: '4. Chat with Dr. Safe',
-                  copy: 'Messages are encrypted at rest; we do not store or use your chat content to train models.',
-                },
-              ].map((step) => (
-                <div key={step.title} className="p-6 rounded-2xl border border-neutral-200 dark:border-white/20 bg-white/70 dark:bg-black/20 hover-soft-fade">
-                  <step.icon className="w-8 h-8 text-primary-600 dark:text-primary-400 mb-3" />
-                  <h3 className="text-lg text-heading mb-2">{step.title}</h3>
-                  <p className="text-body text-sm sm:text-base">{step.copy}</p>
-                </div>
-              ))}
             </div>
           </section>
 

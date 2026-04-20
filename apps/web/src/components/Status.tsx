@@ -26,7 +26,7 @@ const Status: React.FC = () => {
     
     try {
       // Try multiple health endpoints
-      const endpoints = ['/healthz', '/readyz', '/api/testing/health']
+      const endpoints = ['/healthz', '/readyz']
       let lastError: Error | null = null
 
       for (const endpoint of endpoints) {
@@ -127,7 +127,7 @@ const Status: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showBackButton={true} />
+      <Header />
 
       <main id="main-content" className="flex-1" role="main" aria-label="System status" tabIndex={-1}>
         <section className="section-padding py-8 lg:py-12">

@@ -67,25 +67,55 @@ app.use(requestIdMiddleware);
 app.set('trust proxy', 1);
 
 // Configure CORS - NEVER default to '*'
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : process.env.NODE_ENV === 'production'
+const isProd = process.env.NODE_ENV === 'production';
+function parseAllowedOrigins(): string[] {
+  const raw = (process.env.FRONTEND_URL || '').trim();
+  const defaults = isProd
     ? ['https://safepsy.com', 'https://www.safepsy.com']
     : ['http://localhost:3000', 'http://localhost:3001'];
 
+  const origins = raw
+    ? raw
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+    : defaults;
+
+  // Production safety: do not allow wildcards or invalid URL-like origins.
+  if (isProd) {
+    for (const origin of origins) {
+      if (origin === '*' || origin.includes('*')) {
+        throw new Error('Invalid FRONTEND_URL: wildcard origins are not allowed in production');
+      }
+      // Basic URL validation: CORS origins must be absolute URL origins.
+      try {
+        const u = new URL(origin);
+        if (!u.protocol || !u.host) throw new Error('invalid');
+      } catch {
+        throw new Error(`Invalid FRONTEND_URL origin in production: "${origin}"`);
+      }
+    }
+  }
+
+  return origins;
+}
+const allowedOrigins = parseAllowedOrigins();
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.) in development only
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    // Allow requests with no Origin header (server-to-server, health checks, curl, etc.).
+    // Browsers performing cross-site requests will include Origin, so CSRF-relevant flows
+    // are still governed by the allowlist below.
+    if (!origin) {
       return callback(null, true);
     }
-    
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    logger.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -172,7 +202,14 @@ app.get("/metrics", async (_req, res) => {
 
 app.use("/api/subscribe", subscribe);
 app.use("/api/contact", contact);
-app.use("/api/testing", testing); // Dev/testing endpoints (keep for backward compatibility)
+if (!isProd) {
+  app.use("/api/testing", testing); // Dev/testing endpoints
+} else {
+  // Explicitly disabled in production to avoid accidental exposure.
+  app.use("/api/testing", (req, res) => {
+    return res.status(404).json({ error: "Not found" });
+  });
+}
 app.use("/api/auth", auth); // Production auth endpoints
 app.use("/beta", betaChat);
 app.use("/api/chat", chat);

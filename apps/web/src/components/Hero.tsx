@@ -351,7 +351,7 @@ const Hero: React.FC = () => {
                 </div>
                 <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">Secure</h3>
                 <p className="text-body">
-                  You own your data—we don&apos;t store it with third parties or use it to train AI. End-to-end encryption and blockchain ensure your privacy.
+                  You own your data — chat and summary data are encrypted at rest using AES-256-GCM (only ciphertext is stored), with keys derived from your wallet and not stored on our servers. To provide AI responses, content is decrypted temporarily in server memory during the request (not strict end-to-end encryption).
                 </p>
               </div>
               
@@ -361,7 +361,7 @@ const Hero: React.FC = () => {
                 </div>
                 <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-secondary-600">Ethical</h3>
                 <p className="text-body">
-                  Compliant with APA and HIPAA guidelines, made by psychologists to protect patients
+                  Designed with professional ethics in mind and clear clinical boundaries: the AI assistant is not a substitute for professional care and does not provide medical advice, diagnosis, or treatment. We support HIPAA-style safeguards, but we are not a HIPAA-covered entity and do not hold HIPAA certification.
                 </p>
               </div>
               

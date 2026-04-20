@@ -2,6 +2,7 @@ import logger from './logger';
 import axios, { AxiosInstance } from 'axios';
 import { resolveDrSafeSystemPrompt } from './dr-safe-system-prompt';
 import { registerUpstreamUrls, isUpstreamHealthy } from './llm-upstream-health';
+import { Config } from './config';
 
 /**
  * SSE Event Types for AI Streaming
@@ -158,6 +159,93 @@ class AIGatewayService {
 
   private hasSelfHostedUpstream(): boolean {
     return this.getSelfHostedBaseUrlChain().length > 0;
+  }
+
+  private shouldUseLocalMock(): boolean {
+    const nodeEnv = Config.nodeEnv() || 'development';
+    if (nodeEnv === 'production') return false;
+    // Default to mock mode in local/dev when no upstream credentials exist.
+    // Can be explicitly disabled by setting AI_LOCAL_MOCK=0.
+    const raw = (process.env.AI_LOCAL_MOCK ?? '').trim();
+    if (raw === '0' || raw.toLowerCase() === 'false') return false;
+    return true;
+  }
+
+  private async *generateLocalMockStream(request: ChatCompletionRequest): AsyncGenerator<SSEMessage, void, unknown> {
+    const lastUser = [...request.messages].reverse().find((m) => m.role === 'user')?.content?.trim() || '';
+    const content =
+      "Local dev mode: the LLM upstream isn't configured, so this is a mock reply.\n\n" +
+      (lastUser ? `You said: "${lastUser.slice(0, 400)}"\n\n` : '') +
+      'To enable real responses, set one of:\n' +
+      '- AI_GPU_BASE_URL (or CHATBOT_BASE_URL) to a self-hosted OpenAI-compatible `/v1/chat/completions`\n' +
+      '- SCALEWAY_API_KEY for Scaleway Generative API\n';
+
+    yield {
+      event: SSEEventType.METADATA,
+      data: JSON.stringify({
+        model: 'local-mock',
+        temperature: request.temperature ?? this.defaultTemperature,
+        maxTokens: request.maxTokens ?? this.defaultMaxTokens,
+      }),
+    };
+
+    let tokenIndex = 0;
+    const tokens = content.split(/(\s+)/).filter((t) => t.length > 0);
+    for (const t of tokens) {
+      yield {
+        event: SSEEventType.TOKEN,
+        data: JSON.stringify({
+          token: t,
+          index: tokenIndex,
+          finishReason: null,
+        }),
+        id: `token-${tokenIndex}`,
+      };
+      tokenIndex++;
+      await new Promise((r) => setTimeout(r, 5));
+    }
+
+    yield {
+      event: SSEEventType.DONE,
+      data: JSON.stringify({
+        finishReason: 'stop',
+        usage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+        },
+      }),
+    };
+  }
+
+  private generateLocalMockCompletion(request: ChatCompletionRequest): ChatCompletionResponse {
+    const lastUser = [...request.messages].reverse().find((m) => m.role === 'user')?.content?.trim() || '';
+    const content =
+      "Local dev mode: the LLM upstream isn't configured, so this is a mock reply.\n\n" +
+      (lastUser ? `You said: "${lastUser.slice(0, 400)}"\n\n` : '') +
+      'To enable real responses, set AI_GPU_BASE_URL/CHATBOT_BASE_URL or SCALEWAY_API_KEY.';
+
+    return {
+      id: `local-mock-${Date.now()}`,
+      model: 'local-mock',
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content,
+            timestamp: new Date(),
+          },
+          finishReason: 'stop',
+        },
+      ],
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      },
+      created: Math.floor(Date.now() / 1000),
+    };
   }
 
   /** Primary + fallback URLs that pass circuit breaker + last health probe. */
@@ -501,6 +589,11 @@ class AIGatewayService {
 
     // Check if API key is available
     if (!process.env.SCALEWAY_API_KEY) {
+      if (this.shouldUseLocalMock()) {
+        logger.warn('No LLM upstream configured; using local mock stream (set AI_LOCAL_MOCK=0 to disable).');
+        yield* this.generateLocalMockStream(request);
+        return;
+      }
       logger.error('SCALEWAY_API_KEY not configured');
       yield {
         event: SSEEventType.ERROR,
@@ -754,6 +847,10 @@ class AIGatewayService {
 
     // Check if API key is available
     if (!process.env.SCALEWAY_API_KEY) {
+      if (this.shouldUseLocalMock()) {
+        logger.warn('No LLM upstream configured; using local mock completion (set AI_LOCAL_MOCK=0 to disable).');
+        return this.generateLocalMockCompletion(request);
+      }
       throw new Error('SCALEWAY_API_KEY not configured');
     }
 

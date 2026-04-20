@@ -44,7 +44,7 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 
 ---
 
-## ✅ Part 1: End-to-End Encryption for ChatWidget
+## ✅ Part 1: Client-side encryption for storage (ChatWidget)
 
 ### Files Created/Modified
 
@@ -86,7 +86,8 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 6. Store chat hash in DID for verification
 
 **Security:**
-- Plaintext never reaches backend
+- Chat and summary data are stored encrypted (ciphertext-only) and decrypted client-side for display.
+- To provide AI responses, message content is decrypted temporarily in server memory during the request and sent to the AI provider for completion (not strict end-to-end encryption).
 - Symmetric key never stored unencrypted
 - Only wallet owner can decrypt (requires private key)
 
@@ -137,7 +138,7 @@ Still mounted at **`/api/testing/*`** for backward compatibility (e.g. `POST /ap
 - [ ] **Gate or remove `/api/testing` in production** if security posture requires it
 - [ ] **Key rotation mechanism** (security checklist)
 - [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)
-- [ ] **Continuous E2E** beyond unit tests (wallet + chain smoke in staging)
+- [ ] **Continuous end-to-end testing** beyond unit tests (wallet + chain smoke in staging)
 
 ### ~~Remaining Tasks~~ (historical — superseded by verification above)
 
@@ -164,7 +165,7 @@ npx prisma migrate dev --name add_encrypted_chats
 # Backend
 DATABASE_URL=postgresql://...
 DID_IDENTITY_TOKEN_ADDRESS=0x...
-RPC_URL=https://mainnet.infura.io/v3/...
+RPC_URL=https://sepolia.infura.io/v3/...
 JWT_SECRET=your-secret-key
 ```
 
@@ -229,10 +230,10 @@ router.post('/save', authenticateWallet, async (req, res) => {
 
 - [x] ✅ Symmetric key generated client-side
 - [x] ✅ Key encrypted with wallet signature
-- [x] ✅ Plaintext never sent to backend
+- [x] ✅ Plaintext not persisted (ciphertext-only storage); plaintext is decrypted temporarily in server memory for AI completions
 - [x] ✅ Only ciphertext stored
 - [x] ✅ DID ownership verified
-- [x] ✅ Network validation (Ethereum Mainnet only)
+- [x] ✅ Network validation (Sepolia by default in current deployments)
 - [ ] Key rotation mechanism
 - [ ] Contract failure handling
 

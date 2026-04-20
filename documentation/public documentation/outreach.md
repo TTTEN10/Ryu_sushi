@@ -89,7 +89,7 @@ Wallet + DID as the product. SafePsy: one sign-in (wallet), on-chain identity, p
 
 ---
 
-### Skeptical of AI therapy
+### Skeptical of AI in mental health
 
 **Warm intro**  
 [Name], [Referrer] knew you’re cautious about AI in mental health. SafePsy is explicit: Dr. Safe complements therapy—no diagnosis, no treatment, no clinical advice. Encrypted, no training on your data. We’re happy to show boundaries in product and ToS. [CTA: see positioning / FAQ.]
@@ -218,13 +218,13 @@ Short and strong variants by audience. Replace `[First Name]`, `[Your Name]`, an
 
 **Short version**
 
-**Subject:** SafePsy – Ethical AI Therapy That Scales
+**Subject:** SafePsy – Privacy-first mental wellness support
 
 Hi [First Name],
 
-We're building SafePsy to make high-quality therapy accessible to all—combining ethical AI, decentralized infrastructure, and APA-aligned best practices.
+We're building SafePsy to make private, structured mental wellness support more accessible—combining ethical AI, user-controlled encryption, and clear clinical boundaries.
 
-Our platform connects patients and professionals in a secure digital space, with end-to-end encrypted data stored on sovereign infrastructure. Think personalized, scalable, and privacy-first mental health support—built for the real world.
+Chat and summary data are encrypted at rest (AES-256-GCM) and stored as ciphertext only; encryption keys are derived from the user’s wallet and are not stored on our servers. To generate AI responses, message content is decrypted temporarily in server memory during the request (so it is not strict end-to-end encryption). We do not use chat content to train models.
 
 We’re now looking for strategic partners to help us grow. Open to a quick call?
 
@@ -243,13 +243,13 @@ Cofounder, SafePsy
 
 **Short version**
 
-**Subject:** SafePsy – Scalable AI Therapy Built with Privacy & Purpose
+**Subject:** SafePsy – Privacy-first mental wellness support
 
 Hi [First Name],
 
 We’re building SafePsy, a next-gen mental health platform at the intersection of AI and digital health—designed to scale therapy access while putting ethics, privacy, and personalization first.
 
-Using decentralized infrastructure and APA-aligned methodologies, we enable secure, wallet-based access to AI-powered therapeutic support—built to meet growing global demand.
+Using wallet-based identity and encryption, we enable secure access to AI-assisted reflection and between-session support. We are explicit about boundaries: the AI is not a substitute for professional care and does not provide medical advice, diagnosis, or treatment.
 
 We’re now raising to accelerate growth and would love to explore alignment. Open to a quick intro call?
 
@@ -272,9 +272,9 @@ Cofounder, SafePsy
 
 Hi [First Name],
 
-We’re building SafePsy, a decentralized mental health platform that blends ethical AI therapy with Web3 principles—privacy, sovereignty, and interoperability.
+We’re building SafePsy, a decentralized mental health platform that blends ethical AI assistance with Web3 principles—privacy, sovereignty, and interoperability.
 
-Users connect in a secure, encrypted environment, with data stored via decentralized storage and access managed through wallet-based identity. APA-compliant and privacy-by-design, SafePsy scales personalized care while respecting user autonomy.
+Users connect in a secure, encrypted environment, with access managed through wallet-based identity. Chat and summary data are encrypted at rest (AES-256-GCM) and stored as ciphertext only; keys are derived from the user’s wallet and are not stored on SafePsy servers. We do not send user identifiers to the AI service—only message content as required for responses.
 
 We’re now seeking Web3-aligned partners to help us grow. Would you be open to a quick call?
 
@@ -293,13 +293,13 @@ Cofounder, SafePsy
 
 **Short version**
 
-**Subject:** SafePsy – Scalable, Ethical AI Therapy for Modern Mental Health
+**Subject:** SafePsy – Privacy-first mental wellness support
 
 Hi [First Name],
 
-At SafePsy, we’re reimagining access to mental health care—combining ethical AI with clinical integrity to deliver personalized, APA-aligned therapy at scale.
+At SafePsy, we’re reimagining access to mental wellness support—combining ethical AI with clear clinical boundaries to support reflection and between-session preparation.
 
-Our platform connects users and professionals in a secure digital environment, with encrypted data stored on sovereign, decentralized infrastructure. We prioritize confidentiality, therapeutic effectiveness, and adaptability to diverse needs.
+Our platform is privacy-first: encrypted at rest, user-controlled keys, no logging of chat content, and no training on user chats. Important nuance: to generate AI responses, content is decrypted temporarily in server memory during the request (not strict end-to-end encryption). The assistant is not a substitute for professional care and does not provide medical advice.
 
 We're now seeking mission-aligned partners to help expand our impact. Would you be open to a quick call?
 

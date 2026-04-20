@@ -2,7 +2,7 @@
  * Wallet connect + signature verification. Optional for browsing; required for encrypted persistence,
  * DID flows, and unlimited chat. Guests use ChatWidget without verifying (session-only, capped prompts).
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -19,6 +19,7 @@ export default function ConnectWallet() {
   const [showNetworkGuide, setShowNetworkGuide] = useState(false);
   const [showVerificationInfo, setShowVerificationInfo] = useState(false);
   const [verificationStep, setVerificationStep] = useState<'idle' | 'requesting' | 'signing' | 'verifying' | 'complete'>('idle');
+  const [autoVerifyRequested, setAutoVerifyRequested] = useState(false);
 
   // Check DID when wallet is verified
   useEffect(() => {
@@ -34,17 +35,14 @@ export default function ConnectWallet() {
     try {
       setVerificationError(null);
       await connectWallet();
-      
-      // After connection, automatically verify wallet
-      if (wallet) {
-        await handleVerify();
-      }
+      // After connection, automatically verify wallet (once wallet state is present).
+      setAutoVerifyRequested(true);
     } catch (err: any) {
       setVerificationError(err.message || 'Failed to connect wallet');
     }
   };
 
-  const handleVerify = async () => {
+  const handleVerify = useCallback(async () => {
     if (!wallet) return;
 
     try {
@@ -77,7 +75,25 @@ export default function ConnectWallet() {
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [wallet, verifyWallet, showToast]);
+
+  // If user just connected, trigger verification once wallet state is available.
+  // (connectWallet updates context state asynchronously; relying on wallet immediately after await can fail.)
+  useEffect(() => {
+    if (!autoVerifyRequested) return;
+    if (!wallet) return;
+    if (authState.isVerified) {
+      setAutoVerifyRequested(false);
+      return;
+    }
+    if (wallet.chainId !== SUPPORTED_CHAIN_ID) {
+      // Wrong network: user needs to switch first; keep the flag off to avoid surprise prompts.
+      setAutoVerifyRequested(false);
+      return;
+    }
+    void handleVerify();
+    setAutoVerifyRequested(false);
+  }, [autoVerifyRequested, wallet, authState.isVerified, handleVerify]);
 
   const handleDisconnect = async () => {
     try {
@@ -264,9 +280,9 @@ export default function ConnectWallet() {
       >
         <Wallet className="w-4 h-4 text-white" />
         <span className="hidden sm:inline text-white">
-          {walletLoading ? 'Connecting...' : 'Save & sync'}
+          {walletLoading ? 'Connecting...' : 'Connect'}
         </span>
-        <span className="sm:hidden text-white">Save</span>
+        <span className="sm:hidden text-white">Connect</span>
       </button>
       {walletError && (
         <div className="absolute top-full mt-2 right-0 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs z-50">

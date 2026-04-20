@@ -75,7 +75,7 @@ class FlowVerifier {
       }
 
       // 1.1 Connect wallet
-      const connectResponse = await fetch(`${API_BASE_URL}/api/testing/wallet/connect`, {
+      const connectResponse = await fetch(`${API_BASE_URL}/api/auth/wallet/connect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ class FlowVerifier {
       const signature = await this.wallet.signMessage(message);
 
       // 1.3 Verify signature
-      const verifyResponse = await fetch(`${API_BASE_URL}/api/testing/wallet/verify`, {
+      const verifyResponse = await fetch(`${API_BASE_URL}/api/auth/wallet/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

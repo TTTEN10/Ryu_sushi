@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Request verification message from backend
    */
   const requestVerificationMessage = useCallback(async (address: string, chainId: number): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/api/testing/wallet/connect`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/wallet/connect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const signature = await signMessage(message);
 
       // Verify signature with backend
-      const response = await fetch(`${API_BASE_URL}/api/testing/wallet/verify`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/wallet/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -285,7 +285,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = getSessionToken();
       if (token) {
         // Call logout endpoint
-        await fetch(`${API_BASE_URL}/api/testing/auth/logout`, {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

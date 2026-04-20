@@ -47,6 +47,8 @@ CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-safepsy.com, www.safepsy.com}"
 APP_USER="${APP_USER:-safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
+# When 1, deployment must not fail if chatbot/vLLM is unavailable.
+ALLOW_DEGRADED_CHATBOT="${ALLOW_DEGRADED_CHATBOT:-0}"
 
 API_PORT="${API_PORT:-8000}"
 # Dolphin 24B needs a CUDA image + GPU; override for CPU-only dev (e.g. smaller MODEL_ID + vllm/vllm-openai-cpu:latest).
@@ -245,18 +247,22 @@ else
 fi
 
 log "STEP 4: Verify inference endpoint is reachable"
-if [[ "${SKIP_VLLM_DEPLOY}" == "1" ]]; then
-  if [[ "${SINGLE_HOST}" == "1" ]]; then
-    run_ssh "${APP_IP}" "bash -lc 'for i in {1..80}; do curl -fsS http://127.0.0.1:${API_PORT}${CHATBOT_HEALTH_PATH} >/dev/null && exit 0; sleep 3; done; exit 1'" \
-      || die "Chatbot not healthy on APP host loopback http://127.0.0.1:${API_PORT}${CHATBOT_HEALTH_PATH}"
-  else
-    wait_http "http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH}" 120 3 || die "Chatbot not reachable at http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH}"
-  fi
-elif [[ "${SINGLE_HOST}" == "1" ]]; then
-  run_ssh "${APP_IP}" "bash -lc 'for i in {1..80}; do curl -fsS http://127.0.0.1:${API_PORT}/v1/models >/dev/null && exit 0; sleep 3; done; exit 1'" \
-    || die "vLLM not healthy on APP host loopback http://127.0.0.1:${API_PORT}/v1/models"
+if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+  log "ALLOW_DEGRADED_CHATBOT=1: skipping inference health gate"
 else
-  wait_http "http://${API_IP}:${API_PORT}/v1/models" 120 3 || die "API endpoint is not reachable at http://${API_IP}:${API_PORT}/v1/models"
+  if [[ "${SKIP_VLLM_DEPLOY}" == "1" ]]; then
+    if [[ "${SINGLE_HOST}" == "1" ]]; then
+      run_ssh "${APP_IP}" "bash -lc 'for i in {1..80}; do curl -fsS http://127.0.0.1:${API_PORT}${CHATBOT_HEALTH_PATH} >/dev/null && exit 0; sleep 3; done; exit 1'" \
+        || die "Chatbot not healthy on APP host loopback http://127.0.0.1:${API_PORT}${CHATBOT_HEALTH_PATH}"
+    else
+      wait_http "http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH}" 120 3 || die "Chatbot not reachable at http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH}"
+    fi
+  elif [[ "${SINGLE_HOST}" == "1" ]]; then
+    run_ssh "${APP_IP}" "bash -lc 'for i in {1..80}; do curl -fsS http://127.0.0.1:${API_PORT}/v1/models >/dev/null && exit 0; sleep 3; done; exit 1'" \
+      || die "vLLM not healthy on APP host loopback http://127.0.0.1:${API_PORT}/v1/models"
+  else
+    wait_http "http://${API_IP}:${API_PORT}/v1/models" 120 3 || die "API endpoint is not reachable at http://${API_IP}:${API_PORT}/v1/models"
+  fi
 fi
 
 if [[ "${REUSE_CONTAINERS}" == "1" ]]; then
@@ -499,36 +505,45 @@ EOF
 fi
 
 log "STEP 6: Validate APP -> inference from APP server"
-if [[ "${SKIP_VLLM_DEPLOY}" == "1" ]]; then
-  if [[ "${SINGLE_HOST}" == "1" ]]; then
+if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+  log "ALLOW_DEGRADED_CHATBOT=1: skipping APP -> inference validation"
+  run_ssh "${APP_IP}" "bash -lc '
+    set -euo pipefail
+    docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
+    docker logs --tail=120 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
+  '"
+else
+  if [[ "${SKIP_VLLM_DEPLOY}" == "1" ]]; then
+    if [[ "${SINGLE_HOST}" == "1" ]]; then
+      run_ssh "${APP_IP}" "bash -lc '
+        set -euo pipefail
+        curl -fsS http://127.0.0.1:${API_PORT}${CHATBOT_HEALTH_PATH} >/dev/null
+        docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
+        docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
+      '"
+    else
+      run_ssh "${APP_IP}" "bash -lc '
+        set -euo pipefail
+        curl -fsS http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH} >/dev/null
+        docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
+        docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
+      '"
+    fi
+  elif [[ "${SINGLE_HOST}" == "1" ]]; then
     run_ssh "${APP_IP}" "bash -lc '
       set -euo pipefail
-      curl -fsS http://127.0.0.1:${API_PORT}${CHATBOT_HEALTH_PATH} >/dev/null
+      curl -fsS http://127.0.0.1:${API_PORT}/v1/models >/dev/null
       docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
       docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
     '"
   else
     run_ssh "${APP_IP}" "bash -lc '
       set -euo pipefail
-      curl -fsS http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH} >/dev/null
+      curl -fsS http://${API_IP}:${API_PORT}/v1/models >/dev/null
       docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
       docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
     '"
   fi
-elif [[ "${SINGLE_HOST}" == "1" ]]; then
-  run_ssh "${APP_IP}" "bash -lc '
-    set -euo pipefail
-    curl -fsS http://127.0.0.1:${API_PORT}/v1/models >/dev/null
-    docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
-    docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
-  '"
-else
-  run_ssh "${APP_IP}" "bash -lc '
-    set -euo pipefail
-    curl -fsS http://${API_IP}:${API_PORT}/v1/models >/dev/null
-    docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
-    docker logs --tail=80 \$(docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps -q backend) || true
-  '"
 fi
 
 log "STEP 7: Security hardening on API server (UFW allow app IP only on ${API_PORT})"

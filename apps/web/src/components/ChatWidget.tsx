@@ -63,6 +63,10 @@ export default function ChatWidget() {
   const { symmetricKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
+  const [starterPrompt] = useState(() => {
+    const idx = Math.floor(Math.random() * FIRST_MESSAGE_SUGGESTIONS.length);
+    return FIRST_MESSAGE_SUGGESTIONS[idx] ?? FIRST_MESSAGE_SUGGESTIONS[0] ?? '';
+  });
   
   // Check if withContext query parameter is set
   const withContext = searchParams.get('withContext') === 'true';
@@ -70,6 +74,10 @@ export default function ChatWidget() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [sendPhase, setSendPhase] = useState<
+    'idle' | 'checking' | 'encrypting' | 'sending' | 'streaming' | 'saving' | 'error'
+  >('idle');
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallData, setPaywallData] = useState<PaywallData | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -312,7 +320,7 @@ export default function ChatWidget() {
   // Authenticated: wallet-derived encryption + saveChat + quota path.
   const handleSend = async (contentOverride?: string) => {
     const trimmed = (typeof contentOverride === 'string' ? contentOverride : input).trim();
-    if (!trimmed || isStreaming || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
+    if (!trimmed || isStreaming || isSending || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
     if (!isGuest && (!symmetricKey || encryptionLoading)) return;
 
     if (isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT) {
@@ -325,57 +333,66 @@ export default function ChatWidget() {
       return;
     }
 
-    // Check concurrency status one more time before sending (wallet / DID path only)
-    const isInProgress = await checkConcurrencyStatus();
-    if (isInProgress) {
-      showToast('error', 'Please wait for the chatbot to respond before sending another message.');
-      return;
-    }
-
-    const userMessage: Message = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: trimmed,
-      timestamp: new Date(),
-      encrypted: false,
-      canEdit: true,
-    };
-
-    if (isGuest) {
-      setGuestPromptCount((c) => c + 1);
-    }
-
-    setMessages((prev) => [...prev, userMessage]);
-
-    if (!isGuest) {
-      try {
-        const updatedMessages = [...messages, userMessage];
-        await saveChat(
-          updatedMessages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-          }))
-        );
-      } catch (error) {
-        console.error('Error saving chat:', error);
-      }
-    }
-    setInput('');
-    setIsStreaming(true);
-    setIsTyping(true);
-
-    // Show typing indicator
-    setTimeout(() => {
-      setIsTyping(false);
-    }, 500);
-
-    // Create abort controller for cancellation
-    abortControllerRef.current = new AbortController();
+    setIsSending(true);
+    setSendPhase('checking');
 
     let streamFinalized = false;
     try {
+      // Check concurrency status one more time before sending (wallet / DID path only)
+      const isInProgress = await checkConcurrencyStatus();
+      if (isInProgress) {
+        showToast('error', 'Please wait for the chatbot to respond before sending another message.');
+        return;
+      }
+
+      const userMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+        timestamp: new Date(),
+        encrypted: false,
+        canEdit: true,
+      };
+
+      if (isGuest) {
+        setGuestPromptCount((c) => c + 1);
+      }
+
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Best-effort persistence of the user message (authenticated)
+      if (!isGuest) {
+        setSendPhase('encrypting');
+        try {
+          const updatedMessages = [...messages, userMessage];
+          await saveChat(
+            updatedMessages.map((msg) => ({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp,
+            }))
+          );
+        } catch (error) {
+          const errorMsg = getActionableErrorMessage(error, { code: 'CHAT_SAVE_FAILED' });
+          console.error('Error saving chat:', error);
+          showToast('error', errorMsg);
+        }
+      }
+
+      setInput('');
+      setIsStreaming(true);
+      setSendPhase('sending');
+      setIsTyping(true);
+
+      // Show typing indicator
+      setTimeout(() => {
+        setIsTyping(false);
+      }, 500);
+
+      // Create abort controller for cancellation
+      abortControllerRef.current = new AbortController();
+
       // Messages are already decrypted in state, just format for API
       const decryptedMessages = [...messages, userMessage].map((msg) => ({
         role: msg.role,
@@ -470,6 +487,7 @@ export default function ChatWidget() {
         if (streamFinalized) return;
         streamFinalized = true;
         setIsStreaming(false);
+        setSendPhase('saving');
         try {
           if (!isGuest) {
             const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
@@ -523,6 +541,7 @@ export default function ChatWidget() {
         const { done, value } = await reader.read();
 
         if (done) break;
+        if (sendPhase !== 'streaming') setSendPhase('streaming');
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -597,6 +616,7 @@ export default function ChatWidget() {
           ? error.message 
           : getActionableErrorMessage(error);
         
+        setSendPhase('error');
         showToast('error', errorMsg);
         
         setMessages((prev) => [
@@ -615,6 +635,8 @@ export default function ChatWidget() {
         setIsStreaming(false);
       }
       setIsTyping(false);
+      setIsSending(false);
+      setSendPhase('idle');
     }
   };
 
@@ -668,7 +690,7 @@ export default function ChatWidget() {
             role="status"
           >
             Guest mode: this chat lives in this tab only — refresh clears it. When you&apos;re ready, save it securely
-            with a wallet (ownership + privacy tool — not a payment).
+            by connecting a wallet.
           </p>
         ) : (
           <p className="text-xs text-body opacity-60 text-center">
@@ -699,20 +721,18 @@ export default function ChatWidget() {
                   : 'Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet.'
               }
             />
-            <div className="max-w-md mx-auto mt-6 space-y-2">
-              <p className="text-xs text-center text-body opacity-70 mb-2">Try an opening that feels real</p>
-              {FIRST_MESSAGE_SUGGESTIONS.map((line) => (
+            {starterPrompt ? (
+              <div className="max-w-md mx-auto mt-6">
                 <button
-                  key={line}
                   type="button"
                   disabled={guestAtLimit || isOffline || isStreaming}
-                  onClick={() => void handleSend(line)}
+                  onClick={() => void handleSend(starterPrompt)}
                   className="w-full text-left text-sm px-4 py-3 rounded-xl border border-primary-200 dark:border-primary-800 bg-white/80 dark:bg-neutral-900/60 text-heading hover:bg-primary-50 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {line}
+                  {starterPrompt}
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           messages.map((message) => (
@@ -771,7 +791,7 @@ export default function ChatWidget() {
         )}
         {guestAtLimit && (
           <p className="mb-2 text-xs text-amber-800 dark:text-amber-200 font-medium" role="alert">
-            Guest limit reached — keep this space yours with Save & sync.
+            Guest limit reached — keep this space yours with Connect.
             <button
               type="button"
               onClick={() => setShowGuestLimitModal(true)}
@@ -837,6 +857,7 @@ export default function ChatWidget() {
               }
               disabled={
                 isStreaming ||
+                isSending ||
                 (!isGuest && (!symmetricKey || encryptionLoading)) ||
                 isOffline ||
                 requestInProgress ||
@@ -884,6 +905,7 @@ export default function ChatWidget() {
               onClick={() => void handleSend()}
               disabled={
                 !input.trim() ||
+                isSending ||
                 (!isGuest && (!symmetricKey || encryptionLoading)) ||
                 isOffline ||
                 input.length > MAX_MESSAGE_LENGTH ||
@@ -899,6 +921,24 @@ export default function ChatWidget() {
             </button>
           )}
         </div>
+        {/* Reliability / progress line */}
+        {!isGuest && (isSending || isStreaming || encryptionLoading) && (
+          <p className="text-xs text-body opacity-80 mt-2" role="status" aria-live="polite">
+            {encryptionLoading
+              ? 'Preparing secure encryption…'
+              : sendPhase === 'checking'
+                ? 'Checking session…'
+                : sendPhase === 'encrypting'
+                  ? 'Encrypting…'
+                  : sendPhase === 'sending'
+                    ? 'Sending…'
+                    : sendPhase === 'streaming'
+                      ? 'Receiving…'
+                      : sendPhase === 'saving'
+                        ? 'Saving securely…'
+                        : 'Working…'}
+          </p>
+        )}
         {!isGuest && encryptionLoading && (
           <p className="text-xs text-body opacity-75 mt-2 flex items-center gap-1">
             <span className="animate-spin">⟳</span>

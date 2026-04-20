@@ -48,26 +48,55 @@ app.use(helmet({
   originAgentCluster: true,
 }));
 
-// Enhanced CORS configuration
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : process.env.NODE_ENV === 'production'
+// Enhanced CORS configuration (fail closed on wildcards in production)
+const isProdCors = process.env.NODE_ENV === 'production';
+function parseAllowedOrigins(): string[] {
+  const raw = (process.env.FRONTEND_URL || '').trim();
+  const defaults = isProdCors
     ? ['https://safepsy.com', 'https://www.safepsy.com', 'https://chat.safepsy.com']
     : ['http://localhost:3000', 'http://localhost:3001'];
 
+  const origins = raw
+    ? raw
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+    : defaults;
+
+  if (isProdCors) {
+    for (const origin of origins) {
+      if (origin === '*' || origin.includes('*')) {
+        throw new Error('Invalid FRONTEND_URL: wildcard origins are not allowed in production');
+      }
+      try {
+        const u = new URL(origin);
+        if (!u.protocol || !u.host) throw new Error('invalid');
+      } catch {
+        throw new Error(`Invalid FRONTEND_URL origin in production: "${origin}"`);
+      }
+    }
+  }
+
+  return origins;
+}
+const allowedOrigins = parseAllowedOrigins();
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.) in development only
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    const isProd = process.env.NODE_ENV === 'production';
+    // Allow requests with no Origin header (server-to-server, health checks, curl, etc.).
+    // Browsers performing cross-site requests will include Origin, so CSRF-relevant flows
+    // are still governed by the allowlist below.
+    if (!origin) {
       return callback(null, true);
     }
     
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
