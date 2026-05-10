@@ -46,8 +46,11 @@ router.post("/", async (req, res) => {
   // Optional fields from JoinOurWaitlist form with validation
   const fullName = req.body?.fullName?.toString().trim() || null;
   const role = req.body?.role?.toString().trim() || null;
-  const consentGiven = req.body?.consentGiven === true || false;
-  const consentTimestamp = consentGiven ? new Date() : null;
+  const consentGiven = req.body?.consentGiven === true;
+  if (!consentGiven) {
+    return res.status(400).json({ success: false, message: "Consent is required" });
+  }
+  const consentTimestamp = new Date();
 
   // Validate optional field lengths if provided
   if (fullName && fullName.length > 100)
@@ -62,18 +65,75 @@ router.post("/", async (req, res) => {
   const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket.remoteAddress || "";
 
   try {
-    const subscription = await prisma.emailSubscription.upsert({
-      where: { email },
-      create: { 
-        email, 
+    let dbWorked = false;
+    try {
+      const existing = await prisma.emailSubscription.findUnique({ where: { email } });
+      dbWorked = true;
+      if (existing) {
+        return res.json({
+          success: true,
+          message: "You're already on the waitlist. We'll email you product updates.",
+        });
+      }
+
+      try {
+        await prisma.emailSubscription.create({
+          data: {
+            email,
+            fullName,
+            role,
+            ipHash: ipHash(ip),
+            consentGiven,
+            consentTimestamp,
+          },
+        });
+      } catch (err: any) {
+        // Race-safe idempotency: if the email was created concurrently, treat as success.
+        if (err?.code === "P2002") {
+          return res.json({
+            success: true,
+            message: "You're already on the waitlist. We'll email you product updates.",
+          });
+        }
+        throw err;
+      }
+    } catch (dbErr: any) {
+      const msg = String(dbErr?.message || dbErr || "").toLowerCase();
+      const dbUnavailable =
+        msg.includes("can't reach database server") ||
+        msg.includes("prismaclientinitializationerror") ||
+        msg.includes("econnrefused") ||
+        msg.includes("p1001");
+
+      if (!dbUnavailable) {
+        throw dbErr;
+      }
+
+      // DB is down; fall back to Google Sheets if configured.
+      const googleSheetsService = createGoogleSheetsService();
+      if (!googleSheetsService.isEnabled()) {
+        return res.status(503).json({
+          success: false,
+          message: "Waitlist signup is temporarily unavailable. Please try again later.",
+        });
+      }
+
+      const outcome = await googleSheetsService.upsertWaitlistSignup({
+        email,
         fullName,
         role,
-        ipHash: ipHash(ip),
         consentGiven,
-        consentTimestamp
-      },
-      update: {}
-    });
+        timestamp: new Date(),
+      });
+
+      return res.json({
+        success: true,
+        message:
+          outcome === "exists"
+            ? "You're already on the waitlist. We'll email you product updates."
+            : "Thanks! We'll email you product updates.",
+      });
+    }
     
     // Track metrics for Prometheus
     emailSubscriptionsTotal.inc({
@@ -83,13 +143,13 @@ router.post("/", async (req, res) => {
     
     // Send confirmation email (non-blocking)
     const emailService = createEmailService();
-    emailService.sendConfirmationEmail(email).catch((error) => {
+    Promise.resolve(emailService.sendConfirmationEmail(email)).catch((error) => {
       console.error('Failed to send confirmation email:', error);
       // Don't throw - email failures shouldn't break the subscription flow
     });
 
     // Notify SafePsy admin about new subscription (non-blocking)
-    emailService.sendAdminNotificationEmail({
+    Promise.resolve(emailService.sendAdminNotificationEmail({
       subject: 'New SafePsy waitlist signup',
       textBody: [
         'A new user joined the SafePsy waitlist.',
@@ -110,21 +170,23 @@ router.post("/", async (req, res) => {
           <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>
         </ul>
       `,
-    }).catch((error) => {
+    })).catch((error) => {
       console.error('Failed to send admin notification email:', error);
     });
 
-    // Log to Google Sheets (non-blocking)
+    // Log to Google Sheets (non-blocking, idempotent)
     const googleSheetsService = createGoogleSheetsService();
     if (googleSheetsService.isEnabled()) {
-      googleSheetsService.logSubscription({
-        email,
-        fullName,
-        role,
-        consentGiven,
-        timestamp: new Date(),
-      }).catch((error) => {
-        console.error('Failed to log to Google Sheets:', error);
+      Promise.resolve(
+        googleSheetsService.upsertWaitlistSignup({
+          email,
+          fullName,
+          role,
+          consentGiven,
+          timestamp: new Date(),
+        })
+      ).catch((error) => {
+        console.error("Failed to log to Google Sheets:", error);
         // Don't throw - Google Sheets failures shouldn't break the subscription flow
       });
     }
@@ -136,6 +198,42 @@ router.post("/", async (req, res) => {
     });
   } catch (e) {
     console.error('Subscription error:', e);
+
+    // Fallback: if DB write failed, still try storing into Google Sheets to avoid losing signups.
+    try {
+      const googleSheetsService = createGoogleSheetsService();
+      if (googleSheetsService.isEnabled()) {
+        const outcome = await googleSheetsService.upsertWaitlistSignup({
+          email,
+          fullName,
+          role,
+          consentGiven,
+          timestamp: new Date(),
+        });
+        if (outcome === 'exists') {
+          return res.json({
+            success: true,
+            message: "You're already on the waitlist. We'll email you product updates.",
+          });
+        }
+        return res.json({
+          success: true,
+          message: "Thanks! We'll email you product updates.",
+        });
+      }
+    } catch (sheetErr) {
+      console.error('DB failed and Google Sheets fallback also failed:', sheetErr);
+    }
+
+    // If we got here and Sheets isn't available, return a resilient 503 (temporary outage)
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.toLowerCase().includes("can't reach database server")) {
+      return res.status(503).json({
+        success: false,
+        message: "Waitlist signup is temporarily unavailable. Please try again later.",
+      });
+    }
+
     res.status(500).json({ success: false, message: "Something went wrong. Please try again later." });
   }
 });

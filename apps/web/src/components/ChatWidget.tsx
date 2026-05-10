@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare, Copy } from 'lucide-react';
+import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatEncryption } from '../hooks/useChatEncryption';
 import { updateChatReference } from '../utils/did-contract';
 import { useOffline } from '../hooks/useOffline';
-import { useToast, type ToastType } from '../hooks/useToast';
+import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
+import { recordFirstMessageSent, recordFirstReplyReceived } from '../utils/conversionMetrics';
+import { apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
@@ -43,17 +45,14 @@ interface PaywallData {
   paymentRecipient: string | null;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
 const MAX_MESSAGE_LENGTH = 2000;
 const EDIT_WINDOW_MS = 30000; // 30 seconds
 /** Guest mode: max user messages per browser session (in-memory only; resets on refresh). */
 const GUEST_PROMPT_LIMIT = 5;
 
 const FIRST_MESSAGE_SUGGESTIONS = [
-  "What's been on your mind more than usual lately?",
-  'Do you feel more overwhelmed or more empty right now?',
-  "What's something you haven't said out loud yet?",
+  "Hello Dr. Safe, I'd like to talk through something I'm experiencing and get your guidance.",
+  "Hi, I'm reaching out because I need a calm, structured perspective on something personal.",
 ];
 
 export default function ChatWidget() {
@@ -63,10 +62,6 @@ export default function ChatWidget() {
   const { symmetricKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
-  const [starterPrompt] = useState(() => {
-    const idx = Math.floor(Math.random() * FIRST_MESSAGE_SUGGESTIONS.length);
-    return FIRST_MESSAGE_SUGGESTIONS[idx] ?? FIRST_MESSAGE_SUGGESTIONS[0] ?? '';
-  });
   
   // Check if withContext query parameter is set
   const withContext = searchParams.get('withContext') === 'true';
@@ -86,6 +81,7 @@ export default function ChatWidget() {
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [guestPromptCount, setGuestPromptCount] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [isMockMode, setIsMockMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -128,7 +124,7 @@ export default function ChatWidget() {
       headers['x-wallet-address'] = wallet.address;
       headers['x-chain-id'] = wallet.chainId.toString();
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/concurrency`, {
+      const response = await fetch(apiUrl('/chat/concurrency'), {
         method: 'GET',
         headers,
       });
@@ -359,8 +355,10 @@ export default function ChatWidget() {
       }
 
       setMessages((prev) => [...prev, userMessage]);
+      recordFirstMessageSent();
 
       // Best-effort persistence of the user message (authenticated)
+      // Note: Full save with DID update happens after streaming completes (persistAfterStream)
       if (!isGuest) {
         setSendPhase('encrypting');
         try {
@@ -374,9 +372,8 @@ export default function ChatWidget() {
             }))
           );
         } catch (error) {
-          const errorMsg = getActionableErrorMessage(error, { code: 'CHAT_SAVE_FAILED' });
-          console.error('Error saving chat:', error);
-          showToast('error', errorMsg);
+          // Silent fail for intermediate save - final save will happen after streaming
+          console.error('Error saving intermediate chat:', error);
         }
       }
 
@@ -418,7 +415,7 @@ export default function ChatWidget() {
       }
 
       // Build URL with withContext query parameter if needed
-      const chatUrl = new URL(`${API_BASE_URL}/api/chat/completions`);
+      const chatUrl = new URL(apiUrl('/chat/completions'), window.location.origin);
       if (withContext) {
         chatUrl.searchParams.set('withContext', 'true');
       }
@@ -488,8 +485,64 @@ export default function ChatWidget() {
         streamFinalized = true;
         setIsStreaming(false);
         setSendPhase('saving');
+        if (assistantMessage.content.trim().length > 0) {
+          recordFirstReplyReceived();
+        }
         try {
-          if (!isGuest) {
+          if (!isGuest && signer && wallet) {
+            // Step 1: Save encrypted chat to backend (useChatEncryption handles encryption)
+            const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
+            await saveChat(
+              updatedMessages.map((msg) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
+                timestamp: msg.timestamp,
+              }))
+            );
+
+            // Step 2: Fetch the latest chat data from backend to get the blob hash
+            // This is needed to update the DID contract with the correct hash
+            const token = localStorage.getItem('walletSessionToken');
+            const headers: HeadersInit = {
+              'Content-Type': 'application/json',
+            };
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            // Get the latest chat record to retrieve the blob hash
+            const loadResponse = await fetch(apiUrl('/chat/load'), {
+              method: 'GET',
+              headers,
+              credentials: 'include',
+            });
+
+            if (loadResponse.ok) {
+              const loadData = await loadResponse.json();
+              if (loadData.success && loadData.data.hasChat && loadData.data.blobHash) {
+                const chatRef = loadData.data.blobHash;
+
+                // Step 3: Update DID contract with chat reference hash
+                // This stores the hash on-chain for verifiability
+                try {
+                  showToast('info', 'Updating DID contract...');
+                  const receipt = await updateChatReference(signer, chatRef, new Uint8Array(0));
+                  showToast('success', 'DID updated! Chat reference stored on-chain');
+                  // ethers v6 uses `hash` on the receipt object
+                  console.log('DID updated successfully:', (receipt as any).hash || (receipt as any).transactionHash);
+                } catch (didError: any) {
+                  // Non-fatal: chat is saved even if DID update fails
+                  console.error('Error updating DID:', didError);
+                  showToast(
+                    'warning',
+                    'Chat saved. DID update failed - you can update later from DID settings.'
+                  );
+                }
+              }
+            }
+          } else if (!isGuest) {
+            // No signer/wallet, just save without DID update
             const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
             await saveChat(
               updatedMessages.map((msg) => ({
@@ -500,40 +553,9 @@ export default function ChatWidget() {
               }))
             );
           }
-
-          if (!isGuest && signer && wallet) {
-            try {
-              const token = localStorage.getItem('walletSessionToken');
-              const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-              };
-              if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-              }
-
-              const saveResponse = await fetch(`${API_BASE_URL}/api/chat/save`, {
-                method: 'POST',
-                headers,
-                credentials: 'include',
-                body: JSON.stringify({
-                  encryptedChatBlob: '',
-                  didTokenId: null,
-                }),
-              });
-
-              if (saveResponse.ok) {
-                const saveData = await saveResponse.json();
-                if (saveData.success && saveData.data.requiresDidUpdate && signer) {
-                  const chatRef = saveData.data.blobHash || '';
-                  await updateChatReference(signer, chatRef, new Uint8Array(0));
-                }
-              }
-            } catch (didError) {
-              console.error('Error updating DID:', didError);
-            }
-          }
         } catch (error) {
           console.error('Error saving chat:', error);
+          showToast('error', 'Failed to save chat. Please try again.');
         }
       };
 
@@ -586,6 +608,12 @@ export default function ChatWidget() {
                   }
                   return [...prev, assistantMessage];
                 });
+              } else if (currentEvent === 'metadata') {
+                // Local mock stream advertises itself via metadata.
+                const model = String(data?.model || '');
+                if (model === 'local-mock') {
+                  setIsMockMode(true);
+                }
               } else if (currentEvent === 'done') {
                 await persistAfterStream();
               } else if (currentEvent === 'error') {
@@ -684,6 +712,15 @@ export default function ChatWidget() {
       <div className="flex flex-col h-[600px] bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-white/10 shadow-sm">
       {/* Header */}
       <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg space-y-2">
+        {isMockMode && (
+          <p
+            className="text-xs font-medium text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-center"
+            role="status"
+          >
+            Chat is running in local mock mode (LLM upstream not configured). To enable real responses, set
+            {' '}<code className="font-mono">SCALEWAY_API_KEY</code> or <code className="font-mono">AI_GPU_BASE_URL</code>.
+          </p>
+        )}
         {isGuest ? (
           <p
             className="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-center"
@@ -721,16 +758,19 @@ export default function ChatWidget() {
                   : 'Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet.'
               }
             />
-            {starterPrompt ? (
-              <div className="max-w-md mx-auto mt-6">
-                <button
-                  type="button"
-                  disabled={guestAtLimit || isOffline || isStreaming}
-                  onClick={() => void handleSend(starterPrompt)}
-                  className="w-full text-left text-sm px-4 py-3 rounded-xl border border-primary-200 dark:border-primary-800 bg-white/80 dark:bg-neutral-900/60 text-heading hover:bg-primary-50 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {starterPrompt}
-                </button>
+            {FIRST_MESSAGE_SUGGESTIONS.length > 0 ? (
+              <div className="max-w-md mx-auto mt-6 space-y-3">
+                {FIRST_MESSAGE_SUGGESTIONS.map((line) => (
+                  <button
+                    key={line}
+                    type="button"
+                    disabled={guestAtLimit || isOffline || isStreaming}
+                    onClick={() => void handleSend(line)}
+                    className="w-full text-left text-sm px-4 py-3 rounded-xl border border-primary-200 dark:border-primary-800 bg-white/80 dark:bg-neutral-900/60 text-heading hover:bg-primary-50 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {line}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>
@@ -740,7 +780,6 @@ export default function ChatWidget() {
               key={message.id}
               message={message}
               displayMessage={displayMessage}
-              showToast={showToast}
               isEditing={editingMessageId === message.id}
               editContent={editContent}
               onEdit={handleEditMessage}
@@ -959,7 +998,6 @@ export default function ChatWidget() {
 function MessageBubble({
   message,
   displayMessage,
-  showToast,
   isEditing = false,
   editContent = '',
   onEdit,
@@ -970,7 +1008,6 @@ function MessageBubble({
 }: {
   message: Message;
   displayMessage: (message: Message) => Promise<string>;
-  showToast?: (type: ToastType, message: string, duration?: number) => void;
   isEditing?: boolean;
   editContent?: string;
   onEdit?: (id: string) => void;
@@ -1054,24 +1091,6 @@ function MessageBubble({
         ) : (
           <>
             <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{decryptedContent}</p>
-            {!isUser && decryptedContent.trim() && (
-              <button
-                type="button"
-                className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-                onClick={async () => {
-                  const block = `${decryptedContent.trim()}\n\n— SafePsy`;
-                  try {
-                    await navigator.clipboard.writeText(block);
-                    showToast?.('success', 'Copied — plain text, subtle credit');
-                  } catch {
-                    showToast?.('error', 'Could not copy — try selecting the text');
-                  }
-                }}
-              >
-                <Copy className="w-3.5 h-3.5" aria-hidden />
-                Copy reflection
-              </button>
-            )}
             {/* Action Buttons (for user messages) */}
             {isUser && showActions && message.canEdit && !isEditing && (
               <div className="absolute -top-8 right-0 flex gap-1 bg-gray-800 dark:bg-gray-700 rounded-lg p-1">
@@ -1099,12 +1118,11 @@ function MessageBubble({
             )}
           </>
         )}
-        <p className={`text-xs mt-2 ${isUser ? 'text-indigo-100' : 'text-body opacity-75'}`}>
-          {message.timestamp.toLocaleTimeString()}
-          {message.encrypted && (
-            <span className="ml-2">🔒</span>
-          )}
-        </p>
+        {message.encrypted ? (
+          <p className={`text-xs mt-2 ${isUser ? 'text-indigo-100' : 'text-body opacity-75'}`}>
+            <span aria-label="Encrypted">🔒</span>
+          </p>
+        ) : null}
       </div>
     </div>
   );

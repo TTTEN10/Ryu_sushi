@@ -31,14 +31,14 @@ export const initializeAnalytics = () => {
 
   // Example: Initialize Google Analytics
   console.log('Initializing analytics...')
-  
+
   // You would typically load Google Analytics or other tracking scripts here
   // Example:
   // gtag('config', 'GA_MEASUREMENT_ID', {
   //   anonymize_ip: true,
   //   cookie_flags: 'SameSite=Strict;Secure'
   // })
-  
+
   return true
 }
 
@@ -69,6 +69,7 @@ export const clearNonEssentialCookies = () => {
   const cookiesToRemove = [
     'functional_cookies',
     'analytics_cookies',
+    'sp_product_metrics',
     'theme_preference',
     'language_preference',
     // Add other non-essential cookies here

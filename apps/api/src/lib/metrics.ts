@@ -53,6 +53,12 @@ export const contactMessagesTotal = new Counter({
   registers: [register],
 });
 
+export const funnelIntakeTotal = new Counter({
+  name: 'funnel_intake_total',
+  help: 'Accepted anonymous funnel metric payloads (POST /api/metrics/funnel)',
+  registers: [register],
+});
+
 export const activeConnections = new Gauge({
   name: 'active_connections',
   help: 'Number of active connections',

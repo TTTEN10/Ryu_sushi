@@ -1,6 +1,8 @@
 # Programming sprint & implementation roadmap
 
 > Restored from `COMPLETE_IMPLEMENTATION_SUMMARY.md` (last revision before deletion in commit `a45b56c14`). The **MVP launch** section is the live operator view. **Part 1 / Part 2** below were reconciled with `apps/web`, `apps/api`, and `apps/ai-chatbot` on **2026-04-12** (see **Repository verification**).
+> 
+> **Last updated:** 2026-05-10 — Reconciled with `createApp()` split (`apps/api/src/app.ts`), production `/api/testing` gate, and API subscribe tests. Prior 2026-05-08 post-audit fixes remain (DID update flow, env template, verification script). Sepolia beta ready pending API key configuration.
 
 ---
 
@@ -12,17 +14,21 @@
 
 Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user reaches value when **(1) DID exists** and **(2) at least one real exchange with Dr. Safe** has happened. Funnel metrics: visits → wallet connect attempts → successful session → DID mint → first chat completion → support/feedback.
 
-### ✅ Repository verification (2026-04-12)
+### ✅ Repository verification (2026-04-12, updated 2026-05-10)
 
 - ✅ **`npm run lint`** (root: web + api): passing  
-- ✅ **Unit tests:** root **`npm test`** runs `vitest run` for web then API (exits cleanly for CI); per-app `cd apps/web && npm test` / `cd apps/api && npm test` are equivalent. All passing; `Status.test.tsx` uses `act()` around timer-driven updates so the suite stays warning-free.  
+- ✅ **Unit tests:** root **`npm test`** runs `vitest run` for web then API (exits cleanly for CI); per-app `cd apps/web && npm test` / `cd apps/api && npm test` are equivalent. All passing; API includes **`src/__tests__/subscribe.test.ts`**; `Status.test.tsx` uses `act()` around timer-driven updates so the suite stays warning-free.  
 - ✅ **`npm run build`** (web + api): passing after pinning Tailwind to **`apps/web/tailwind.config.ts`** in **`apps/web/postcss.config.cjs`** so `vite build --config apps/web/vite.config.ts` from the monorepo root loads theme/content correctly  
+- ✅ **Production fixes applied** (2026-05-08): DID update flow fixed in `ChatWidget.tsx`, `.env.production.example` created, `scripts/verify-production-setup.js` created, `PRODUCTION_FIXES_2026_05_08.md` documents all changes  
+- ✅ **API layout (2026-05-10):** Express factory **`apps/api/src/app.ts`** (`createApp()`); **`/api/testing`** disabled in production via stub route in `app.ts`  
 
 ### Operator checklist — ship and learn
 
 1. **Local sanity**
    - Root `env.example` → `.env`; `apps/api/.env.example` and web env templates filled (`DATABASE_URL`, JWT, chain/RPC, contract addresses, AI upstream as configured).
+   - **Local dependencies (recommended)**: `docker compose -f docker-compose.local.yml up -d postgres redis` (and `--profile rag up -d qdrant` if using RAG). Then `npm run db:push`.
    - `npm install` at repo root; `npm run db:generate` / Prisma migrate as needed; `npm run dev` (web + API) for smoke testing.
+   - **Waitlist storage**: DB is primary (`EmailSubscription`). If DB is unavailable, `/api/subscribe` can fall back to Google Sheets when enabled (see `.env` keys in `env.example`). Never commit service-account credentials; use a local file path and keep it out of git.
 
 2. **Quality gate**
    - `npm run lint`, `npm run test`, `npm run build` before production.
@@ -43,6 +49,63 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
    - Identify the largest funnel drop-off; fix that before new features. Re-read public security/privacy guides before changing copy.
 
 ---
+
+## Waitlist implementation notes (2026-05-08)
+
+- ✅ **Consent required**: `/api/subscribe` requires `consentGiven=true` and returns `400 { success:false, message:"Consent is required" }` otherwise.
+- ✅ **Rate limit UX**: subscription endpoint is limited to **5/min**, returns `429` with a user-facing message.
+- ✅ **Frontend consolidation**: a shared `WaitlistForm` component is used in `Hero`, `Landing`, and `EmailSignup` to ensure payload consistency and aligned validation/copy.
+
+## Production readiness (2026-05-08)
+
+**Status:** Sepolia beta ready — pending Scaleway API key configuration and secrets generation.
+
+### Critical fixes applied
+
+1. **DID contract update flow** — `ChatWidget.tsx` now properly:
+   - Saves encrypted chat to database via `saveChat()`
+   - Fetches the latest chat record to get `blobHash`
+   - Calls `updateChatReference()` on DID contract
+   - Shows user feedback via toast notifications
+   - Makes DID update failures non-blocking (chat still saves)
+
+2. **Frontend DID configuration** — Added `VITE_DID_IDENTITY_TOKEN_ADDRESS=0x103eAd096f898132E138ad228E35296db983A053` (Sepolia)
+
+3. **Production environment template** — Created `.env.production.example` with:
+   - Complete list of required/optional environment variables
+   - Secret generation commands (`openssl rand -hex 32`)
+   - Network-specific contract addresses (Sepolia/Mainnet)
+   - Deployment checklist in comments
+
+4. **Verification script** — Created `scripts/verify-production-setup.js`:
+   - Validates environment variables (length, format)
+   - Checks secret requirements (JWT_SECRET min 32 chars)
+   - Tests external services (database, RPC, Scaleway API)
+   - Exit codes: 0 (pass), 0 with warnings, 1 (must fix)
+
+### Remaining action items (before production deploy)
+
+1. **Configure Scaleway API Key**:
+   ```bash
+   # Get key from: https://console.scaleway.com/iam/api-keys
+   # Add to .env: SCALEWAY_API_KEY=<your-key>
+   ```
+
+2. **Generate production secrets**:
+   ```bash
+   openssl rand -hex 32  # For JWT_SECRET
+   openssl rand -hex 32  # For IP_SALT (if enabling IP hashing)
+   ```
+
+3. **Fund backend signer wallet** (optional for backend-initiated DID minting):
+   - Transfer ~0.1 ETH to backend signer wallet on Sepolia
+
+4. **Run verification**:
+   ```bash
+   node scripts/verify-production-setup.js
+   ```
+
+See full details in **`documentation/public documentation/PRODUCTION_FIXES_2026_05_08.md`**.
 
 ## ✅ Part 1: Client-side encryption for storage (ChatWidget)
 
@@ -97,7 +160,7 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 
 ### Legacy / parallel testing endpoints (`apps/api/src/routes/testing.ts`)
 
-Still mounted at **`/api/testing/*`** for backward compatibility (e.g. `POST /api/testing/wallet/connect`, `POST /api/testing/wallet/verify`, `GET /api/testing/wallet/info`, `POST /api/testing/did/verify`, `POST /api/testing/did/check`). **Not automatically disabled in production** — treat as a **hardening backlog** item if you want dev-only exposure.
+Handlers remain in **`testing.ts`** for local/dev use. **`apps/api/src/app.ts`** mounts them only when **`NODE_ENV !== 'production'`**; in production the same path returns **`404`** (no legacy testing router), so `/api/testing/*` is not exposed on live deploys.
 
 ### ✅ Production endpoints (implemented)
 
@@ -113,9 +176,9 @@ Still mounted at **`/api/testing/*`** for backward compatibility (e.g. `POST /ap
 
 ### API refactoring — status
 
-1. ✅ Create **`/api/auth/*`** routes (`routes/auth.ts`, mounted in `index.ts`)
-2. ✅ Wallet session logic available on production auth routes (testing routes remain parallel)
-3. ⚠️ Optionally **disable or gate `/api/testing`** when `NODE_ENV === 'production'` (not done as of 2026-04-12)
+1. ✅ Create **`/api/auth/*`** routes (`routes/auth.ts`, mounted in **`app.ts`** via `createApp()`)
+2. ✅ Wallet session logic available on production auth routes (legacy testing routes only in non-production)
+3. ✅ **Gate `/api/testing` in production** — `createApp()` mounts **`testing`** only when not production; production responds with **`404`**
 4. ✅ **Shared request validation** — `validate()` + Joi in `apps/api/src/middleware/validation.ts` (used across routes)
 
 ---
@@ -135,7 +198,7 @@ Still mounted at **`/api/testing/*`** for backward compatibility (e.g. `POST /ap
 ### ⚠️ Backlog / refinements
 
 - [ ] **Persist encrypted symmetric key** via DID/contract metadata (reduce reliance on localStorage in `useChatEncryption`)
-- [ ] **Gate or remove `/api/testing` in production** if security posture requires it
+- [x] **Gate `/api/testing` in production** — implemented in `apps/api/src/app.ts` (`NODE_ENV === 'production'` → stub `404`)
 - [ ] **Key rotation mechanism** (security checklist)
 - [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)
 - [ ] **Continuous end-to-end testing** beyond unit tests (wallet + chain smoke in staging)

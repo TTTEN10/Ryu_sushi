@@ -124,3 +124,15 @@ export const chatRateLimitMiddleware = rateLimit({
     return req.path === '/health' || req.path === '/healthz';
   },
 })
+
+/** Anonymous funnel intake (POST /api/metrics/funnel): bounded bursts per IP */
+export const funnelRateLimitMiddleware = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: {
+    success: false,
+    message: 'Too many funnel submissions. Please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+})

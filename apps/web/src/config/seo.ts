@@ -22,15 +22,19 @@ const defaultImage = `${baseUrl}/Logotransparent.png`;
 
 export const seoConfig: Record<string, SEOConfig> = {
   '/': {
-    title: 'SafePsy | Safe Psychological Support With Dr. Safe',
-    description: 'A safe, inclusive and research-backed mental health product experience. Chat with Dr. Safe, reduce anxiety, and keep control of your data.',
-    keywords: 'SafePsy, Dr. Safe, mental health support, AI therapy support, privacy-first therapy, beta',
-    ogTitle: 'SafePsy | Safe Psychological Support With Dr. Safe',
-    ogDescription: 'A safe, inclusive and research-backed mental health product experience with trust-first design.',
+    title: 'SafePsy - AI Therapy Chatbot for Private Mental Wellness Support',
+    description:
+      'SafePsy is a privacy-first AI therapist offering secure support with Dr. Safe. Chat instantly with no sign-in, or use decentralized identity for encrypted conversations you control. We never train on your data.',
+    keywords:
+      'SafePsy, Dr. Safe, AI therapy, mental wellness, privacy-first therapy, encrypted chat, decentralized identity, private mental health support',
+    ogTitle: 'SafePsy - AI Therapy Chatbot for Private Mental Wellness Support',
+    ogDescription:
+      'Privacy-first AI therapy with Dr. Safe — reflection and between-session support with blockchain-secured identity and user-controlled encryption.',
     ogImage: defaultImage,
     ogUrl: baseUrl,
-    twitterTitle: 'Mental Health, Rebuilt on Privacy',
-    twitterDescription: 'Privacy-first mental wellness platform: ethical AI, blockchain-secured identity, and encrypted storage with user-controlled keys.',
+    twitterTitle: 'SafePsy — Private Mental Wellness Support',
+    twitterDescription:
+      'Privacy-first AI therapy with Dr. Safe. Chat without sign-in or use your wallet for encrypted history — we never train on your data.',
     twitterImage: defaultImage,
     twitterCard: 'summary_large_image',
     canonical: baseUrl,
@@ -122,6 +126,21 @@ export const seoConfig: Record<string, SEOConfig> = {
     twitterImage: defaultImage,
     twitterCard: 'summary',
     canonical: `${baseUrl}/faq`,
+  },
+  '/register': {
+    title: 'Register - SafePsy | Join the waitlist',
+    description:
+      'Create your SafePsy account by joining the waitlist. Get early access and product updates to our privacy-first mental wellness platform.',
+    keywords: 'SafePsy register, SafePsy waitlist, early access, privacy-first mental wellness',
+    ogTitle: 'Register - SafePsy',
+    ogDescription: 'Join the SafePsy waitlist to get early access and product updates.',
+    ogImage: defaultImage,
+    ogUrl: `${baseUrl}/register`,
+    twitterTitle: 'Register - SafePsy',
+    twitterDescription: 'Join the SafePsy waitlist to get early access and product updates.',
+    twitterImage: defaultImage,
+    twitterCard: 'summary',
+    canonical: `${baseUrl}/register`,
   },
   '/beta/chat': {
     title: 'AI Chat - SafePsy | Privacy-First Mental Wellness Support',

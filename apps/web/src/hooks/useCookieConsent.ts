@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react'
+import {
+  clearProductMetricsCookie,
+  flushProductMetricsToServer,
+  recordLandingSession,
+} from '../utils/conversionMetrics'
 
 export interface CookiePreferences {
   essential: boolean
@@ -61,6 +66,11 @@ export const useCookieConsent = () => {
 
     // Apply cookie settings
     applyCookieSettings(preferences)
+
+    if (preferences.analytics) {
+      recordLandingSession()
+      void flushProductMetricsToServer()
+    }
   }
 
   const clearConsent = () => {
@@ -70,6 +80,7 @@ export const useCookieConsent = () => {
     // Remove non-essential cookies
     document.cookie = "functional_cookies=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
     document.cookie = "analytics_cookies=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+    clearProductMetricsCookie()
     
     setConsentData({
       preferences: {
@@ -108,6 +119,7 @@ export const applyCookieSettings = (preferences: CookiePreferences) => {
     document.cookie = "analytics_cookies=true; path=/; max-age=63072000; SameSite=Strict; Secure"
   } else {
     document.cookie = "analytics_cookies=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+    clearProductMetricsCookie()
   }
 }
 

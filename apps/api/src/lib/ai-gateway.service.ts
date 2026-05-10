@@ -44,6 +44,7 @@ export interface ChatCompletionRequest {
   stream?: boolean;
   userId?: string;
   sessionId?: string;
+  topP?: number; // Nucleus sampling (0-1, recommended: 0.9)
   /** When `guest`, the API must not persist or quota-link the request (see chat routes). */
   mode?: 'guest' | 'authenticated';
 }
@@ -80,10 +81,12 @@ export type TokenStreamCallback = (token: string, event: SSEEventType) => void;
  */
 class AIGatewayService {
   private axiosClient: AxiosInstance | null = null;
-  private readonly defaultModel = 'llama-3-70b-instruct'; // Scaleway default model
-  private readonly defaultTemperature = 0.7;
+  private readonly defaultModel = 'mistral-small-3.2-24b-instruct-2506'; // Mistral Small 3.2 - optimized for psychotherapy conversations
+  private readonly defaultTemperature = 0.4; // Lower temperature for more focused, consistent responses (psychotherapy context)
+  private readonly defaultTopP = 0.9; // Nucleus sampling for balanced creativity/focus
   private readonly defaultMaxTokens = 1000;
-  private readonly scalewayBaseUrl = 'https://api.scaleway.com/ai/v1alpha1';
+  // Scaleway Generative AI endpoint: https://api.scaleway.ai/{project_id}/v1
+  // Configured via SCALEWAY_API_BASE_URL environment variable or defaults to project 5dad0cb7-c16a-4447-9a25-e89bd3448e8a
 
   /** After repeated failures, pause calls to that upstream for a short window. */
   private circuitOpenUntil = new Map<string, number>();
@@ -104,6 +107,7 @@ class AIGatewayService {
   
   /**
    * Get or initialize Scaleway API client (lazy initialization)
+   * Uses the new Scaleway Generative AI endpoint format: https://api.scaleway.ai/{project_id}/v1
    */
   private getScalewayClient(): AxiosInstance {
     if (!this.axiosClient) {
@@ -115,18 +119,21 @@ class AIGatewayService {
           // dotenv might already be loaded
         }
       }
-      
+
       const apiKey = process.env.SCALEWAY_API_KEY;
+      const projectId = process.env.SCALEWAY_PROJECT_ID || '5dad0cb7-c16a-4447-9a25-e89bd3448e8a';
+      const baseUrl = process.env.SCALEWAY_API_BASE_URL || `https://api.scaleway.ai/${projectId}/v1`;
+
       if (!apiKey) {
         logger.warn('SCALEWAY_API_KEY not found in environment variables. Scaleway integration will not work.');
       } else {
-        logger.info('Scaleway API key loaded successfully');
+        logger.info(`Scaleway API key loaded successfully. Using endpoint: ${baseUrl}`);
       }
-      
+
       this.axiosClient = axios.create({
-        baseURL: this.scalewayBaseUrl,
+        baseURL: baseUrl,
         headers: {
-          'X-Auth-Token': apiKey || '',
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         timeout: this.getUpstreamTimeoutMs(),
@@ -609,7 +616,7 @@ class AIGatewayService {
       // Same system prompt + guest-mode handling as self-hosted path (single code path).
       const scalewayMessages = this.buildSanitizedMessages(request);
 
-      // Create Scaleway API request - ONLY send model, messages, temperature, max_tokens
+      // Create Scaleway API request - send model, messages, temperature, top_p, max_tokens
       // DO NOT send: userId, sessionId, wallet addresses, DID, IP addresses, or any other metadata
       const scalewayClient = this.getScalewayClient();
       const response = await scalewayClient.post(
@@ -618,6 +625,7 @@ class AIGatewayService {
           model,
           messages: scalewayMessages, // Only role and content, no identifiers
           temperature,
+          top_p: request.topP ?? this.defaultTopP, // Nucleus sampling
           max_tokens: maxTokens,
           stream: true,
         },
@@ -857,13 +865,14 @@ class AIGatewayService {
     try {
       const scalewayMessages = this.buildSanitizedMessages(request);
 
-      // Call Scaleway API - ONLY send model, messages, temperature, max_tokens
+      // Call Scaleway API - send model, messages, temperature, top_p, max_tokens
       // DO NOT send: userId, sessionId, wallet addresses, DID, IP addresses, or any other metadata
       const scalewayClient = this.getScalewayClient();
       const response = await scalewayClient.post('/chat/completions', {
         model,
         messages: scalewayMessages, // Only role and content, no identifiers
         temperature,
+        top_p: request.topP ?? this.defaultTopP, // Nucleus sampling
         max_tokens: maxTokens,
         stream: false,
       });

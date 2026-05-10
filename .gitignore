@@ -14,6 +14,7 @@ yarn-error.log*
 # Production builds
 dist/
 build/
+apps/web/dist-ssr/
 
 # Environment variables and configuration files with credentials
 .env

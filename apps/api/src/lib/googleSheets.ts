@@ -105,6 +105,73 @@ export class GoogleSheetsService {
     }
   }
 
+  private normalizeEmail(email: string): string {
+    return (email || '').toString().trim().toLowerCase()
+  }
+
+  /**
+   * Idempotent waitlist write (dedupe by email).
+   * Returns `exists` if the email is already present in the sheet.
+   */
+  async upsertWaitlistSignup(data: EmailSubscriptionData): Promise<'created' | 'exists'> {
+    if (!this.enabled || !this.spreadsheetId) {
+      throw new Error('Google Sheets waitlist storage is not configured')
+    }
+
+    await this.initializeSheets()
+    if (!this.sheets) {
+      throw new Error('Google Sheets client failed to initialize')
+    }
+
+    await this.ensureHeaders()
+
+    const normalized = this.normalizeEmail(data.email)
+    const exists = await this.emailExistsInSheet(normalized)
+    if (exists) return 'exists'
+
+    await this.appendRow(data)
+    return 'created'
+  }
+
+  private async emailExistsInSheet(normalizedEmail: string): Promise<boolean> {
+    if (!this.sheets || !this.spreadsheetId) return false
+
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: this.spreadsheetId,
+      range: `${this.tabName}!B2:B50000`,
+    })
+
+    const rows = response.data.values
+    if (!rows?.length) return false
+
+    for (const row of rows) {
+      const cell = row?.[0]
+      if (cell == null || cell === '') continue
+      if (this.normalizeEmail(String(cell)) === normalizedEmail) return true
+    }
+    return false
+  }
+
+  private async appendRow(data: EmailSubscriptionData): Promise<void> {
+    if (!this.sheets || !this.spreadsheetId) return
+
+    await this.sheets.spreadsheets.values.append({
+      spreadsheetId: this.spreadsheetId,
+      range: `${this.tabName}!A:E`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [[
+          data.timestamp.toISOString(),
+          this.normalizeEmail(data.email),
+          data.fullName || '',
+          data.role || '',
+          data.consentGiven ? 'Yes' : 'No',
+        ]],
+      },
+    })
+  }
+
   /**
    * Log an email subscription to Google Sheets
    */
@@ -125,21 +192,7 @@ export class GoogleSheetsService {
       await this.ensureHeaders()
 
       // Append the row
-      await this.sheets.spreadsheets.values.append({
-        spreadsheetId: this.spreadsheetId,
-        range: `${this.tabName}!A:E`,
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: {
-          values: [[
-            data.timestamp.toISOString(),
-            data.email,
-            data.fullName || '',
-            data.role || '',
-            data.consentGiven ? 'Yes' : 'No',
-          ]],
-        },
-      })
+      await this.appendRow(data)
 
       logger.info(`[GOOGLE SHEETS] Logged subscription for ${data.email}`)
     } catch (error: any) {
@@ -168,20 +221,18 @@ export class GoogleSheetsService {
 
       const rows = response.data.values
 
+      const expected = ['Timestamp', 'Email', 'Full Name', 'Role', 'Consent Given']
+      const actual = rows?.[0] || []
+      const matches = expected.every((v, i) => String(actual[i] ?? '') === v)
+
       // If no rows or headers don't match, create headers
-      if (!rows || rows.length === 0 || rows[0][0] !== 'Timestamp') {
+      if (!rows || rows.length === 0 || !matches) {
         await this.sheets.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
           range: `${this.tabName}!A1:E1`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [[
-              'Timestamp',
-              'Email',
-              'Full Name',
-              'Role',
-              'Consent Given',
-            ]],
+            values: [expected],
           },
         })
         logger.info('[GOOGLE SHEETS] Created headers in sheet')

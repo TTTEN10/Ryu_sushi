@@ -4,6 +4,7 @@ import {
   SUPPORTED_CHAIN_ID,
   SUPPORTED_CHAIN_ID_HEX,
 } from '../config/supportedChain';
+import { recordWalletClick, recordWalletSuccess } from '../utils/conversionMetrics';
 
 type WalletConnectProvider = {
   accounts: string[];
@@ -79,7 +80,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   useEffect(() => {
     const initWalletConnect = async () => {
       if (!WALLETCONNECT_PROJECT_ID) {
-        console.warn('WalletConnect Project ID not set. WalletConnect will not be available.');
+        console.warn(
+          'WalletConnect disabled: set VITE_WALLETCONNECT_PROJECT_ID in apps/web/.env (see apps/web/env.example). Injected extension wallets still work.',
+        );
         return;
       }
 
@@ -220,6 +223,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     checkExistingConnection();
   }, [walletConnectProvider]);
 
+  useEffect(() => {
+    if (wallet?.address) {
+      recordWalletSuccess();
+    }
+  }, [wallet?.address]);
+
   // Listen for MetaMask chain changes
   useEffect(() => {
     if (typeof window.ethereum === 'undefined') {
@@ -261,6 +270,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   const connectWallet = useCallback(async () => {
     try {
+      recordWalletClick();
       setIsLoading(true);
       setError(null);
 

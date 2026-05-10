@@ -10,7 +10,9 @@ import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../config/supportedC
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 
-export default function ConnectWallet() {
+type ConnectWalletVariant = 'default' | 'header';
+
+export default function ConnectWallet({ variant = 'default' }: { variant?: ConnectWalletVariant }) {
   const { wallet, connectWallet, isLoading: walletLoading, error: walletError } = useWallet();
   const { authState, verifyWallet, logout, checkDID } = useAuth();
   const { showToast, ToastContainer } = useToast();
@@ -125,9 +127,17 @@ export default function ConnectWallet() {
     }
   };
 
+  const isHeader = variant === 'header';
+
   if (wallet) {
     return (
-      <div className="flex flex-col items-end gap-2">
+      <div
+        className={
+          isHeader
+            ? 'flex flex-col items-end gap-1 w-full min-w-0 sm:max-w-[min(100vw-10rem,28rem)]'
+            : 'flex flex-col items-end gap-2'
+        }
+      >
         {/* Network Error Banner with Guide */}
         {isWrongNetwork && (
           <div className="max-w-xs">
@@ -157,7 +167,13 @@ export default function ConnectWallet() {
           </div>
         )}
 
-        <div className="relative flex items-center gap-2">
+        <div
+          className={
+            isHeader
+              ? 'relative flex flex-wrap items-center justify-end gap-1.5 sm:gap-2'
+              : 'relative flex items-center gap-2'
+          }
+        >
           {/* Wallet Address & Verification Status - clickable for info when not verified */}
           <div
             role={!authState.isVerified ? "button" : undefined}
@@ -227,9 +243,12 @@ export default function ConnectWallet() {
               onClick={handleVerify}
               className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
               title="Confirm identity in your wallet — no funds used"
+              aria-label={isHeader ? 'Authorize in your wallet' : 'Verify wallet'}
             >
               <CheckCircle className="w-4 h-4 text-white" />
-              <span className="hidden sm:inline text-white">Verify</span>
+              <span className="hidden sm:inline text-white">
+                {isHeader ? 'Authorize' : 'Verify'}
+              </span>
             </button>
           )}
 
@@ -277,12 +296,19 @@ export default function ConnectWallet() {
         disabled={walletLoading}
         className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-8 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none min-h-[44px] flex items-center justify-center gap-2"
         title="Secure this space — wallet is for identity and encryption, not payments"
+        aria-label={isHeader ? 'Connect wallet with WalletConnect or browser extension' : 'Connect wallet'}
       >
         <Wallet className="w-4 h-4 text-white" />
         <span className="hidden sm:inline text-white">
-          {walletLoading ? 'Connecting...' : 'Connect'}
+          {walletLoading
+            ? 'Connecting...'
+            : isHeader
+              ? 'Connect wallet'
+              : 'Connect'}
         </span>
-        <span className="sm:hidden text-white">Connect</span>
+        <span className="sm:hidden text-white">
+          {walletLoading ? '…' : isHeader ? 'Wallet' : 'Connect'}
+        </span>
       </button>
       {walletError && (
         <div className="absolute top-full mt-2 right-0 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs z-50">

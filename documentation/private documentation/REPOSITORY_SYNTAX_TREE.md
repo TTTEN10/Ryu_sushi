@@ -2,6 +2,8 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPappv2**).
 
+> **Last updated:** 2026-05-10 — `apps/api/src/routes/metrics.ts` (`POST /api/metrics/funnel`); `apps/web/src/utils/conversionMetrics.ts`; `documentation/public documentation/CONVERSION_METRICS.md`.
+
 ---
 
 ## Root
@@ -11,16 +13,20 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 ├── package.json                    # Monorepo root: workspaces (`apps/*`), scripts (dev/build/test/lint/db; `dev:mobile` → Expo `safepsy-mobile`; `mobile:eas:build:ios` / `mobile:eas:submit:ios` → EAS TestFlight; `test`/`test:web`/`test:api` → `vitest run` for CI-clean exits), engines — JSON
 ├── package-lock.json               # npm lockfile — JSON
 ├── env.example                     # Root env template — Text
+├── .env.production.example         # Production env template with secrets generation, contract addresses, deployment checklist — Text (created 2026-05-08)
+├── docker-compose.local.yml         # Local dev deps: Postgres + Redis (+ optional Qdrant via profile) — YAML
 ├── .dockerignore                   # Docker build ignore rules — Text
 ├── prisma/
 │   └── schema.prisma               # Legacy duplicate; canonical schema is `apps/api/schema.prisma` (root `db:*` use `--schema=apps/api/schema.prisma`) — Prisma
-├── public/                         # Shared static assets (logos, hero imagery) — PNG/JPG
+├── public/                         # Shared static assets (logos, hero imagery, `.well-known/apple-app-site-association` for iOS Universal Links) — PNG/JPG/JSON
 ├── logs/                           # Local log mount (e.g. healthcheck) — Text
 ├── api/                            # Workspace-adjacent Cursor scope (not the Express API)
 │   └── .cursor/rules/service_scope.mdc
-└── apps/
-    └── deployments/
-        └── sepolia-latest.json     # Copy/snapshot of latest Sepolia addresses (alongside `apps/api/deployments/`) — JSON
+├── apps/
+│   └── deployments/
+│       └── sepolia-latest.json     # Copy/snapshot of latest Sepolia addresses (alongside `apps/api/deployments/`) — JSON
+└── scripts/
+    └── verify-production-setup.js  # Pre-deploy validation: env vars, secrets, external services, on-chain checks — JavaScript (created 2026-05-08)
 ```
 
 ---
@@ -113,16 +119,18 @@ apps/api/
 │   └── verify-sepolia-etherscan.sh       # Etherscan verification on Sepolia — Shell
 │
 ├── src/
-│   ├── index.ts              # Express app entry: CORS, helmet, routes (subscribe, contact, testing, chat, did, auth, payment, rag), LLM upstream health poller — TypeScript
+│   ├── index.ts              # Process bootstrap: dotenv, `createApp()`, listen, LLM upstream health poller, crypto/IP validators — TypeScript
+│   ├── app.ts                # `createApp()`: CORS, helmet, sanitize, rate limit, metrics, routes; `/api/testing` only when not production; static SPA from `apps/web/dist` — TypeScript
 │   ├── shims-jsdom.d.ts      # Ambient `jsdom` declaration for typecheck — TypeScript
 │   │
 │   ├── routes/
 │   │   ├── auth.ts           # Auth routes: wallet connect/verify, GET /api/auth/session & /me, logout — TypeScript
 │   │   ├── beta-chat.ts      # Legacy POST /beta/chat forward + OpenAI POST /beta/chat/completions — TypeScript
 │   │   ├── chat-completions.ts # Shared mount for OpenAI-style completions (used by chat + beta) — TypeScript
-│   │   ├── chat.ts           # Chat: completions, upstream-status, history, streaming — TypeScript
+│   │   ├── chat.ts           # Chat: save/load, upstream-status; `mountChatCompletions` from `chat-completions.ts` — TypeScript
 │   │   ├── contact.ts        # Contact form submit — TypeScript
 │   │   ├── did.ts            # DID: register, metadata, services, verify; POST /api/did/update (auth, prepares updateChatReference calldata) — TypeScript
+│   │   ├── metrics.ts        # POST /api/metrics/funnel — anonymous funnel timestamps intake — TypeScript
 │   │   ├── payment.ts        # Payment & pricing — TypeScript
 │   │   ├── rag.ts            # RAG: ingest, query, document delete, health — TypeScript
 │   │   ├── subscribe.ts      # Email subscription — TypeScript
@@ -175,7 +183,8 @@ apps/api/
 │   │   └── DIDIdentityToken.abi.json # DID token ABI — JSON
 │   │
 │   ├── __tests__/
-│   │   └── log-redaction.test.ts    # Log redaction tests — TypeScript
+│   │   ├── log-redaction.test.ts    # Log redaction tests — TypeScript
+│   │   └── subscribe.test.ts       # Subscribe route tests (consent, validation) — TypeScript
 │   │
 │   ├── lib/__tests__/
 │   │   └── retriever.service.test.ts # Retriever service tests — TypeScript
@@ -224,27 +233,32 @@ apps/api/
 apps/web/
 ├── package.json              # Web app deps (React, ethers, WalletConnect, etc.) & scripts — JSON
 ├── README.md                 # Web app overview (guest vs wallet chat) — Markdown
-├── index.html                # SPA entry HTML — HTML
+├── index.html                # SPA shell + helmet placeholders + baseline OG/favicon; client loads `entry-client` — HTML
 ├── env.example               # Frontend env template — Text
 ├── tsconfig.json             # TypeScript config — JSON
 ├── tsconfig.node.json        # Node/TS config for Vite — JSON
-├── vite.config.ts            # Vite config — TypeScript
-├── vite.config.d.ts          # Vite config types — TypeScript
+├── vite.config.ts            # Vite client build (proxy, CSS ordering plugin, SSR `noExternal` hint) — TypeScript
+├── vite.ssr.config.ts        # Vite SSR bundle for Node prerender (`dist-ssr/entry-server.cjs`) — TypeScript
 ├── vitest.config.ts          # Vitest config — TypeScript
 ├── tailwind.config.ts        # Tailwind config — TypeScript
 ├── postcss.config.cjs        # PostCSS config — JavaScript
 ├── .eslintrc.cjs             # ESLint config — JavaScript
-├── public/                   # Static assets (favicon, sitemap, robots, marketing imagery); `.well-known/apple-app-site-association` + README for iOS Universal Links — mixed
+├── public/                   # Static assets (`HeadsOnlyTransparent.png` favicon, `Logotransparent.png` OG/social, sitemap, robots, marketing imagery); `.well-known/apple-app-site-association` + README — mixed
 ├── scripts/
-│   └── validate-aasa.mjs     # CLI: fetch AASA, check status/JSON/redirects — JavaScript (ESM)
+│   ├── validate-aasa.mjs     # CLI: fetch AASA, check status/JSON/redirects — JavaScript (ESM)
+│   └── prerender.mjs         # Post-build: SSR-render key routes into `dist/**/index.html` — JavaScript (ESM)
 ├── src/
-│   ├── main.tsx              # React entry, root render — TypeScript (TSX)
-│   ├── App.tsx               # Router, routes, Theme/Wallet/Auth providers, SEO — TypeScript (TSX)
+│   ├── main.tsx              # Loads `entry-client` — TypeScript (TSX)
+│   ├── entry-client.tsx      # Browser hydrate/root render; `createBrowserRouter`, `HelmetProvider` — TypeScript (TSX)
+│   ├── entry-server.tsx      # SSR `render(url)` for prerender (react-router memory router + helmet) — TypeScript (TSX)
+│   ├── router.tsx            # Shared `routes` (`RouteObject[]`) for client + SSR — TypeScript (TSX)
+│   ├── App.tsx               # `RouterProvider`, Theme/Wallet/Auth, cookie banner — TypeScript (TSX)
 │   ├── styles.css            # Global styles — CSS
 │   ├── vite-env.d.ts         # Vite env types — TypeScript
 │   ├── polyfills.ts          # Browser polyfills (buffer, etc.) — TypeScript
 │   │
 │   ├── config/
+│   │   ├── api.ts            # API base URL helpers (`VITE_API_URL`, same-origin `/api`) — TypeScript
 │   │   ├── seo.ts            # SEO config (meta, titles) — TypeScript
 │   │   └── supportedChain.ts # Supported EVM chain ids / network config — TypeScript
 │   │
@@ -252,7 +266,7 @@ apps/web/
 │   │   └── seo.ts            # SEO-related types — TypeScript
 │   │
 │   ├── data/
-│   │   ├── faq.ts            # Shared FAQ items (landing, Explore page, FAQ page) — TypeScript
+│   │   ├── faq.ts            # Shared FAQ items (landing + FAQ page; landing-safe subset) — TypeScript
 │   │   └── supportIssues.ts  # Support / issue taxonomy for Support page — TypeScript
 │   │
 │   ├── contexts/
@@ -273,6 +287,7 @@ apps/web/
 │   ├── utils/
 │   │   ├── chat-retrieval.ts      # Chat retrieval from API — TypeScript
 │   │   ├── chat-summary-retrieval.ts # Chat summary retrieval — TypeScript
+│   │   ├── conversionMetrics.ts   # Optional funnel timestamps cookie (`sp_product_metrics`) — TypeScript
 │   │   ├── cookieUtils.ts         # Cookie helpers — TypeScript
 │   │   ├── crypto-helpers.ts      # Web Crypto BufferSource normalization — TypeScript
 │   │   ├── did-contract.ts        # DID contract calls (frontend) — TypeScript
@@ -287,7 +302,7 @@ apps/web/
 │   │   ├── AboutMe.tsx            # About me page — TypeScript (TSX)
 │   │   ├── Explore.tsx            # `/explore` — mission, values, technology — TypeScript (TSX)
 │   │   ├── BetaTutorial.tsx       # Beta / onboarding tutorial — TypeScript (TSX)
-│   │   ├── ChatWidget.tsx         # Chat UI widget (guest cap + wallet persistence) — TypeScript (TSX)
+│   │   ├── ChatWidget.tsx         # Chat UI widget (guest cap + wallet persistence, DID update flow fixed 2026-05-08) — TypeScript (TSX)
 │   │   ├── GuestModeLimitModal.tsx # Guest limit reached — wallet conversion — TypeScript (TSX)
 │   │   ├── ConnectWallet.tsx      # Wallet connection UI — TypeScript (TSX)
 │   │   ├── ContactUs.tsx         # Contact form — TypeScript (TSX)
@@ -298,19 +313,20 @@ apps/web/
 │   │   ├── DIDProfile.tsx         # DID profile display — TypeScript (TSX)
 │   │   ├── DIDTokenVisualization.tsx # DID token viz — TypeScript (TSX)
 │   │   ├── DPIA.tsx               # DPIA page — TypeScript (TSX)
-│   │   ├── EmailSignup.tsx        # Email signup form — TypeScript (TSX)
+│   │   ├── EmailSignup.tsx        # Email signup form (uses shared WaitlistForm) — TypeScript (TSX)
 │   │   ├── EmptyState.tsx         # Empty state component — TypeScript (TSX)
 │   │   ├── FAQ.tsx                # FAQ page — TypeScript (TSX)
 │   │   ├── FAQAccordion.tsx       # Reusable FAQ accordion — TypeScript (TSX)
 │   │   ├── Feedback.tsx           # User feedback UI — TypeScript (TSX)
 │   │   ├── Footer.tsx             # Site footer — TypeScript (TSX)
 │   │   ├── Header.tsx             # Site header/nav — TypeScript (TSX)
-│   │   ├── Hero.tsx               # Landing hero — TypeScript (TSX)
+│   │   ├── Hero.tsx               # Landing hero (uses shared WaitlistForm) — TypeScript (TSX)
 │   │   ├── HiddenPage.tsx         # Hidden/utility page — TypeScript (TSX)
-│   │   ├── Landing.tsx            # Main landing (`/`); “Explore” CTA → `/explore` — TypeScript (TSX)
+│   │   ├── Landing.tsx            # Main landing (`/`); primary CTAs → `/register`; waitlist + FAQ JSON-LD — TypeScript (TSX)
 │   │   ├── LoadingSpinner.tsx     # Loading spinner — TypeScript (TSX)
 │   │   ├── Maintenance.tsx        # Maintenance page — TypeScript (TSX)
 │   │   ├── NotFound.tsx           # 404 page — TypeScript (TSX)
+│   │   ├── Register.tsx           # `/register` — waitlist-focused page (uses WaitlistForm) — TypeScript (TSX)
 │   │   ├── Payment.tsx            # Payment UI — TypeScript (TSX)
 │   │   ├── Paywall.tsx            # Paywall component — TypeScript (TSX)
 │   │   ├── SEOHead.tsx            # Dynamic meta/SEO head — TypeScript (TSX)
@@ -323,6 +339,7 @@ apps/web/
 │   │   ├── TermsOfService.tsx     # ToS page — TypeScript (TSX)
 │   │   ├── Testing.tsx            # Testing page — TypeScript (TSX)
 │   │   ├── ThemeToggle.tsx        # Theme toggle — TypeScript (TSX)
+│   │   ├── WaitlistForm.tsx       # Reusable waitlist form (email + consent + submit, shared across Hero/Landing/EmailSignup) — TypeScript (TSX)
 │   │   └── __tests__/
 │   │       ├── ContactUs.test.tsx # ContactUs tests — TypeScript (TSX)
 │   │       ├── Hero.test.tsx      # Hero tests — TypeScript (TSX)
@@ -578,6 +595,7 @@ documentation/
 │   ├── CHAT_COMPLETE_GUIDE.md
 │   ├── CLAIMS_AND_TRUST_LANGUAGE.md
 │   ├── CODE_OF_CONDUCT.md
+│   ├── CONVERSION_METRICS.md      # Funnel cookie schema (`sp_product_metrics`) — Markdown
 │   ├── DEPENDENCIES.md
 │   ├── DID_COMPLETE_GUIDE.md
 │   ├── ENCRYPTION_COMPLETE_GUIDE.md
@@ -588,6 +606,7 @@ documentation/
 │   ├── outreach.md
 │   ├── PRICING_COMPLETE_GUIDE.md
 │   ├── PRIVACY-BY-DESIGN.md
+│   ├── PRODUCTION_FIXES_2026_05_08.md  # Critical production blockers resolved (DID update flow, env template, verification script) — Markdown
 │   ├── RAG_COMPLETE_GUIDE.md
 │   ├── SECURITY_COMPLETE_GUIDE.md
 │   ├── SMART_CONTRACTS_AUDIT_REPORT.md
@@ -602,7 +621,7 @@ documentation/
 │
 └── private documentation/       # Internal ops, CI/CD, contracts, runbooks (this file lives here)
     ├── README.md
-    ├── REPOSITORY_SYNTAX_TREE.md   # This file — Markdown
+    ├── REPOSITORY_SYNTAX_TREE.md   # This file — Markdown (updated 2026-05-10)
     ├── APPLY_SCHEMA.md
     ├── BACKUP_DR_COMPLETE_GUIDE.md
     ├── BACKUP_DR_IMPLEMENTATION_SUMMARY.md
@@ -631,11 +650,11 @@ documentation/
     ├── SHELL_SCRIPTS_DOCUMENTATION.md
     ├── SMART_CONTRACTS_COMPREHENSIVE_TESTING.md
     ├── SMART_CONTRACTS_DEPLOYMENT.md
-    ├── TECHNICAL_REVIEW.md     # Restored from pre-consolidation `REVIEW_UX_UI_SECURITY.md` (UX/UI/security review; merge with public guides for claims)
+    ├── TECHNICAL_REVIEW.md     # Restored from pre-consolidation `REVIEW_UX_UI_SECURITY.md` (UX/UI/security review; updated 2026-05-08 with production fixes; cross-check with sprint/tree when architecture changes)
     ├── TOKENOMICS.md
     ├── VC_ONE_PAGER.md
     ├── WAF_CONFIGURATION.md
-    ├── programming_sprint.md   # Restored from pre-consolidation `COMPLETE_IMPLEMENTATION_SUMMARY.md` (implementation status + follow-ups)
+    ├── programming_sprint.md   # Restored from pre-consolidation `COMPLETE_IMPLEMENTATION_SUMMARY.md` (implementation status + follow-ups; updated 2026-05-10 — `app.ts`, prod `/api/testing` gate)
     ├── safepsy-web3-client.md
     ├── ai-chatbot/              # AI service deploy & GPU notes
     ├── api/contracts/           # Hardhat / deployment quick starts
@@ -674,8 +693,8 @@ Some guides exist in both **public** and **private** trees (e.g. `LAUNCH.md`, on
 
 ## App flow (high level)
 
-- **Web (`apps/web`)**: React SPA → WalletContext/AuthContext (`userMode`: guest vs authenticated) → DID, chat (guest: in-memory + `mode: guest` API; verified: encrypted save/load), payment, legal, FAQ, support/feedback, and landing (`Landing.tsx`: `/`, with “Explore” linking to `/explore`; `/about-us` redirects to `/explore`; routes such as `/explore`, `/contact-us`, `/faq`, `/beta/chat`). Uses `apps/api` for API and (optionally) the AI service for chat.
-- **API (`apps/api`)**: Express server → auth, did, chat, payment, subscribe, contact, rag routes; middleware for auth, quota, safety, metrics; Prisma + PostgreSQL; DID contracts on-chain.
+- **Web (`apps/web`)**: React SPA → WalletContext/AuthContext (`userMode`: guest vs authenticated) → DID, chat (guest: in-memory + `mode: guest` API; verified: encrypted save/load), payment, legal, FAQ, support/feedback, and landing (`Landing.tsx`: `/`, primary CTAs to `/register`; `/about-us` redirects to `/explore`; routes such as `/explore`, `/register`, `/contact-us`, `/faq`, `/beta/chat`). Uses `apps/api` for API and (optionally) the AI service for chat.
+- **API (`apps/api`)**: Express server (`index.ts` → `createApp()` in **`app.ts`**) → auth, did, chat, payment, subscribe, contact, rag routes; **`/api/testing`** mounted only outside production; middleware for auth, quota, safety, metrics; Prisma + PostgreSQL; DID contracts on-chain.
 - **AI chatbot (`apps/ai-chatbot`)**: FastAPI + vLLM, OpenAI-compatible chat; used by API chat routes for completions/streaming.
 - **Backend / `frontend/`**: Legacy or parallel apps (contact, subscribe, simpler UI); **not** in npm `workspaces` (root workspaces are `apps/*` only).
 - **Deploy**: `deployment/` scripts (deploy, verify, monitor), `deploy/*.env.example` templates; `infra/observability` for Prometheus/Grafana; Terraform docs under `documentation/private documentation/infra/terraform/`.
@@ -694,6 +713,7 @@ These directories are generated by tooling and are part of the repository tree; 
 | `.terraform/` | Terraform state and provider cache (e.g. `infra/terraform/.terraform/`) | Terraform internal (providers, modules) |
 | `node_modules/` | Installed npm dependencies at root, `apps/api`, `apps/web`, and optionally `backend` / `frontend` | Mixed (packages) |
 | `apps/web/dist/` | Vite production build of the web app: bundled JS/CSS, `index.html`, hashed asset filenames | JavaScript, CSS, HTML |
+| `apps/web/dist-ssr/` | SSR bundle + prerender output from `vite.ssr.config.ts` / `scripts/prerender.mjs` (e.g. `entry-server.cjs`); may be gitignored or generated locally | JavaScript, HTML fragments |
 
 **Notes:**
 

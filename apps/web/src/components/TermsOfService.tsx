@@ -342,6 +342,21 @@ const TermsOfService: React.FC = () => {
                       addresses are redacted). By using our services, you acknowledge that we apply industry-standard 
                       information security measures to protect your data.
                     </p>
+                    <p>
+                      If you opt in to analytics cookies, we may store anonymous first-touch timestamps in your browser (for example
+                      first landing session, wallet connect milestones, verified session, DID detection, first chat message and first
+                      assistant reply, and whether you returned within 24 hours of a prior session) solely to measure product usage and
+                      conversion. These cookies do not contain wallet addresses, chat content, or personal identifiers. You can withdraw
+                      consent at any time via the cookie preferences or browser controls; see our{' '}
+                      <Link to="/cookies" className="text-primary-600 hover:text-primary-700 underline font-medium">
+                        Cookie Policy
+                      </Link>
+                      {' '}and{' '}
+                      <Link to="/sap-policy" className="text-primary-600 hover:text-primary-700 underline font-medium">
+                        Security and Privacy Policy
+                      </Link>
+                      .
+                    </p>
                   </div>
                 </div>
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { useWallet } from './WalletContext';
+import { recordDidSuccess, recordSessionSuccess } from '../utils/conversionMetrics';
 
 // Use empty string when not set: same-origin requests use Vite proxy (dev) or Caddy (prod)
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -389,6 +390,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     () => (authState.isVerified ? 'authenticated' : 'guest'),
     [authState.isVerified]
   );
+
+  useEffect(() => {
+    if (authState.isVerified) {
+      recordSessionSuccess();
+    }
+  }, [authState.isVerified]);
+
+  useEffect(() => {
+    if (authState.didStatus === 'exists') {
+      recordDidSuccess();
+    }
+  }, [authState.didStatus]);
 
   return (
     <AuthContext.Provider

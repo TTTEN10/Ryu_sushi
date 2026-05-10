@@ -23,7 +23,8 @@ const chatCompletionSchema = Joi.object({
     .max(100)
     .required(),
   model: Joi.string().max(100).optional(),
-  temperature: Joi.number().min(0).max(2).optional(),
+  temperature: Joi.number().min(0).max(2).optional().default(0.4),
+  topP: Joi.number().min(0).max(1).optional().default(0.9),
   maxTokens: Joi.number().integer().min(1).max(4000).optional(),
   stream: Joi.boolean().optional(),
   userId: Joi.string().max(255).optional(),

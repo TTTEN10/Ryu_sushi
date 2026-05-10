@@ -33,7 +33,7 @@ export default function Testing() {
                 </div>
                 <div className="p-4 rounded-2xl border border-secondary-300 dark:border-secondary-700 bg-secondary-50/70 dark:bg-secondary-900/20">
                   <p className="text-heading font-semibold">Step 2</p>
-                  <p className="text-body">Connect wallet (optional)</p>
+                  <p className="text-body">Connect wallet</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-accent-300 dark:border-accent-700 bg-accent-50/70 dark:bg-accent-900/20">
                   <p className="text-heading font-semibold">Step 3</p>

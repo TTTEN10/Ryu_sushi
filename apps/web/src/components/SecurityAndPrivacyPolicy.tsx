@@ -60,6 +60,18 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                 </p>
               </div>
 
+              <div className="max-w-4xl mx-auto mb-10 sm:mb-12 px-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-white/60 dark:bg-black/25 p-6 text-left">
+                <h3 className="text-xl text-heading font-semibold mb-3">Optional product analytics (cookies)</h3>
+                <p className="text-body text-sm sm:text-base mb-3">
+                  When you enable <strong className="text-heading">analytics cookies</strong>, SafePsy may set a first-party cookie
+                  (<code className="font-mono text-sm">sp_product_metrics</code>) that holds anonymous ISO timestamps for funnel milestones only:
+                  landing session start, first wallet connect intent, wallet connected, verified wallet session, DID present,
+                  first chat message sent, first assistant reply completed, and whether you returned within 24 hours of a prior browser session.
+                  Values do not include wallet addresses, DIDs, names, email, IP, or message content. You can change or withdraw consent via our cookie banner and preference UI;
+                  disabling analytics removes this cookie.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
                 <div className="space-y-4 text-center">
                   <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700">

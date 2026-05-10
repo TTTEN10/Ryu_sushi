@@ -197,7 +197,8 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                         <div>
                           <h4 className="font-semibold text-heading">Analytics Cookies</h4>
                           <p className="text-sm text-body">
-                            Help us understand how you use our platform to improve our services.
+                            Lets us store anonymous milestone timestamps (landing, wallet funnel, first chat message and reply, return
+                            within 24h) in a first-party cookie—never message content or wallet addresses.
                           </p>
                         </div>
                       </div>

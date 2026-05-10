@@ -1,6 +1,8 @@
 # Comprehensive Repository Review: UX, UI & Security
 
 > Restored from repository-root `REVIEW_UX_UI_SECURITY.md` (last revision before deletion in commit `a45b56c14`). Cross-check product and encryption claims against current public guides where they differ.
+> 
+> **Last updated:** 2026-05-10 — Cross-checked with `programming_sprint.md` and repo layout (`createApp` in `apps/api/src/app.ts`, production `/api/testing` off). Prior 2026-05-08 post-audit fixes: see `PRODUCTION_FIXES_2026_05_08.md`.
 
 ## 📊 Executive Summary
 
@@ -44,11 +46,11 @@ This document provides a comprehensive review of the SafePsy application with ac
 
 #### 1.2 **No Offline/Network Error Recovery**
 
-**Issue**: No offline detection or graceful degradation when network fails.
+**Issue**: Limited offline UX and no queued retries when the network fails.
 
-**Impact**: Users experience confusing errors when offline, no ability to queue actions.
+**Impact**: Users can still see confusing errors when offline unless components use shared handling.
 
-**Location**: All API calls throughout the app
+**Location**: API calls across the app; baseline detection exists via **`apps/web/src/hooks/useOffline.ts`** — wire it consistently and add retry/queue where product-critical.
 
 **Recommendation**:
 - Implement offline detection
@@ -593,6 +595,17 @@ app.use(helmet({
 
 **Status key (verified against repo, April 2026):** ✅ means implemented in this codebase; ⚠️ means materially improved but not matching the original “full” recommendation; ⬜ means still open. **Repo checks:** `npm run build`, `npm run lint`, and **`npm test`** at the repo root (runs `vitest run` for `apps/web` then `apps/api`) exit cleanly—suitable for CI and one-off runs; workspace `cd apps/web && npm test` / `cd apps/api && npm test` also use `vitest run`.
 
+### Update log (2026-05-08) — Post-audit fixes
+
+- ✅ **Waitlist forms consolidated**: shared `WaitlistForm` used by `Hero`, `Landing`, and `EmailSignup` to prevent contract drift (always sends `consentGiven`).
+- ✅ **Subscribe UX copy aligned**: `/subscribe` error messages aligned across API + frontend (400 consent, 503 temporary outage, 429 “try again in 1 minute”).
+- ✅ **Chat readiness messaging**: `ChatWidget` shows a “local mock mode” banner when the backend runs without a real LLM upstream (no `SCALEWAY_API_KEY` / `AI_GPU_BASE_URL`).
+- ✅ **Local infra clarity**: added `docker-compose.local.yml` (Postgres + Redis + optional Qdrant profile) and documented in `env.example` + `apps/web/README.md`.
+- ✅ **DID update flow fixed**: `ChatWidget.tsx:487-540` now properly saves encrypted chat → fetches blob hash → updates DID contract with `updateChatReference()`. User feedback via toast notifications.
+- ✅ **Production environment template**: created `.env.production.example` with complete variable list, secret generation commands, network-specific addresses, and deployment checklist.
+- ✅ **Verification script**: created `scripts/verify-production-setup.js` for automated pre-deploy validation (env vars, secrets, external services, on-chain checks).
+- ✅ **Production fixes documented**: `PRODUCTION_FIXES_2026_05_08.md` tracks all critical blockers resolved and remaining action items.
+
 ### Immediate (This Week)
 1. ✅ Fix CORS configuration (3.1) — allowlist in `apps/api/src/index.ts`, no `*` default in production
 2. ✅ Add request ID tracking (3.2) — `apps/api/src/middleware/request-id.ts`, `X-Request-ID` exposed
@@ -600,6 +613,9 @@ app.use(helmet({
 4. ⚠️ CSRF / cross-site writes (3.4) — mitigations in place (strict CORS allowlist, `SameSite: 'strict'` + `httpOnly` wallet session cookie in `apps/api/src/routes/auth.ts`, JWT in `Authorization` for many flows); classic double-submit CSRF tokens are **not** implemented—add them if cookie-session POSTs grow beyond current patterns.
 5. ✅ Fix accessibility contrast issues (2.1) — `apps/web/src/styles.css` (`text-body`, headings, placeholders, `focus-visible`)
 6. ✅ Improve error messages with context (1.3) — `apps/web/src/utils/errorMessages.ts` + usage in forms / wallet / chat
+7. ✅ **DID update flow** (NEW) — `ChatWidget.tsx:487-540` saves chat → fetches blob hash → updates DID contract with toast feedback
+8. ✅ **Production env template** (NEW) — `.env.production.example` with secrets generation, contract addresses, deployment checklist
+9. ✅ **Verification script** (NEW) — `scripts/verify-production-setup.js` validates env, secrets, external services before deploy
 
 ### Short Term (This Month)
 7. ✅ Add offline detection and recovery (1.2) — `useOffline`, queued actions in Hero / forms / `Landing`
@@ -608,6 +624,51 @@ app.use(helmet({
 10. ✅ Improve wallet connection UX (1.6) — `ConnectWallet.tsx`: steps, network guide, verification explainer, wrong-network banner
 11. ✅ Add input sanitization (3.6) — `sanitizeMiddleware` + DOMPurify path in `apps/api/src/middleware/sanitize.ts`
 12. ✅ Enhance session security (3.5) — secure cookie flags on wallet session; JWT verification middleware (`apps/api/src/middleware/auth.ts`)
+
+### Production Readiness (2026-05-08)
+
+**Status:** Sepolia beta ready — pending Scaleway API key and secrets generation.
+
+#### Critical fixes applied
+
+| Issue | Resolution | File(s) |
+|-------|-----------|---------|
+| DID contract never updated after chat save | Fixed `persistAfterStream` flow: save → fetch hash → update DID | `apps/web/src/components/ChatWidget.tsx:487-540` |
+| Frontend missing DID contract address | Added `VITE_DID_IDENTITY_TOKEN_ADDRESS` (Sepolia: `0x103eAd096f898132E138ad228E35296db983A053`) | `apps/web/.env` |
+| No production env template | Created comprehensive template with generation commands | `.env.production.example` |
+| No automated pre-deploy validation | Created verification script with exit codes | `scripts/verify-production-setup.js` |
+
+#### User experience after fixes
+
+1. **Chat persistence flow**:
+   - User sends message → AI streams response
+   - Stream completes → `persistAfterStream()` called
+   - `saveChat()` encrypts and saves to database
+   - Fetch latest chat record to get `blobHash`
+   - Call `updateChatReference()` on DID contract
+   - Success toast: "DID updated! Chat reference stored on-chain"
+   - Warning toast (if DID update fails): "Chat saved. DID update failed - you can update later from DID settings."
+
+2. **Non-blocking DID updates**: Chat saves to database even if DID contract update fails (gas issues, network congestion). User can manually update from DID settings.
+
+#### Remaining action items
+
+1. **Configure Scaleway API Key** (CRITICAL):
+   - Get key from: https://console.scaleway.com/iam/api-keys
+   - Add to `.env`: `SCALEWAY_API_KEY=<your-key>`
+
+2. **Generate production secrets**:
+   ```bash
+   openssl rand -hex 32  # For JWT_SECRET
+   openssl rand -hex 32  # For IP_SALT (if enabling IP hashing)
+   ```
+
+3. **Run verification**:
+   ```bash
+   node scripts/verify-production-setup.js
+   ```
+
+Full details: **`documentation/public documentation/PRODUCTION_FIXES_2026_05_08.md`**
 
 ### Medium Term (Next Quarter)
 13. ✅ Chat widget improvements (1.7) — character count, 30s edit window, delete confirm, offline/guest flows, loading for history/encryption (`ChatWidget.tsx`)

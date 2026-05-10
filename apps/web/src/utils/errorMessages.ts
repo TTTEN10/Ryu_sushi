@@ -11,6 +11,8 @@ interface ErrorContext {
 
 export function getActionableErrorMessage(error: unknown, context: ErrorContext = {}): string {
   const { status, code, originalMessage } = context;
+  const endpoint = (context.endpoint || '').toLowerCase();
+  const original = (originalMessage || '').toLowerCase();
 
   // Network/Connection errors
   if (error instanceof TypeError && error.message.includes('fetch')) {
@@ -27,6 +29,9 @@ export function getActionableErrorMessage(error: unknown, context: ErrorContext 
           }
           return 'Please enter a valid email address.';
         }
+        if (original.includes('consent')) {
+          return 'Consent is required to join the waitlist.';
+        }
         return originalMessage || 'Invalid request. Please check your input and try again.';
       
       case 401:
@@ -39,12 +44,20 @@ export function getActionableErrorMessage(error: unknown, context: ErrorContext 
         return 'The requested resource was not found. Please check the URL or try again later.';
       
       case 429:
+        // Subscribe endpoint has a 1-minute window; be explicit.
+        if (endpoint.includes('/subscribe') || original.includes('subscription')) {
+          return 'Too many attempts — try again in 1 minute.';
+        }
         return 'Too many requests. Please wait a moment before trying again.';
       
       case 500:
         return 'Our servers encountered an error. Please try again in a few moments. If the problem persists, contact support.';
       
       case 503:
+        // Align with API wording for waitlist outages.
+        if (endpoint.includes('/subscribe')) {
+          return 'Waitlist signup is temporarily unavailable. Please try again later.';
+        }
         return 'Service temporarily unavailable. We\'re working on it. Please try again soon.';
       
       default:

@@ -152,6 +152,13 @@ Your goal is to help the user feel:
 
 Even a small improvement matters.`;
 
+/**
+ * Compact system primer (kept within ~100 tokens for typical GPT/cl100k-style encodings).
+ * Use only when context budget is tight; prefer {@link DR_SAFE_SYSTEM_PROMPT} for quality.
+ */
+export const DR_SAFE_SYSTEM_PROMPT_SHORT =
+  'You are Dr.Safe: warm psychologically-informed chat—not therapy or diagnosis; never diagnose or prescribe. Reply: reflect feeling in one short sentence first; max three short sentences; one question; plain language. Crisis or self-harm: validate, urge immediate human or emergency help; never harmful instructions; slow down if overwhelmed.';
+
 /** Extra guidance when the API request is in guest mode (no persisted identity). */
 export const DR_SAFE_GUEST_MODE_APPEND = `----------------------------------
 GUEST SESSION (PRODUCT CONTEXT)
