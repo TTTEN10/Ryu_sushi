@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle, XCircle, Loader2, Activity } from 'lucide-react'
 import Header from './Header'
 import Footer from './Footer'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiServerUrl } from '../config/api'
 const MAX_AUTO_REFRESHES = 10; // Maximum number of automatic refreshes
 
 interface HealthStatus {
@@ -34,7 +33,7 @@ const Status: React.FC = () => {
         const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
         
         try {
-          const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          const response = await fetch(apiServerUrl(endpoint), {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -212,17 +211,15 @@ const Status: React.FC = () => {
                         </span>
                       </div>
                     )}
-                    {API_BASE_URL && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                        <span className="text-body">
-                          <strong>API Endpoint:</strong>{' '}
-                          <code className="text-sm bg-white/50 dark:bg-black/50 px-2 py-1 rounded">
-                            {API_BASE_URL}
-                          </code>
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                      <span className="text-body">
+                        <strong>Health check URL:</strong>{' '}
+                        <code className="text-sm bg-white/50 dark:bg-black/50 px-2 py-1 rounded">
+                          {apiServerUrl('/healthz')}
+                        </code>
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}

@@ -69,7 +69,7 @@ export class PostmarkEmailProvider implements EmailProvider {
   private fromAddress: string
 
   constructor() {
-    this.fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.POSTMARK_FROM_ADDRESS || 'noreply@safepsy.com'
+    this.fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.POSTMARK_FROM_ADDRESS || 'noreply@polinapsycho.com'
   }
 
   private async initializePostmark(): Promise<void> {

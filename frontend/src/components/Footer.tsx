@@ -21,12 +21,12 @@ const Footer: React.FC = () => {
             <h4 className="text-lg font-semibold">Contact</h4>
             <div className="space-y-3">
               <a
-                href="mailto:hello@safepsy.com"
+                href="mailto:hello@polinapsycho.com"
                 className="flex items-center gap-3 text-gray-300 hover:text-white transition-colors"
-                aria-label="Email us at hello@safepsy.com"
+                aria-label="Email us at hello@polinapsycho.com"
               >
                 <Mail className="w-5 h-5" />
-                hello@safepsy.com
+                hello@polinapsycho.com
               </a>
               <a
                 href="https://instagram.com/safepsy"

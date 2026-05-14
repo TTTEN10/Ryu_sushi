@@ -55,13 +55,14 @@ export function generateSIWEMessage(
 ): string {
   const domain = options?.domain || process.env.SIWE_DOMAIN || 'safepsy.com';
   const uri = options?.uri || process.env.SIWE_URI || 'https://safepsy.com';
-  const expirationTime = options?.expirationTime || new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours default
+  const expirationTime =
+    options?.expirationTime ?? new Date(Date.now() + 5 * 60 * 1000); // align with nonce TTL (5 min default)
 
   const chainId = SUPPORTED_CHAIN_ID;
   const siweMessage = new SiweMessage({
     domain,
     address,
-    statement: 'Sign in with Ethereum to SafePsy',
+    statement: 'Sign in to SafePsy',
     uri,
     version: '1',
     chainId,
@@ -76,7 +77,7 @@ export function generateSIWEMessage(
 /**
  * Verify if a message is in SIWE format
  */
-function isSIWEMessage(message: string): boolean {
+export function isSIWEMessage(message: string): boolean {
   return message.includes('wants you to sign in with your Ethereum account:') ||
          (message.includes('URI:') && message.includes('Version:') && message.includes('Chain ID:'));
 }
@@ -84,6 +85,34 @@ function isSIWEMessage(message: string): boolean {
 /**
  * Verify SIWE message signature
  */
+/**
+ * Validate SIWE signature and recover signer (EIP-4361). Used when client omits `address` in body.
+ */
+export async function verifySiweLoginOnly(
+  message: string,
+  signature: string,
+): Promise<{ address: string; chainId: number } | null> {
+  if (!isSIWEMessage(message)) {
+    return null;
+  }
+  try {
+    const siweMessage = new SiweMessage(message);
+    const fields = await siweMessage.validate(signature);
+    if (fields.chainId !== SUPPORTED_CHAIN_ID) {
+      logger.warn(`SIWE verification failed: invalid chain ID ${fields.chainId}`);
+      return null;
+    }
+    if (fields.expirationTime && new Date(fields.expirationTime) < new Date()) {
+      logger.warn('SIWE verification failed: message expired');
+      return null;
+    }
+    return { address: fields.address, chainId: fields.chainId };
+  } catch (error) {
+    logger.error('SIWE verification error:', error);
+    return null;
+  }
+}
+
 async function verifySIWESignature(
   message: string,
   signature: string
@@ -155,11 +184,8 @@ export async function verifySignature(
 
 /**
  * Middleware to verify wallet connection and signature
- * Expects:
- * - x-wallet-address header
- * - x-wallet-signature header
- * - x-wallet-message header (or will use default message)
- * - x-chain-id header (optional)
+ * Prefers validated JSON body (`validateWalletSignature`), falls back to legacy headers:
+ * x-wallet-address, x-wallet-signature, x-wallet-message, x-chain-id
  */
 export const walletAuthMiddleware = async (
   req: WalletAuthRequest,
@@ -167,30 +193,109 @@ export const walletAuthMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const address = req.headers['x-wallet-address'] as string;
-    const signature = req.headers['x-wallet-signature'] as string;
-    const message = req.headers['x-wallet-message'] as string;
-    const chainId = req.headers['x-chain-id'] as string;
+    const body = req.body as
+      | {
+          address?: string;
+          message?: string;
+          signature?: string;
+          chainId?: number;
+        }
+      | undefined;
 
-    // Check if wallet address is provided
-    if (!address) {
-      logger.warn('Wallet authentication failed: missing address');
+    let address = (body?.address || req.headers['x-wallet-address']) as string | undefined;
+    const signature = (body?.signature || req.headers['x-wallet-signature']) as string;
+    const message = (body?.message || req.headers['x-wallet-message']) as string;
+    let chainIdStr =
+      body?.chainId !== undefined && body?.chainId !== null
+        ? String(body.chainId)
+        : (req.headers['x-chain-id'] as string | undefined);
+
+    /** True when SIWE `validate()` already proved signature + message for this address. */
+    let siweCryptographicallyVerified = false;
+
+    if (!signature?.trim()) {
+      logger.warn('Wallet authentication failed: missing signature');
       await logSecurityEvent({
         eventType: 'AUTH_FAILURE',
         resource: req.path,
         success: false,
         req,
-        details: { reason: 'MISSING_WALLET_ADDRESS' },
+        details: { reason: 'MISSING_SIGNATURE' },
       });
       res.status(401).json({
         success: false,
-        message: 'Wallet address is required',
-        error: 'MISSING_WALLET_ADDRESS',
+        message: 'Signature is required',
+        error: 'MISSING_SIGNATURE',
       });
       return;
     }
 
-    // Validate address format
+    if (!message?.trim()) {
+      logger.warn('Wallet authentication failed: missing message');
+      await logSecurityEvent({
+        eventType: 'AUTH_FAILURE',
+        resource: req.path,
+        success: false,
+        req,
+        details: { reason: 'MISSING_MESSAGE' },
+      });
+      res.status(401).json({
+        success: false,
+        message: 'Message is required for signature verification',
+        error: 'MISSING_MESSAGE',
+      });
+      return;
+    }
+
+    // EIP-4361: allow `{ message, signature }` only — recover address from SIWE
+    if (!address?.trim()) {
+      const resolved = await verifySiweLoginOnly(message, signature);
+      if (!resolved) {
+        logger.warn('Wallet authentication failed: SIWE recover failed');
+        await logSecurityEvent({
+          eventType: 'AUTH_FAILURE',
+          resource: req.path,
+          success: false,
+          req,
+          details: { reason: 'INVALID_SIWE' },
+        });
+        res.status(401).json({
+          success: false,
+          message: 'Invalid SIWE signature — include EIP-4361 message or wallet address',
+          error: 'INVALID_SIWE',
+        });
+        return;
+      }
+      address = resolved.address;
+      chainIdStr = String(resolved.chainId);
+      siweCryptographicallyVerified = true;
+    } else if (isSIWEMessage(message)) {
+      const resolved = await verifySiweLoginOnly(message, signature);
+      if (!resolved || resolved.address.toLowerCase() !== address!.trim().toLowerCase()) {
+        logger.warn('Wallet authentication failed: SIWE address mismatch');
+        await logSecurityEvent({
+          eventType: 'AUTH_FAILURE',
+          actor: redactWalletForAudit(address),
+          resource: req.path,
+          success: false,
+          req,
+          details: { reason: 'ADDRESS_MISMATCH' },
+        });
+        res.status(401).json({
+          success: false,
+          message: 'SIWE signature does not match declared wallet address',
+          error: 'ADDRESS_MISMATCH',
+        });
+        return;
+      }
+      if (!chainIdStr) {
+        chainIdStr = String(resolved.chainId);
+      }
+      siweCryptographicallyVerified = true;
+    }
+
+    address = address!.trim();
+
     if (!ethers.isAddress(address)) {
       logger.warn(`Wallet authentication failed: invalid address format - ${address}`);
       await logSecurityEvent({
@@ -208,8 +313,7 @@ export const walletAuthMiddleware = async (
       return;
     }
 
-    // Validate chain ID - Sepolia Testnet
-    const parsedChainId = chainId ? parseInt(chainId, 10) : SUPPORTED_CHAIN_ID;
+    const parsedChainId = chainIdStr ? parseInt(chainIdStr, 10) : SUPPORTED_CHAIN_ID;
     if (parsedChainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`Wallet authentication failed: unsupported chain ID ${parsedChainId} for address ${address}`);
       await logSecurityEvent({
@@ -228,26 +332,7 @@ export const walletAuthMiddleware = async (
       return;
     }
 
-    // If signature is provided, verify it
-    if (signature) {
-      if (!message) {
-        logger.warn('Wallet authentication failed: missing message for signature verification');
-        await logSecurityEvent({
-          eventType: 'AUTH_FAILURE',
-          actor: redactWalletForAudit(address),
-          resource: req.path,
-          success: false,
-          req,
-          details: { reason: 'MISSING_MESSAGE' },
-        });
-        res.status(401).json({
-          success: false,
-          message: 'Message is required for signature verification',
-          error: 'MISSING_MESSAGE',
-        });
-        return;
-      }
-
+    if (!siweCryptographicallyVerified) {
       const isValid = await verifySignature(address, message, signature);
       if (!isValid) {
         logger.warn(`Wallet authentication failed: invalid signature for address ${address}`);
@@ -266,28 +351,17 @@ export const walletAuthMiddleware = async (
         });
         return;
       }
-
-      await logSecurityEvent({
-        eventType: 'AUTH_SUCCESS',
-        actor: redactWalletForAudit(address),
-        resource: req.path,
-        success: true,
-        req,
-      });
-      logger.info(`Wallet authenticated: ${address} with valid signature`);
-    } else {
-      await logSecurityEvent({
-        eventType: 'AUTH_SUCCESS',
-        actor: redactWalletForAudit(address),
-        resource: req.path,
-        success: true,
-        req,
-        details: { method: 'connection_only' },
-      });
-      logger.info(`Wallet connection verified: ${address} (no signature)`);
     }
 
-    // Attach wallet info to request
+    await logSecurityEvent({
+      eventType: 'AUTH_SUCCESS',
+      actor: redactWalletForAudit(address),
+      resource: req.path,
+      success: true,
+      req,
+    });
+    logger.info(`Wallet authenticated: ${address}`);
+
     req.wallet = {
       address: address.toLowerCase(),
       chainId: parsedChainId,
@@ -314,7 +388,8 @@ export const walletAuthMiddleware = async (
 };
 
 /**
- * Optional middleware - only requires wallet connection, not signature
+ * Wallet connection (no signature): prefers validated JSON body (`validateWalletConnect`),
+ * falls back to x-wallet-address / x-chain-id headers.
  */
 export const walletConnectionMiddleware = async (
   req: WalletAuthRequest,
@@ -322,8 +397,13 @@ export const walletConnectionMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const address = req.headers['x-wallet-address'] as string;
-    const chainId = req.headers['x-chain-id'] as string;
+    const body = req.body as { address?: string; chainId?: number } | undefined;
+    const addressFromBody = typeof body?.address === 'string' ? body.address.trim() : '';
+    const chainFromBody =
+      body?.chainId !== undefined && body?.chainId !== null ? Number(body.chainId) : Number.NaN;
+
+    const address = (addressFromBody || (req.headers['x-wallet-address'] as string))?.trim();
+    const chainIdHeader = req.headers['x-chain-id'] as string | undefined;
 
     if (!address) {
       res.status(401).json({
@@ -343,8 +423,12 @@ export const walletConnectionMiddleware = async (
       return;
     }
 
-    // Validate chain ID - Sepolia Testnet
-    const parsedChainId = chainId ? parseInt(chainId, 10) : SUPPORTED_CHAIN_ID;
+    // Validate chain ID - Sepolia Testnet (JSON body from Joi, or legacy headers)
+    const parsedChainId = !Number.isNaN(chainFromBody)
+      ? chainFromBody
+      : chainIdHeader
+        ? parseInt(chainIdHeader, 10)
+        : SUPPORTED_CHAIN_ID;
     if (parsedChainId !== SUPPORTED_CHAIN_ID) {
       logger.warn(`Wallet connection failed: unsupported chain ID ${parsedChainId} for address ${address}`);
       res.status(400).json({

@@ -217,7 +217,7 @@ None required unless you introduce a real private VPC—then refresh outputs and
 
 ### Symptom
 
-- `deployment/verify-production.sh` prints **`WARN  Multiple A records detected`** for `safepsy.com`.
+- `deployment/verify-production.sh` prints **`WARN  Multiple A records detected`** for `polinapsycho.com`.
 - Browsers or `curl` hit **different** backends on successive requests; HTTPS or `/api/*` **intermittently** fails or shows the wrong service (e.g. traffic lands on the **chatbot** IP instead of the **app** Caddy stack).
 
 ### Cause
@@ -226,7 +226,7 @@ Both **`51.159.149.66`** (app) and **`62.210.238.160`** (chatbot) were configure
 
 ### Mitigation
 
-- For **`safepsy.com` / `www.safepsy.com`**, keep **`A` (and AAAA if used) only to the app instance** `51.159.149.66` (or a load balancer in front of it).
+- For **`polinapsycho.com` / `www.polinapsycho.com`**, keep **`A` (and AAAA if used) only to the app instance** `51.159.149.66` (or a load balancer in front of it).
 - Give the chatbot a **different** DNS name if you need a public name at all (e.g. `llm.internal.example` or no public DNS—app talks by IP or private IP).
 
 ### `deploy.sh` pre-flight (authoritative NS)
@@ -239,7 +239,7 @@ Both **`51.159.149.66`** (app) and **`62.210.238.160`** (chatbot) were configure
 
 ### Symptom
 
-- Checks show **`-> 000000`** or **`curl: (28) Connection timed out`** for `https://safepsy.com`, `http://51.159.149.66`, and `/api/v1/models`.
+- Checks show **`-> 000000`** or **`curl: (28) Connection timed out`** for `https://polinapsycho.com`, `http://51.159.149.66`, and `/api/v1/models`.
 - The same checks **pass** from your phone or home, but **fail** from Cursor Agent, CI, or a corporate network.
 
 ### Cause

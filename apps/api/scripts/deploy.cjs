@@ -47,7 +47,7 @@ async function main() {
   // Contract configuration (from .env or defaults)
   const contractName = process.env.DID_IDENTITY_TOKEN_NAME || "SafePsy DID Identity";
   const contractSymbol = process.env.DID_IDENTITY_TOKEN_SYMBOL || "SAFEPSY-DID";
-  const baseURI = process.env.DID_BASE_URI || "https://api.safepsy.com/metadata/";
+  const baseURI = process.env.DID_BASE_URI || "https://api.polinapsycho.com/metadata/";
   
   // Backend signer address (can be zero address if not set)
   let backendSignerAddress = process.env.DID_BACKEND_SIGNER_ADDRESS;

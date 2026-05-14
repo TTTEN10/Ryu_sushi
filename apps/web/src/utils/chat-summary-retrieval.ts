@@ -7,8 +7,7 @@
 
 import { decrypt } from './encryption';
 import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from '../config/api';
 
 export interface ChatSummaryRetrievalResult {
   success: boolean;
@@ -26,12 +25,6 @@ function getWalletAuthHeaders(walletAddress: string, chainId?: number): HeadersI
     'x-wallet-address': walletAddress,
     'x-chain-id': (chainId ?? SUPPORTED_CHAIN_ID).toString(),
   };
-
-  // Try to get session token if available
-  const token = localStorage.getItem('walletSessionToken');
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   return headers;
 }
@@ -63,7 +56,7 @@ export async function retrieveChatSummary(
 
     // Fetch encrypted summary from API (which handles IPFS/S3 download)
     // The API endpoint retrieves the reference from the database and downloads from storage
-    const response = await fetch(`${API_BASE_URL}/api/chat/summary`, {
+    const response = await fetch(apiUrl('/chat/summary'), {
       method: 'GET',
       headers: getWalletAuthHeaders(walletAddress, chainId),
       credentials: 'include',
@@ -137,7 +130,7 @@ export async function getChatSummaryReference(
   chainId?: number
 ): Promise<{ success: boolean; reference?: string; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat/load`, {
+    const response = await fetch(apiUrl('/chat/load'), {
       method: 'GET',
       headers: getWalletAuthHeaders(walletAddress, chainId),
       credentials: 'include',

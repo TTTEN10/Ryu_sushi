@@ -54,8 +54,8 @@ jobs:
               echo "✅ App reachable at http://51.159.149.66/api/healthz"
               exit 0
             fi
-            if curl -sf --connect-timeout 10 https://safepsy.com/api/healthz; then
-              echo "✅ App reachable at https://safepsy.com/api/healthz"
+            if curl -sf --connect-timeout 10 https://polinapsycho.com/api/healthz; then
+              echo "✅ App reachable at https://polinapsycho.com/api/healthz"
               exit 0
             fi
             echo "Attempt $i - retrying in 15s..."

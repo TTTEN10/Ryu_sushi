@@ -7,10 +7,9 @@ import Footer from './Footer';
 import DIDTokenVisualization from './DIDTokenVisualization';
 import { exportChatData } from '../utils/chat-retrieval';
 import { updateChatDataReference, getDIDProfile } from '../utils/did-contract';
-import { decryptSymmetricKey } from '../utils/did-encryption';
-import { ethers } from 'ethers';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { decryptSymmetricKey, decryptChatHistory } from '../utils/did-encryption';
+import { onchainMetadataToEncryptedChatKey } from '../utils/did-key-metadata';
+import { apiUrl } from '../config/api';
 
 interface DIDProfile {
   owner: string;
@@ -49,10 +48,6 @@ export default function AboutMe() {
   useEffect(() => {
     if (authState.isVerified && authState.walletAddress) {
       loadDIDInfo();
-      // When user reconnects, retrieve chat data using pointer → download blob → decrypt
-      if (wallet && signer) {
-        retrieveChatOnReconnect();
-      }
     } else {
       setDidInfo(null);
       setDecryptedMetadata(null);
@@ -77,16 +72,11 @@ export default function AboutMe() {
       setIsLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('walletSessionToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/did/info`, {
+      const response = await fetch(apiUrl('/did/info'), {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -148,24 +138,7 @@ export default function AboutMe() {
       // The encryptedKeyMetadata from contract is a hex string (0x...)
       // We need to convert it to a regular string
       if (profile.encryptedKeyMetadata && profile.encryptedKeyMetadata !== '0x') {
-        try {
-          // Convert hex bytes to string
-          // Remove '0x' prefix if present
-          const hexString = profile.encryptedKeyMetadata.startsWith('0x') 
-            ? profile.encryptedKeyMetadata.slice(2) 
-            : profile.encryptedKeyMetadata;
-          
-          // Convert hex to bytes, then to string
-          const bytes = ethers.getBytes('0x' + hexString);
-          encryptedKeyString = new TextDecoder().decode(bytes);
-          
-          // Remove null bytes and trim
-          encryptedKeyString = encryptedKeyString.replace(/\0/g, '').trim();
-        } catch (err) {
-          console.error('Error converting encryptedKeyMetadata to string:', err);
-          // Try as direct string if conversion fails
-          encryptedKeyString = profile.encryptedKeyMetadata;
-        }
+        encryptedKeyString = onchainMetadataToEncryptedChatKey(profile.encryptedKeyMetadata) || '';
       } else {
         encryptedKeyString = '';
       }
@@ -258,52 +231,7 @@ export default function AboutMe() {
   const getLastSession = () => {
     if (!didInfo?.profile) return null;
     
-    // Try to get from JWT token first (more accurate for last session)
-    const token = localStorage.getItem('walletSessionToken');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.iat) {
-          return formatDate(payload.iat * 1000);
-        }
-      } catch (err) {
-        // Fall through to profile.lastUpdatedAt
-      }
-    }
-    
-    // Fallback to profile lastUpdatedAt
     return formatDate(didInfo.profile.lastUpdatedAt);
-  };
-
-  /**
-   * Retrieval function: pointer → download blob → decrypt
-   * Called when user reconnects
-   */
-  const retrieveChatOnReconnect = async () => {
-    if (!wallet || !didInfo?.profile?.hasChatReference) {
-      return;
-    }
-
-    try {
-      // Get encryption key from localStorage (stored when chat was created)
-      const storedEncryptedKey = localStorage.getItem(`encryptedKey_${wallet.address}`);
-      if (!storedEncryptedKey) {
-        // No key stored, skip retrieval
-        return;
-      }
-
-      // For now, we'll need the decrypted key to decrypt the chat
-      // In production, this would be derived from wallet signature
-      // For this implementation, we'll use a simplified approach
-      // The key should be stored encrypted and decrypted using wallet signature
-      
-      // Note: In a full implementation, you'd decrypt the storedEncryptedKey
-      // using the wallet signature, then use that to decrypt the chat
-      // For now, we'll just log that retrieval would happen
-      console.log('Chat retrieval triggered on reconnect');
-    } catch (err) {
-      console.error('Error retrieving chat on reconnect:', err);
-    }
   };
 
   /**
@@ -315,32 +243,33 @@ export default function AboutMe() {
       setError('No chat data to export');
       return;
     }
+    if (!signer) {
+      setError('Connect your wallet to export chat data.');
+      return;
+    }
 
     try {
       setIsExporting(true);
       setError(null);
       setSuccessMessage(null);
 
-      // Get encryption key from localStorage
-      // In production, this should be decrypted using wallet signature
-      const storedEncryptedKey = localStorage.getItem(`encryptedKey_${wallet.address}`);
-      if (!storedEncryptedKey) {
-        throw new Error('Encryption key not found. Please ensure you have chat data.');
+      if (!signer.provider) {
+        throw new Error('Wallet provider not available');
       }
 
-      // For this implementation, we'll need to derive or retrieve the actual decryption key
-      // For now, we'll export the encrypted blob directly
-      // In production, you'd decrypt it first using the key
-      
-      const token = localStorage.getItem('walletSessionToken');
+      const profile = await getDIDProfile(signer.provider, wallet.address);
+      const encKeyStr = onchainMetadataToEncryptedChatKey(profile.encryptedKeyMetadata);
+      if (!encKeyStr) {
+        throw new Error(
+          'No chat encryption key on your DID. Save the chat once from the main chat screen so your key is stored on-chain.',
+        );
+      }
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/load`, {
+      const response = await fetch(apiUrl('/chat/load'), {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -355,14 +284,15 @@ export default function AboutMe() {
         throw new Error('No chat data found');
       }
 
-      // Export the encrypted blob (or decrypted if key is available)
-      // For security, we'll export the encrypted version
+      const symmetricKey = await decryptSymmetricKey(encKeyStr, wallet.address, signer);
+      const decryptedJson = await decryptChatHistory(data.data.encryptedChatBlob, symmetricKey);
+
       const exportData = {
-        encryptedChatBlob: data.data.encryptedChatBlob,
+        messages: JSON.parse(decryptedJson) as unknown[],
         blobHash: data.data.blobHash,
         exportedAt: new Date().toISOString(),
         walletAddress: wallet.address,
-        note: 'This is encrypted chat data. Decrypt using your encryption key.',
+        note: 'Plaintext messages exported locally. Keep this file private.',
       };
 
       exportChatData(exportData);

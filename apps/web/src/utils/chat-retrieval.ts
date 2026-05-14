@@ -4,8 +4,7 @@
  */
 
 import { decrypt } from './encryption';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from '../config/api';
 
 interface ChatRetrievalResult {
   success: boolean;
@@ -36,16 +35,11 @@ export async function retrieveChatData(
     // Step 1: Download blob from API
     // The API endpoint uses wallet authentication, so it automatically
     // retrieves the chat for the authenticated wallet
-    const token = localStorage.getItem('walletSessionToken');
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/chat/load`, {
+    const response = await fetch(apiUrl('/chat/load'), {
       method: 'GET',
       headers,
       credentials: 'include',

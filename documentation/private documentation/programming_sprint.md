@@ -2,7 +2,9 @@
 
 > Restored from `COMPLETE_IMPLEMENTATION_SUMMARY.md` (last revision before deletion in commit `a45b56c14`). The **MVP launch** section is the live operator view. **Part 1 / Part 2** below were reconciled with `apps/web`, `apps/api`, and `apps/ai-chatbot` on **2026-04-12** (see **Repository verification**).
 > 
-> **Last updated:** 2026-05-10 — Reconciled with `createApp()` split (`apps/api/src/app.ts`), production `/api/testing` gate, and API subscribe tests. Prior 2026-05-08 post-audit fixes remain (DID update flow, env template, verification script). Sepolia beta ready pending API key configuration.
+> **Last updated:** 2026-05-14 — Phase D (web): chat DEK loads from DID `encryptedKeyMetadata` on-chain; `updateChatReference` sends UTF-8 key bytes; contract writes retry with backoff; legacy `localStorage` read-only migration. Retention / TTL / delete policy remains a product decision before schema work. Key rotation: design = re-wrap or regenerate DEK, re-encrypt all ciphertext, new `updateChatReference`; not automated yet.
+>
+> **Wallet verification (2026-05-10):** `AuthContext` POSTs JSON to **`/api/auth/wallet/connect`** and **`/api/auth/wallet/verify`**; `WalletContext` signs via EIP-1193 **`personal_sign`** (MetaMask + WalletConnect). API **`wallet-*` middleware** reads validated **`req.body`** first (legacy headers optional). See **`WALLET_COMPLETE_GUIDE.md`**.
 
 ---
 
@@ -40,13 +42,53 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
    - Post-deploy: **`deployment/verify-production.sh`** (and any manual HTTPS/API checks you rely on).
 
 4. **MVP learning tactics (pick 1–2 first week)**
-   - **Early access / squeeze page:** One primary CTA—waitlist email, “Book a call,” or “Try guest chat”—and a way to follow up.
+   - **Beta access :** Use primary CTA—waitlist email and marketing via beta lmaunch website as well as social media.
    - **Demo video:** Short walkthrough (wallet, Sepolia, DID, first message); shareable without requiring a full product tour.
    - **Content MVP:** Reuse approved claims from **`documentation/public documentation/CLAIMS_AND_TRUST_LANGUAGE.md`** and positioning from **`documentation/private documentation/LAUNCH.md`** / **`PERSONAS.md`**.
    - **Wizard of Oz:** Manually onboard the first cohort while you observe friction (wallet, gas, errors).
 
 5. **Weekly review**
    - Identify the largest funnel drop-off; fix that before new features. Re-read public security/privacy guides before changing copy.
+
+### Local API sanity (quick)
+
+- **`GET http://localhost:3001/healthz`** — expect `200` and body `ok` when the API process is running (Express root health; not the SPA).
+- **`POST /api/auth/wallet/connect`** — send **`Content-Type: application/json`** with body at minimum `{ "address": "<0x…42>", "chainId": 11155111 }` (Sepolia). Empty `{}` fails validation (`address` required).
+- **`POST /api/auth/wallet/verify`** — SIWE **`message`** + **`signature`** required; **`address`** / **`chainId`** optional (recovered from EIP-4361 when omitted). Legacy **`x-wallet-*`** headers still accepted behind **`validateWalletSignature`**.
+
+---
+
+## Integration status (wallet + docs, 2026-05-10)
+
+- **SIWE (EIP-4361) + nonce replay protection (2026-05-10):** **`POST /api/auth/wallet/connect`** returns a **`SiweMessage.prepareMessage()`** challenge (domain **`SIWE_DOMAIN`** / **`safepsy.com`** default); **`wallet-nonce.service`** registers the nonce (TTL **5 min**); **`POST /api/auth/wallet/verify`** requires SIWE format, **`consumeWalletNonce`**, then JWT + **`walletSession`** cookie (**`sameSite: 'lax'`**). Verify accepts **`{ message, signature }`** only (address recovered from SIWE). Replace in-memory nonce store with **Redis** when running multiple API replicas.
+- **Cookie-first web:** **`walletSessionToken`** removed from **`localStorage`**; authenticated fetches use **`credentials: 'include'`**; **`useWalletLogin`** orchestrates connect → SIWE → verify; **`AuthContext`** confirms session via **`GET /api/auth/me`**.
+
+- **P0 resolved:** Aligned **JSON bodies** + SIWE; **`WalletContext`** only signs; session is **httpOnly cookie** + optional JWT in verify response (web no longer stores JWT). **`checkDID({ skipVerifiedCheck: true })`** and **`fetchWalletSession()`** on refresh.
+- **DID base URL:** **`DIDManager.tsx`** uses **`apiUrl()`** from **`apps/web/src/config/api.ts`** (same-origin **`/api`** when `VITE_API_URL` unset).
+- **Docs:** **`WALLET_COMPLETE_GUIDE.md`** / **`TESTING_COMPLETE_GUIDE.md`** / **`SECURITY_COMPLETE_GUIDE.md`** describe **`/api/auth/*`** and **`/api/did/*`** as production paths; **`/api/testing/*`** is dev-only.
+
+### Phase D — Encryption keys (web, 2026-05-14)
+
+**Shipped (web):** **`useChatEncryption`** reads wallet-wrapped DEK from **`getEncryptedKeyMetadata`** (identity token). **`saveKeyToDID`** calls **`updateEncryptedKeyMetadata`**. **`ChatWidget`** passes key bytes into **`updateChatReference`** (via **`keyMetadataBytesForDidUpdate`**) so saves no longer clear on-chain metadata. **`localStorage`** `encryptedKey_*` is **migration-only** when chain metadata is still empty.
+
+### Data retention & encryption
+
+- **`EncryptedChat`** (`schema.prisma`): ciphertext at rest; **no TTL** today.
+- **Product / legal (open):** choose one or combine before implementation: **(A)** time-based TTL + job, **(B)** user-initiated delete API + UI, **(C)** export-then-delete. Until then, no new Prisma fields or purge jobs.
+- **Key rotation (design):** generate new DEK, `encryptSymmetricKey` with wallet, `updateEncryptedKeyMetadata` or `updateChatReference` with new bytes, re-encrypt full history client-side, then `POST /api/chat/save` once; optional dual-write window if you must read old blobs during migration.
+
+### Staging E2E (Sepolia checklist)
+
+1. From **`apps/web`**: **`npm run verify:sepolia-staging`** (same as `node scripts/verify-sepolia-staging-checklist.mjs`). Optional **`STAGING_API_ORIGIN=https://your-api-host`** if `VITE_API_URL` is unset or same-origin. Fix any **DID address / RPC** failures before manual wallet steps.
+2. Web + API against staging URLs; **`VITE_DID_IDENTITY_TOKEN_ADDRESS`** and **`VITE_API_URL`** set for Sepolia (DID address must match **`apps/api/deployments/sepolia-latest.json`** → `DIDIdentityTokenV2.address`).
+3. Connect wallet → SIWE verify → cookie session (**`GET /api/auth/me`**).
+4. Mint or confirm DID (**`/api/did/info`** has **`hasDid`**).
+5. Send chat turn → wait for save → confirm **`updateChatReference`** tx on Sepolia explorer (blob hash + nonzero metadata length).
+6. Hard refresh → chat decrypts without re-entering wallet beyond normal session.
+
+### P2 — Doc reconciliation
+
+- **`DID_COMPLETE_GUIDE.md`**: reconcile any lingering **mainnet** wording with **Sepolia-first** runtime (`did.service.ts`, auth routes).
 
 ---
 
@@ -85,11 +127,7 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 
 ### Remaining action items (before production deploy)
 
-1. **Configure Scaleway API Key**:
-   ```bash
-   # Get key from: https://console.scaleway.com/iam/api-keys
-   # Add to .env: SCALEWAY_API_KEY=<your-key>
-   ```
+1. **Scaleway API Key** — ✅ Present in repo root `.env` as `SCALEWAY_API_KEY` (local dev). For production/CI, ensure the same variable is set on the host or in GitHub/deploy secrets (not committed).
 
 2. **Generate production secrets**:
    ```bash
@@ -97,8 +135,7 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
    openssl rand -hex 32  # For IP_SALT (if enabling IP hashing)
    ```
 
-3. **Fund backend signer wallet** (optional for backend-initiated DID minting):
-   - Transfer ~0.1 ETH to backend signer wallet on Sepolia
+3. **Fund backend signer wallet** (optional for backend-initiated DID minting) — ✅ Done (~0.1 ETH on Sepolia).
 
 4. **Run verification**:
    ```bash
@@ -197,11 +234,17 @@ Handlers remain in **`testing.ts`** for local/dev use. **`apps/api/src/app.ts`**
 
 ### ⚠️ Backlog / refinements
 
+- [ ] **P0 — Align wallet auth HTTP client with API validation** — Update `WalletContext.tsx` and `AuthContext.tsx` so `POST /api/auth/wallet/connect` and `POST /api/auth/wallet/verify` include the same **JSON bodies** as `SafePsyWeb3Client` (plus existing headers). Optionally dedupe by routing connect/verify through one shared helper to avoid drift.
+- [ ] **P0 — Re-test MVP funnel manually** — After the fix: connect wallet → verify signature → `GET/POST /api/did/check` → create DID if needed → encrypted chat save/load on Sepolia.
+- [ ] **P1 — Cookies vs Bearer** — Standardize `credentials: 'include'` and/or rely on JWT header only; avoid double `/wallet/verify` if redundant once unified.
+- [ ] **P1 — Unify API base URL** — Align `DIDManager` (and any other stragglers) with `VITE_API_URL || ''` same-origin pattern from `config/api.ts` / `AuthContext`.
+- [ ] **P1 — Docs pass** — Refresh `WALLET_COMPLETE_GUIDE.md` (`/api/auth/*`) and Sepolia wording in `DID_COMPLETE_GUIDE.md`.
 - [ ] **Persist encrypted symmetric key** via DID/contract metadata (reduce reliance on localStorage in `useChatEncryption`)
 - [x] **Gate `/api/testing` in production** — implemented in `apps/api/src/app.ts` (`NODE_ENV === 'production'` → stub `404`)
 - [ ] **Key rotation mechanism** (security checklist)
 - [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)
 - [ ] **Continuous end-to-end testing** beyond unit tests (wallet + chain smoke in staging)
+- [ ] **Optional policy:** **retention / deletion** for `EncryptedChat` (product decision + migration), if compliance requires TTL or user-initiated wipe beyond current flows
 
 ### ~~Remaining Tasks~~ (historical — superseded by verification above)
 
@@ -235,6 +278,16 @@ JWT_SECRET=your-secret-key
 ### 3. Test Endpoints
 
 ```bash
+# Wallet connect (nonce + message) — body required for Joi
+curl -s -X POST http://localhost:3001/api/auth/wallet/connect \
+  -H "Content-Type: application/json" \
+  -H "x-wallet-address: 0x0000000000000000000000000000000000000001" \
+  -H "x-chain-id: 11155111" \
+  -d '{"address":"0x0000000000000000000000000000000000000001","chainId":11155111}'
+
+# Wallet verify — body must include address, message, signature (see validationSchemas.walletSignature)
+# curl -X POST http://localhost:3001/api/auth/wallet/verify ...
+
 # Save encrypted chat
 curl -X POST http://localhost:3001/api/chat/save \
   -H "Authorization: Bearer <token>" \

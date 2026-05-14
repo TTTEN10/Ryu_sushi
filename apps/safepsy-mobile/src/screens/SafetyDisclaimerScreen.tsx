@@ -5,7 +5,7 @@ import { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Safety'>;
 
-const PRIVACY_URL = 'https://safepsy.com/security-and-privacy-policy';
+const PRIVACY_URL = 'https://polinapsycho.com/security-and-privacy-policy';
 
 export function SafetyDisclaimerScreen({ navigation }: Props) {
   return (

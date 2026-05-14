@@ -121,7 +121,7 @@ npm run security:update
 
 ## `/api/testing/*` production exposure
 
-`/api/testing/*` endpoints are **explicitly disabled in production** in `apps/api/src/index.ts`. Use the production routes (e.g. `/api/auth/*`, `/api/did/*`) instead.
+`/api/testing/*` endpoints are **not mounted in production** (`createApp()` in `apps/api/src/app.ts` — testing router only when `NODE_ENV !== 'production'`). For integrations and operators, use **`/api/auth/*`** (wallet session, logout) and **`/api/did/*`** (DID lifecycle); `/api/testing/*` remains a **local/dev mirror** of similar handlers in `apps/api/src/routes/testing.ts`.
 
 ## Known Vulnerabilities
 
@@ -1198,7 +1198,7 @@ body { font-size: 1rem; } /* 16px minimum */
 // NEVER default to '*'
 const allowedOrigins = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : ['https://safepsy.com']; // Default to production domain
+  : ['https://polinapsycho.com']; // Default to production domain
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -1371,8 +1371,8 @@ const sanitized = DOMPurify.sanitize(userInput, {
 **Configuration**:
 ```typescript
 // Environment variables for SIWE
-SIWE_DOMAIN=safepsy.com  // Default domain for SIWE messages
-SIWE_URI=https://safepsy.com  // Default URI for SIWE messages
+SIWE_DOMAIN=polinapsycho.com  // Default domain for SIWE messages
+SIWE_URI=https://polinapsycho.com  // Default URI for SIWE messages
 ```
 
 **Usage Example**:
@@ -1380,8 +1380,8 @@ SIWE_URI=https://safepsy.com  // Default URI for SIWE messages
 // Generate SIWE message (recommended)
 const nonce = generateNonce();
 const siweMessage = generateSIWEMessage(address, nonce, {
-  domain: 'safepsy.com',
-  uri: 'https://safepsy.com',
+  domain: 'polinapsycho.com',
+  uri: 'https://polinapsycho.com',
   expirationTime: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 });
 

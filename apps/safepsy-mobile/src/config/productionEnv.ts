@@ -16,7 +16,7 @@ function parseHost(url: string): string | null {
   }
 }
 
-/** Naive registrable domain (sufficient for `*.safepsy.com` + `safepsy.com`). */
+/** Naive registrable domain (sufficient for `*.polinapsycho.com` + `polinapsycho.com`). */
 export function registrableDomain(hostname: string): string {
   const parts = hostname.split('.').filter(Boolean);
   if (parts.length <= 2) return hostname;
@@ -69,7 +69,7 @@ export function validateProductionEnvironment(): void {
 
   if (!UNIVERSAL_LINK_BASE || !/^https:\/\//i.test(UNIVERSAL_LINK_BASE)) {
     fatals.push(
-      'EXPO_PUBLIC_UNIVERSAL_LINK_BASE must be set to HTTPS (e.g. https://safepsy.com) when API is not local — ' +
+      'EXPO_PUBLIC_UNIVERSAL_LINK_BASE must be set to HTTPS (e.g. https://polinapsycho.com) when API is not local — ' +
         'required for WalletConnect return URL and Universal Links.',
     );
   }

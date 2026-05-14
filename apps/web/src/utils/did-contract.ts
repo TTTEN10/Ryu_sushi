@@ -40,6 +40,49 @@ function getDIDContractAddress(): string {
   return import.meta.env.VITE_DID_IDENTITY_TOKEN_ADDRESS || '';
 }
 
+const WRITE_TX_MAX_ATTEMPTS = 4;
+const WRITE_TX_BASE_DELAY_MS = 900;
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableWriteError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /nonce|timeout|NETWORK_ERROR|rate limit|too many|ECONNRESET|ETIMEDOUT|replacement|underpriced|ECONNREFUSED|503|502/i.test(
+    msg,
+  );
+}
+
+/**
+ * Send a contract write and wait for the receipt, with exponential backoff on
+ * transient RPC / nonce errors (user still pays one successful tx gas).
+ */
+export async function sendContractWriteWithRetry(
+  sendTx: () => Promise<ethers.ContractTransactionResponse>,
+  options?: { maxAttempts?: number },
+): Promise<ethers.ContractTransactionReceipt> {
+  const maxAttempts = options?.maxAttempts ?? WRITE_TX_MAX_ATTEMPTS;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const tx = await sendTx();
+      const receipt = await tx.wait();
+      if (receipt === null) {
+        throw new Error('Transaction receipt not available');
+      }
+      return receipt;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= maxAttempts || !isRetryableWriteError(err)) {
+        throw err;
+      }
+      await sleep(WRITE_TX_BASE_DELAY_MS * 2 ** (attempt - 1));
+    }
+  }
+  throw lastError;
+}
+
 /**
  * Update DID's chat reference and encrypted key metadata on-chain
  * This must be called by the wallet owner (frontend)
@@ -96,14 +139,9 @@ export async function updateChatReference(
 
   const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
 
-  const tx = await contractWithSigner.updateChatReference(chatReference, keyMetadataBytes);
-  
-  // Wait for transaction
-  const receipt = await tx.wait();
-  if (receipt === null) {
-    throw new Error('Transaction receipt not available');
-  }
-  return receipt;
+  return sendContractWriteWithRetry(() =>
+    contractWithSigner.updateChatReference(chatReference, keyMetadataBytes),
+  );
 }
 
 /**
@@ -157,14 +195,9 @@ export async function updateEncryptedKeyMetadata(
 
   const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
 
-  const tx = await contractWithSigner.updateEncryptedKeyMetadata(keyMetadataBytes);
-  
-  // Wait for transaction
-  const receipt = await tx.wait();
-  if (receipt === null) {
-    throw new Error('Transaction receipt not available');
-  }
-  return receipt;
+  return sendContractWriteWithRetry(() =>
+    contractWithSigner.updateEncryptedKeyMetadata(keyMetadataBytes),
+  );
 }
 
 /**
@@ -206,14 +239,7 @@ export async function updateChatDataReference(
 
   const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
 
-  const tx = await contractWithSigner.updateChatDataReference(chatReference);
-  
-  // Wait for transaction
-  const receipt = await tx.wait();
-  if (receipt === null) {
-    throw new Error('Transaction receipt not available');
-  }
-  return receipt;
+  return sendContractWriteWithRetry(() => contractWithSigner.updateChatDataReference(chatReference));
 }
 
 /**

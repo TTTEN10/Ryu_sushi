@@ -2,14 +2,14 @@
 # Verify/diagnose production (Caddy + Python proxy + SPA on APP_DOMAIN).
 # Usage: bash deployment/verify-production.sh
 # Optional env:
-#   APP_DOMAIN=safepsy.com
+#   APP_DOMAIN=polinapsycho.com
 #   APP_IP=51.159.149.66
 #   TIMEOUT=15
 #   CHECK_LLM=1
 
 set -euo pipefail
 
-APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
+APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
 # Default matches prod app instance when DNS for APP_DOMAIN points here; override if needed.
 APP_IP="${APP_IP:-51.159.149.66}"
 TIMEOUT="${TIMEOUT:-15}"

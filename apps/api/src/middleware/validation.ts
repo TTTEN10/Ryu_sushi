@@ -102,9 +102,9 @@ export const validationSchemas = {
     chainId: commonSchemas.chainId.optional(),
   }),
 
-  // Wallet signature validation
+  // Wallet signature validation (address optional when SIWE message recovers signer — EIP-4361)
   walletSignature: Joi.object({
-    address: commonSchemas.ethereumAddress,
+    address: commonSchemas.ethereumAddress.optional(),
     message: commonSchemas.message,
     signature: commonSchemas.signature,
     chainId: commonSchemas.chainId.optional(),

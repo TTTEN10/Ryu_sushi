@@ -5,6 +5,12 @@ import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 import { walletAuthMiddleware, walletConnectionMiddleware, WalletAuthRequest } from '../middleware/wallet-auth';
 import { didVerifyMiddleware, didVerifyOptionalMiddleware, DIDVerifyRequest } from '../middleware/did-verify';
 import { validateWalletConnect, validateWalletSignature, validateDIDVerify } from '../middleware/validation';
+import { generateSIWEMessage, isSIWEMessage } from '../middleware/wallet-auth';
+import {
+  registerWalletNonce,
+  extractNonceFromSiweMessage,
+  consumeWalletNonce,
+} from '../lib/wallet-nonce.service';
 import { generateWalletToken } from '../lib/session';
 import { authenticateWallet, AuthenticatedRequest } from '../middleware/auth';
 import { 
@@ -47,11 +53,13 @@ router.post(
         });
       }
 
-      // Generate a nonce for signature verification
       const nonce = ethers.hexlify(ethers.randomBytes(32));
-      const message = `SafePsy Wallet Verification\n\nAddress: ${req.wallet.address}\nNonce: ${nonce}\n\nThis signature proves you own this wallet.`;
+      registerWalletNonce(nonce, req.wallet.address, req.wallet.chainId);
+      const message = generateSIWEMessage(req.wallet.address, nonce, {
+        expirationTime: new Date(Date.now() + 5 * 60 * 1000),
+      });
 
-      logger.info(`Wallet connection request from ${req.wallet.address}`);
+      logger.info(`[testing] Wallet SIWE challenge for ${req.wallet.address}`);
 
       res.json({
         success: true,
@@ -84,14 +92,31 @@ router.post(
   walletAuthMiddleware,
   async (req: WalletAuthRequest, res: Response) => {
     try {
-      if (!req.wallet || !req.wallet.signature) {
+      if (!req.wallet || !req.wallet.signature || !req.wallet.message) {
         return res.status(401).json({
           success: false,
           message: 'Wallet signature verification failed',
         });
       }
 
-      logger.info(`Wallet verified: ${req.wallet.address}`);
+      if (!isSIWEMessage(req.wallet.message)) {
+        return res.status(400).json({
+          success: false,
+          message: 'EIP-4361 (SIWE) message required',
+          error: 'SIWE_REQUIRED',
+        });
+      }
+
+      const nonce = extractNonceFromSiweMessage(req.wallet.message);
+      if (!nonce || !consumeWalletNonce(nonce, req.wallet.address)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid, expired, or reused nonce',
+          error: 'NONCE_INVALID',
+        });
+      }
+
+      logger.info(`[testing] Wallet verified (SIWE): ${req.wallet.address}`);
 
       // Generate JWT session token
       const sessionToken = generateWalletToken({
@@ -104,7 +129,7 @@ router.post(
       res.cookie('walletSession', sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 

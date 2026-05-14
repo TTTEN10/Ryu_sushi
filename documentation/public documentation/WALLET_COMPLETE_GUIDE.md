@@ -26,11 +26,13 @@ This implementation provides:
    - `optionalAuthenticateWallet` - Optional authentication
    - `getAuthenticatedWallet` - Helper to get wallet from request
 
-3. **Updated Endpoints** (`apps/api/src/routes/testing.ts`)
-   - `POST /api/testing/wallet/connect` - Request verification message
-   - `POST /api/testing/wallet/verify` - Verify signature & create session
-   - `GET /api/testing/did/check-by-wallet` - Check DID status (requires auth)
-   - `POST /api/testing/auth/logout` - Clear session
+3. **Production endpoints** (`apps/api/src/routes/auth.ts`, `apps/api/src/routes/did.ts`)
+   - `POST /api/auth/wallet/connect` — Request verification message (JSON body)
+   - `POST /api/auth/wallet/verify` — Verify signature & create session (JSON body)
+   - `POST /api/did/check` — Check DID status (requires auth; used by the web app after verify)
+   - `POST /api/auth/logout` — Clear session
+
+   **Dev-only mirror:** `apps/api/src/routes/testing.ts` registers wallet/DID-style handlers under **`/api/testing/*`** only when **`NODE_ENV !== 'production'`** (see `createApp()` in `apps/api/src/app.ts`). In production, requests to that prefix get **404**; integrations must call **`/api/auth/*`** and **`/api/did/*`** instead.
 
 ### Frontend Components
 
@@ -133,15 +135,17 @@ function VerifyButton() {
 }
 ```
 
-## API Endpoints
+## API Endpoints (production)
 
-### POST /api/testing/wallet/connect
+SafePsy wallet auth is **Sepolia-only** at runtime (`chainId` **11155111**). Request bodies use **`Content-Type: application/json`**. The API middleware still accepts **legacy header-based** calls for backward compatibility.
+
+### POST /api/auth/wallet/connect
 
 Request verification message for wallet signature.
 
-**Headers:**
-- `x-wallet-address`: Wallet address (required)
-- `x-chain-id`: Chain ID (required, must be 1 for Ethereum Mainnet)
+**Body (JSON):**
+- `address` (required): checksummed or lowercase `0x` address
+- `chainId` (optional in schema; send **11155111** for Sepolia)
 
 **Response:**
 ```json
@@ -149,22 +153,20 @@ Request verification message for wallet signature.
   "success": true,
   "data": {
     "address": "0x...",
-    "chainId": 1,
+    "chainId": 11155111,
     "nonce": "...",
     "message": "SafePsy Wallet Verification\n\nAddress: 0x...\nNonce: ...\n\nThis signature proves you own this wallet."
   }
 }
 ```
 
-### POST /api/testing/wallet/verify
+### POST /api/auth/wallet/verify
 
 Verify wallet signature and create session.
 
-**Headers:**
-- `x-wallet-address`: Wallet address (required)
-- `x-wallet-signature`: Signature (required)
-- `x-wallet-message`: Original message (required)
-- `x-chain-id`: Chain ID (required)
+**Body (JSON):**
+- `address`, `message`, `signature` (required)
+- `chainId` (optional in schema; should match Sepolia)
 
 **Response:**
 ```json
@@ -172,7 +174,7 @@ Verify wallet signature and create session.
   "success": true,
   "data": {
     "address": "0x...",
-    "chainId": 1,
+    "chainId": 11155111,
     "verified": true,
     "token": "jwt-token-here"
   }
@@ -180,36 +182,24 @@ Verify wallet signature and create session.
 ```
 
 **Cookies:**
-- Sets `walletSession` HTTP-only cookie
+- Sets `walletSession` HTTP-only cookie  
+- The web client also stores `walletSessionToken` in `localStorage` when returned in `data.token`.
 
-### GET /api/testing/did/check-by-wallet
+### POST /api/did/check
 
-Check DID status for authenticated wallet.
+Check DID status for the authenticated wallet (Bearer JWT and/or session cookie).
 
 **Authentication:**
-- Requires valid session (JWT token in Authorization header or cookie)
+- Requires valid session (`Authorization: Bearer …` and/or cookie)
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "hasDid": true,
-    "did": "did:example:123",
-    "didHash": "0x...",
-    "isValid": true,
-    "walletAddress": "0x...",
-    "contractAddress": "0x..."
-  }
-}
-```
+**Response:** See `apps/api/src/routes/did.ts` — includes `hasDid`, `tokenId`, etc.
 
-### POST /api/testing/auth/logout
+### POST /api/auth/logout
 
 Clear session and logout.
 
 **Authentication:**
-- Requires valid session
+- Requires valid session (Bearer token recommended)
 
 **Response:**
 ```json
@@ -275,7 +265,7 @@ If JWT token expires:
 1. **JWT Tokens**: Secure, signed tokens with expiration
 2. **HTTP-Only Cookies**: Prevents XSS attacks
 3. **Signature Verification**: Cryptographic proof of wallet ownership
-4. **Chain ID Validation**: Only Ethereum Mainnet (1) allowed
+4. **Chain ID Validation**: SafePsy wallet auth enforces **Sepolia** (**11155111**) at runtime
 5. **Rate Limiting**: Applied to all auth endpoints
 6. **Session Expiration**: Tokens expire after 7 days (configurable)
 
@@ -290,8 +280,8 @@ JWT_EXPIRES_IN=7d
 
 # DID Verification (optional)
 DID_REGISTRY_ADDRESS=0x...
-RPC_URL=https://mainnet.infura.io/v3/...
-ETH_RPC_URL=https://mainnet.infura.io/v3/...
+RPC_URL=https://eth-sepolia.g.alchemy.com/v2/...
+ETH_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/...
 ```
 
 ### Frontend
@@ -331,9 +321,8 @@ VITE_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
 
 ## Next Steps
 
-1. **Create Production Endpoints**
-   - Move from `/api/testing/*` to `/api/auth/*` and `/api/did/*`
-   - Add proper error handling and logging
+1. **DID-backed chat key storage (see `programming_sprint.md` Phase D)**  
+   Reduce reliance on **localStorage** for encryption key material; align with DID metadata / contract flows.
 
 2. **Add DID Creation Flow**
    - Allow users to create DID if none exists
@@ -356,8 +345,9 @@ VITE_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
 ### Backend
 - `apps/api/src/lib/session.ts` - Session management
 - `apps/api/src/middleware/auth.ts` - Auth middleware
-- `apps/api/src/routes/testing.ts` - Updated endpoints
-- `apps/api/src/index.ts` - Added cookie parser
+- `apps/api/src/routes/auth.ts` - Production wallet session routes
+- `apps/api/src/routes/testing.ts` - Dev-only mirrors (`/api/testing/*`)
+- `apps/api/src/app.ts` - `createApp()`, cookie parsing, route mounts
 
 ### Frontend
 - `apps/web/src/contexts/AuthContext.tsx` - Auth context
@@ -384,19 +374,17 @@ This document describes the wallet connection implementation with WalletConnect 
 
 **Features:**
 - Global wallet state management
-- WalletConnect API integration
-- MetaMask fallback support
-- Automatic signature verification
-- Session persistence
-- Chain and account change handling
+- WalletConnect (`@walletconnect/ethereum-provider`) when `VITE_WALLETCONNECT_PROJECT_ID` is set; otherwise injected wallets (e.g. MetaMask)
+- **`personal_sign`** via EIP-1193 for both paths — compatible with MetaMask and WalletConnect-backed wallets
+- Chain and account change handling (Sepolia enforced for SafePsy)
 
 **Key Methods:**
-- `connectWallet()` - Connect wallet via WalletConnect or MetaMask
-- `disconnectWallet()` - Disconnect wallet and clear state
-- `signMessage()` - Sign message and verify with backend
+- `connectWallet()` — Connect via WalletConnect QR/modal or injected provider
+- `disconnectWallet()` — Disconnect wallet and clear state
+- `signMessage()` — **Sign only** (`personal_sign`); session verification is **`AuthContext.verifyWallet`** (calls `/api/auth/wallet/connect` then `/api/auth/wallet/verify`)
 
 **Supported Networks:**
-- Ethereum Mainnet (Chain ID: 1) - **Only supported network**
+- **Sepolia** (Chain ID: **11155111**) — **Only supported network** for this product path
 
 ### 2. ConnectWallet Component (`src/components/ConnectWallet.tsx`)
 
@@ -462,8 +450,8 @@ VITE_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
 2. **WalletConnect modal appears** (if Project ID is set) or MetaMask popup
 3. **User selects/approves wallet connection**
 4. **Wallet connects** and address is displayed
-5. **Automatic verification** - User is prompted to sign verification message
-6. **Signature verified** - Green checkmark appears when verified
+5. User clicks **Verify** — app requests a message from **`POST /api/auth/wallet/connect`**, user signs with **`personal_sign`**, then **`POST /api/auth/wallet/verify`** establishes the session
+6. **Verified** — green checkmark when JWT/session is valid
 
 ### Programmatic Usage
 
@@ -565,19 +553,12 @@ interface WalletInfo {
 
 ## 📝 API Integration
 
-The wallet connection integrates with the backend API:
+Production routes (`apps/web` uses same-origin `/api` or `VITE_API_URL`):
 
-- `POST /api/testing/wallet/connect` - Request verification message
-- `POST /api/testing/wallet/verify` - Verify signature
+- `POST /api/auth/wallet/connect` — JSON `{ "address", "chainId" }`
+- `POST /api/auth/wallet/verify` — JSON `{ "address", "message", "signature", "chainId" }` with `credentials: 'include'` for cookies
 
-### Request Headers
-
-```
-x-wallet-address: 0x...
-x-chain-id: 1
-x-wallet-signature: 0x... (for verification)
-x-wallet-message: ... (for verification)
-```
+Legacy header-only requests are still accepted server-side; prefer JSON bodies for new clients.
 
 ## 🔮 Future Enhancements
 
@@ -593,6 +574,6 @@ x-wallet-message: ... (for verification)
 
 - **WalletConnect Docs**: https://docs.walletconnect.com/
 - **Ethers.js Docs**: https://docs.ethers.org/
-- **API Routes**: See `apps/api/src/routes/testing.ts`
+- **API Routes**: See `apps/api/src/routes/auth.ts` (wallet connect/verify/session/logout). Dev-only mirrors live in `apps/api/src/routes/testing.ts` when `NODE_ENV !== 'production'`.
 
 

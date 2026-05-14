@@ -9,7 +9,7 @@ Disallow: /maintenance
 Disallow: /internal/admin/
 
 # Sitemap location
-Sitemap: https://safepsy.com/sitemap.xml
+Sitemap: https://polinapsycho.com/sitemap.xml
 
 # Crawl-delay (optional, helps prevent server overload)
 Crawl-delay: 1

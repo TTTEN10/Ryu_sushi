@@ -8,14 +8,27 @@ import {
   encryptChatHistory,
   decryptChatHistory,
 } from '../utils/did-encryption';
+import { getEncryptedKeyMetadata, updateEncryptedKeyMetadata } from '../utils/did-contract';
+import { onchainMetadataToEncryptedChatKey, encryptedChatKeyToOnchainBytes } from '../utils/did-key-metadata';
+import { apiUrl } from '../config/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+/** Legacy cache key; read only for migration when on-chain metadata is still empty. */
+function legacyLocalStorageKey(walletAddress: string): string {
+  return `encryptedKey_${walletAddress.toLowerCase()}`;
+}
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+export interface SaveChatResult {
+  blobHash: string | null;
+  chatReference: string | null;
+  requiresDidUpdate: boolean;
+  preserveEncryptedKeyMetadata: string | null;
 }
 
 /**
@@ -25,174 +38,109 @@ interface ChatMessage {
  * POST /api/chat/completions with { mode: 'guest' } — no ciphertext is saved to the API.
  *
  * Flow (authenticated):
- * 1. On mount: Load DID info, get encrypted symmetric key
- * 2. Decrypt symmetric key using wallet
- * 3. Load encrypted chat from backend
- * 4. Decrypt chat history
- * 5. On save: Encrypt chat, save to backend, update DID
+ * 1. Load wallet-wrapped symmetric key from DID `encryptedKeyMetadata` (on-chain), not localStorage.
+ * 2. Optional: migrate from legacy `localStorage` once if chain metadata is empty.
+ * 3. Decrypt DEK with wallet-derived KEK; load ciphertext from API; decrypt messages.
+ * 4. On save: encrypt chat, POST /api/chat/save; caller updates chat reference on-chain with key bytes.
  */
 export function useChatEncryption() {
-  const { wallet, signer } = useWallet();
+  const { wallet, signer, provider } = useWallet();
   const { authState } = useAuth();
   const [symmetricKey, setSymmetricKey] = useState<Uint8Array | null>(null);
   const [encryptedKey, setEncryptedKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Initialize encryption key
-   * - If DID exists, load encrypted key from DID
-   * - If no key exists, generate new one and encrypt it
-   */
   const initializeKey = useCallback(async () => {
     if (!wallet || !signer || !authState.isVerified) {
       return;
     }
 
+    const didContractConfigured = Boolean(
+      (import.meta.env.VITE_DID_IDENTITY_TOKEN_ADDRESS || '').trim(),
+    );
+
     try {
       setIsLoading(true);
       setError(null);
 
-      // Check if DID exists and has encrypted data
-      if (authState.didStatus === 'exists' && authState.didInfo?.hasDid) {
-        // Load DID data to get encrypted key
-        const token = localStorage.getItem('walletSessionToken');
-        const headers: HeadersInit = {
-          'Content-Type': 'application/json',
-        };
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/did/info`, {
-          method: 'GET',
-          headers,
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data.encryptedDataExists) {
-            // Get encrypted data from DID contract
-            // This contains the encrypted symmetric key
-            // For now, we'll need to call the contract directly or via backend
-            // Let's use a simpler approach: store encrypted key in localStorage
-            // and sync with DID when possible
-            
-            const storedEncryptedKey = localStorage.getItem(`encryptedKey_${wallet.address}`);
-            if (storedEncryptedKey) {
-              // Decrypt the symmetric key
-              const decryptedKey = await decryptSymmetricKey(
-                storedEncryptedKey,
-                wallet.address,
-                signer
-              );
-              setSymmetricKey(decryptedKey);
-              setEncryptedKey(storedEncryptedKey);
-              return;
-            }
+      if (authState.didInfo?.hasDid && provider && didContractConfigured) {
+        try {
+          const metadataHex = await getEncryptedKeyMetadata(provider, wallet.address);
+          const fromChain = onchainMetadataToEncryptedChatKey(metadataHex);
+          if (fromChain && fromChain.includes(':')) {
+            const decryptedKey = await decryptSymmetricKey(fromChain, wallet.address, signer);
+            setSymmetricKey(decryptedKey);
+            setEncryptedKey(fromChain);
+            return;
           }
+        } catch (err) {
+          console.warn('Could not read encrypted key metadata from DID contract:', err);
         }
       }
 
-      // No key exists, generate new one
+      if (authState.didStatus === 'exists' && authState.didInfo?.hasDid) {
+        const storedEncryptedKey = localStorage.getItem(legacyLocalStorageKey(wallet.address));
+        if (storedEncryptedKey) {
+          const decryptedKey = await decryptSymmetricKey(
+            storedEncryptedKey,
+            wallet.address,
+            signer,
+          );
+          setSymmetricKey(decryptedKey);
+          setEncryptedKey(storedEncryptedKey);
+          return;
+        }
+      }
+
       const newKey = generateSymmetricKey();
       const encrypted = await encryptSymmetricKey(newKey, wallet.address, signer);
-      
+
       setSymmetricKey(newKey);
       setEncryptedKey(encrypted);
-      
-      // Store encrypted key in localStorage (temporary until saved to DID)
-      localStorage.setItem(`encryptedKey_${wallet.address}`, encrypted);
     } catch (err: any) {
       console.error('Error initializing encryption key:', err);
       setError(err.message || 'Failed to initialize encryption');
     } finally {
       setIsLoading(false);
     }
-  }, [wallet, signer, authState.isVerified, authState.didStatus, authState.didInfo]);
+  }, [
+    wallet,
+    signer,
+    provider,
+    authState.isVerified,
+    authState.didStatus,
+    authState.didInfo,
+  ]);
 
   /**
-   * Save encrypted key to DID
+   * Persist wallet-wrapped symmetric key to DID `encryptedKeyMetadata` (on-chain).
+   * Call after minting a DID or when chain metadata was empty after migration.
    */
   const saveKeyToDID = useCallback(async () => {
     if (!wallet || !signer || !encryptedKey || !authState.didInfo?.hasDid) {
-      return;
+      return undefined;
     }
 
-    try {
-      // Get existing DID data
-      const token = localStorage.getItem('walletSessionToken');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const didInfoResponse = await fetch(`${API_BASE_URL}/api/did/info`, {
-        method: 'GET',
-        headers,
-        credentials: 'include',
-      });
-
-      if (!didInfoResponse.ok) {
-        throw new Error('Failed to get DID info');
-      }
-
-      const didInfoData = await didInfoResponse.json();
-      if (!didInfoData.success) {
-        throw new Error('Failed to get DID info');
-      }
-
-      // Prepare DID data object
-      const didDataObj: any = {
-        encryptedKey,
-        updatedAt: new Date().toISOString(),
-      };
-
-      // If chat hash exists, preserve it
-      if (didInfoData.data.encryptedDataExists) {
-        try {
-          // We'd need to get existing data, but for now we'll just add the key
-          // In production, merge with existing data
-        } catch {
-          // Ignore
-        }
-      }
-
-      const didDataString = JSON.stringify(didDataObj);
-
-      // Call smart contract setDidData (this must be done by wallet owner)
-      // We'll need to call this from frontend using ethers
-      // For now, we'll return the data that needs to be set
-      // The frontend will need to call contract.setDidData() directly
-
-      return didDataString;
-    } catch (err: any) {
-      console.error('Error saving key to DID:', err);
-      throw err;
+    const bytes = encryptedChatKeyToOnchainBytes(encryptedKey);
+    if (bytes.length > 10_000) {
+      throw new Error('Encrypted key metadata exceeds on-chain size limit');
     }
+
+    return updateEncryptedKeyMetadata(signer, bytes);
   }, [wallet, signer, encryptedKey, authState.didInfo]);
 
-  /**
-   * Load encrypted chat from backend
-   */
   const loadChat = useCallback(async (): Promise<ChatMessage[]> => {
     if (!symmetricKey || !authState.isVerified) {
       return [];
     }
 
     try {
-      const token = localStorage.getItem('walletSessionToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/load`, {
+      const response = await fetch(apiUrl('/chat/load'), {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -207,13 +155,8 @@ export function useChatEncryption() {
         return [];
       }
 
-      // Decrypt chat history
-      const decryptedHistory = await decryptChatHistory(
-        data.data.encryptedChatBlob,
-        symmetricKey
-      );
+      const decryptedHistory = await decryptChatHistory(data.data.encryptedChatBlob, symmetricKey);
 
-      // Parse JSON
       const messages: ChatMessage[] = JSON.parse(decryptedHistory);
       return messages.map((msg) => ({
         ...msg,
@@ -225,57 +168,49 @@ export function useChatEncryption() {
     }
   }, [symmetricKey, authState.isVerified]);
 
-  /**
-   * Save encrypted chat to backend
-   */
-  const saveChat = useCallback(async (messages: ChatMessage[]): Promise<void> => {
-    if (!symmetricKey || !authState.isVerified) {
-      throw new Error('Encryption not initialized');
-    }
+  const saveChat = useCallback(
+    async (messages: ChatMessage[]): Promise<SaveChatResult> => {
+      if (!symmetricKey || !authState.isVerified) {
+        throw new Error('Encryption not initialized');
+      }
 
-    try {
-      // Encrypt chat history
       const chatJson = JSON.stringify(messages);
       const encryptedBlob = await encryptChatHistory(chatJson, symmetricKey);
 
-      // Save to backend
-      const token = localStorage.getItem('walletSessionToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/save`, {
+      const didTokenId = authState.didInfo?.tokenId ?? authState.didInfo?.did ?? null;
+
+      const response = await fetch(apiUrl('/chat/save'), {
         method: 'POST',
         headers,
         credentials: 'include',
         body: JSON.stringify({
           encryptedChatBlob: encryptedBlob,
-          didTokenId: authState.didInfo?.did || null,
+          didTokenId,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save chat');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { message?: string }).message || 'Failed to save chat');
       }
 
       const data = await response.json();
-      if (data.success && data.data.requiresDidUpdate) {
-        // Update DID with chat hash and encrypted key
-        // This should be done by calling contract.setDidData()
-        // For now, we'll just log it
-        console.log('DID update required:', data.data.didDataToUpdate);
-      }
-    } catch (err: any) {
-      console.error('Error saving chat:', err);
-      throw err;
-    }
-  }, [symmetricKey, authState.isVerified, authState.didInfo]);
+      const payload = data?.data ?? {};
 
-  // Initialize key when wallet is verified
+      return {
+        blobHash: payload.blobHash ?? null,
+        chatReference: payload.chatReference ?? payload.blobHash ?? null,
+        requiresDidUpdate: Boolean(payload.requiresDidUpdate),
+        preserveEncryptedKeyMetadata: payload.preserveEncryptedKeyMetadata ?? null,
+      };
+    },
+    [symmetricKey, authState.isVerified, authState.didInfo],
+  );
+
   useEffect(() => {
     if (authState.isVerified && wallet && signer) {
       initializeKey();
@@ -296,4 +231,3 @@ export function useChatEncryption() {
     initializeKey,
   };
 }
-

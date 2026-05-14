@@ -37,7 +37,7 @@ This implementation provides:
 
 - **DIDService Class**: Manages Web3 interactions
 - **Features**:
-  - Network validation (Ethereum Mainnet only)
+  - Network validation against **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts` (Sepolia **11155111** for the live beta)
   - Wallet address validation
   - Backend signer support for minting
   - Public minting fallback
@@ -100,8 +100,8 @@ Get all available metadata about user's DID.
     "encryptedDataSize": 256,
     "walletAddress": "0x...",
     "contractAddress": "0x...",
-    "network": "Ethereum Mainnet",
-    "chainId": 1
+    "network": "Sepolia Testnet",
+    "chainId": 11155111
   }
 }
 ```
@@ -154,9 +154,9 @@ useEffect(() => {
 ## Security Features
 
 ### 1. Network Validation
-- Only Ethereum Mainnet (Chain ID: 1) is supported
-- Backend validates network before any operation
-- Frontend shows error if wrong network
+- **Live beta target:** **Sepolia** (chain ID **11155111**), aligned with `SUPPORTED_CHAIN_ID` in `apps/api/src/lib/constants.ts`
+- Backend validates the wallet session `chainId` and RPC network before sensitive operations
+- Frontend shows an error if the wallet is not on Sepolia
 
 ### 2. Authentication Required
 - All DID endpoints require valid JWT session
@@ -178,37 +178,57 @@ useEffect(() => {
 ### Backend
 
 ```env
-# DID Contract Configuration
-DID_IDENTITY_TOKEN_ADDRESS=0x... # Deployed contract address
-RPC_URL=https://mainnet.infura.io/v3/... # Ethereum RPC endpoint
-ETH_RPC_URL=https://mainnet.infura.io/v3/... # Alternative RPC URL
+# DID Contract Configuration (Sepolia in current product wiring)
+DID_REGISTRY_ADDRESS=0x... # Preferred: split registry for hasDid / token id reads
+DID_IDENTITY_TOKEN_ADDRESS=0x... # Legacy token with profiles + createDid / updateChatReference
+RPC_URL=https://eth-sepolia.g.alchemy.com/v2/... # Required for DIDService; missing RPC or contract → 503 on /api/did/*
+ETH_RPC_URL= # Optional alias read by DIDService
 
-# Optional: Backend Signer (for backend-initiated minting)
-DID_BACKEND_SIGNER_PRIVATE_KEY=0x... # Private key for backend signer
+# Optional: Backend Signer (server calls createDid(user) on legacy token — fund this wallet on Sepolia)
+DID_BACKEND_SIGNER_PRIVATE_KEY=0x...
 
-# JWT Configuration
+# JWT (session signing; use a strong random value in production)
 JWT_SECRET=your-strong-random-secret
 JWT_EXPIRES_IN=7d
 ```
 
+### Sepolia gas and who pays
+
+- **Backend-sponsored mint** (`POST /api/did/create` with `DID_BACKEND_SIGNER_PRIVATE_KEY` on the API, legacy `DIDIdentityToken`): fund the **backend signer address** with Sepolia ETH. Gas is paid from that key when the API submits `createDid(wallet)`.
+- **User-paid mint** (`createMyDid()` or any flow where the API has no backend signer): the **connected wallet** must hold Sepolia ETH and confirm the transaction; `DIDService.createDID` throws *Backend signer not configured. User must create DID via wallet* if the server cannot mint.
+- **DIDRegistryV2 only** (no legacy token): backend `createDID` via this service path is not supported (mint needs Timelock / MINTER_ROLE). Use governance mints or deploy the legacy token for API-driven create.
+
+### Avoiding 503 on `POST /api/did/check`
+
+`DIDService.getInstance()` is null when contract address and RPC are not resolved. Set **`RPC_URL`** and **`DID_REGISTRY_ADDRESS`** (recommended) or **`DID_IDENTITY_TOKEN_ADDRESS`**. With a valid session (`walletSession` cookie or `Authorization: Bearer` JWT matching `JWT_SECRET`), expect **200** and `data.hasDid`, not **503** `SERVICE_UNAVAILABLE`.
+
 ### Frontend
 
 ```env
-VITE_API_URL=http://localhost:3001
+# Omit or leave empty to use same-origin `/api` (Vite dev proxy to the API).
+# VITE_API_URL=http://localhost:3001
 VITE_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
 ```
 
 ## Deployment
 
-### 1. Deploy Smart Contract
+### Target network (live beta)
+
+**Sepolia** (chain ID **11155111**) is the supported network for the current SafePsy beta. Set **`RPC_URL`** to a Sepolia JSON-RPC endpoint and configure contract addresses for that chain.
+
+### 1. Deploy smart contract (Sepolia)
 
 ```bash
 # Compile contract
 npx hardhat compile
 
-# Deploy to Ethereum Mainnet
-npx hardhat run scripts/deploy-did-token.js --network mainnet
+# Deploy to Sepolia (adjust script path to your Hardhat layout)
+npx hardhat run scripts/deploy-did-token.js --network sepolia
 ```
+
+### Future / deployment-specific: Ethereum mainnet
+
+Mainnet is **not** the default in this repo’s API wiring today. A future production cut may set **`SUPPORTED_CHAIN_ID`** (and related naming) in `apps/api/src/lib/constants.ts`, redeploy contracts on mainnet, and run `npx hardhat run ... --network mainnet` only after your own operational and security review.
 
 **Deployment Script Example**:
 ```javascript
@@ -223,9 +243,10 @@ console.log("DIDIdentityToken deployed to:", didToken.address);
 
 ### 2. Configure Backend
 
-1. Set `DID_IDENTITY_TOKEN_ADDRESS` to deployed contract address
-2. Set `RPC_URL` to Ethereum Mainnet RPC endpoint
-3. (Optional) Set `DID_BACKEND_SIGNER_PRIVATE_KEY` for backend minting
+1. Set `RPC_URL` to a Sepolia JSON-RPC endpoint.
+2. Set `DID_REGISTRY_ADDRESS` (split stack) and/or `DID_IDENTITY_TOKEN_ADDRESS` (legacy profile + backend create).
+3. Set `JWT_SECRET` for session signing (production).
+4. (Optional) Set `DID_BACKEND_SIGNER_PRIVATE_KEY` for server-side minting on the legacy token; fund that wallet on Sepolia.
 
 ### 3. Test Endpoints
 
@@ -312,8 +333,8 @@ router.get('/protected', authenticateWallet, async (req: AuthenticatedRequest, r
 
 If user is on wrong network:
 - Frontend shows error banner
-- Backend returns `UNSUPPORTED_CHAIN` error
-- User must switch to Ethereum Mainnet
+- Backend returns `UNSUPPORTED_CHAIN` (or equivalent) with a message to use **Sepolia**
+- User must switch the wallet to **Sepolia** (chain ID **11155111**)
 
 ### DID Creation Errors
 
@@ -332,9 +353,9 @@ If user is on wrong network:
 
 ### Manual Testing
 
-1. **Deploy Contract** to testnet (Sepolia/Amoy)
-2. **Update Environment** with testnet contract address
-3. **Connect Wallet** to testnet
+1. **Deploy contract** to **Sepolia** (live beta target) or another testnet you have explicitly wired in env
+2. **Update environment** with that chain’s contract address and `RPC_URL`
+3. **Connect wallet** on the same chain as your deployment
 4. **Verify Wallet** and check DID status
 5. **Create DID** and verify token ID
 6. **Check DID Info** and verify all fields
@@ -363,7 +384,7 @@ describe('DIDService', () => {
 - `apps/api/src/contracts/DIDIdentityToken.sol` - Smart contract
 - `apps/api/src/lib/did.service.ts` - DID service
 - `apps/api/src/routes/did.ts` - API endpoints
-- `apps/api/src/index.ts` - Route registration
+- `apps/api/src/app.ts` - Route registration (`/api/did`, etc.)
 
 ### Frontend
 - `apps/web/src/components/DIDManager.tsx` - DID management UI
@@ -372,7 +393,7 @@ describe('DIDService', () => {
 
 ## Next Steps
 
-1. **Deploy Contract**: Deploy to Ethereum Mainnet
+1. **Deploy contract**: Deploy to **Sepolia** for the live beta (see **Future / deployment-specific: Ethereum mainnet** above for a non-default mainnet path)
 2. **Configure Environment**: Set contract address and RPC URL
 3. **Test Integration**: Verify end-to-end flow
 4. **Add Encryption**: Implement encrypted data storage
@@ -382,8 +403,8 @@ describe('DIDService', () => {
 ## Contract Deployment Checklist
 
 - [ ] Compile contract with Solidity 0.8.20+
-- [ ] Deploy to Ethereum Mainnet
-- [ ] Verify contract on Etherscan
+- [ ] Deploy to **Sepolia** for beta (or follow your mainnet runbook if you intentionally change `SUPPORTED_CHAIN_ID`)
+- [ ] Verify contract on **Sepolia** Etherscan (or the explorer for your deployment chain)
 - [ ] Set backend environment variables
 - [ ] Test contract functions
 - [ ] Test API endpoints
@@ -578,7 +599,7 @@ const DIDIdentityToken = await ethers.getContractFactory("DIDIdentityToken");
 const didToken = await DIDIdentityToken.deploy(
     "SafePsy DID Identity",
     "SAFEPSY-DID",
-    "https://api.safepsy.com/did/metadata/",
+    "https://api.polinapsycho.com/did/metadata/",
     backendSignerAddress,
     false // Start with public minting disabled
 );
@@ -620,7 +641,7 @@ const profile = await getDIDProfile(provider, walletAddress);
 1. **Soulbound**: Tokens cannot be transferred, preventing identity theft
 2. **Access Control**: Only DID owner can update their profile
 3. **Backend Signer**: Controlled minting prevents spam
-4. **Network Validation**: Contract enforces Ethereum Mainnet only
+4. **Network validation**: The API and wallet session checks enforce **Sepolia** for DID routes; ensure RPC and env addresses match the same chain
 5. **Reentrancy Protection**: Uses `ReentrancyGuard` for state-changing functions
 
 ## Integration Points
@@ -772,7 +793,7 @@ await fetch('/api/did/create', {
 
 **Backend Process**:
 1. Validates authentication
-2. Validates network (Ethereum Mainnet)
+2. Validates wallet session network (**Sepolia**, chain ID **11155111**; see `SUPPORTED_CHAIN_ID` in `apps/api/src/lib/constants.ts`)
 3. Checks if DID already exists (should be false)
 4. Calls `didService.createDID(walletAddress)`
 5. Backend signer mints token via `contract.createDid(walletAddress)`
@@ -921,11 +942,13 @@ interface AuthState {
 
 ### Network Mismatch
 ```typescript
-// User on wrong network
-if (req.wallet.chainId !== ETHEREUM_MAINNET_CHAIN_ID) {
+// User on wrong network (matches apps/api/src/routes/did.ts pattern)
+import { SUPPORTED_CHAIN_ID } from '../lib/constants';
+
+if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
   return res.status(400).json({
     error: 'UNSUPPORTED_CHAIN',
-    message: 'Only Ethereum Mainnet is supported'
+    message: 'Only Sepolia Testnet is supported. Please switch networks.',
   });
 }
 ```
@@ -1608,6 +1631,8 @@ event DidMigrated(
 
 ## Summary
 
+> **Note:** The checklist below is a **historical sprint snapshot** (implementation milestones). **Current live beta wiring** targets **Sepolia** (chain ID **11155111**); see `apps/api/src/lib/constants.ts` and env sections earlier in this guide.
+
 All requested features have been implemented for the DID Identity Token smart contract flow:
 
 ### ✅ Completed Tasks
@@ -1618,17 +1643,17 @@ All requested features have been implemented for the DID Identity Token smart co
    - Automatic chat saving and DID contract updates
    - Location: `apps/web/src/components/ChatWidget.tsx`
 
-2. **Environment Variables Set**
+2. **Environment Variables Set** (example addresses from a past deployment; replace with your Sepolia deployment)
    - Backend: `DID_IDENTITY_TOKEN_ADDRESS=0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8`
    - Frontend: `VITE_DID_IDENTITY_TOKEN_ADDRESS=0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8`
    - Crypto Payment Recipient: `CRYPTO_PAYMENT_CONTRACT_ADDRESS=0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
-   - Ethereum Mainnet: Chain ID `1`
+   - **Live beta target:** **Sepolia** — chain ID **11155111** (`SUPPORTED_CHAIN_ID` in the API)
 
 3. **DID Token Visualization Component Created**
    - Beautiful gradient design matching app aesthetics
    - Displays token ID, owner address, profile data
    - Shows encrypted chat history with decrypt option
-   - Etherscan link integration
+   - Block explorer link integration (Sepolia Etherscan when configured for that network)
    - Location: `apps/web/src/components/DIDTokenVisualization.tsx`
 
 4. **DID Components Added to UI**
@@ -1637,8 +1662,8 @@ All requested features have been implemented for the DID Identity Token smart co
    - Includes both DIDTokenVisualization and DIDManager components
 
 5. **Crypto Payment Configuration Updated**
-   - Payment recipient: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
-   - Ethereum Mainnet: Chain ID `1`
+   - Payment recipient: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c` (verify against your deployment)
+   - **Network for beta:** **Sepolia** (chain ID **11155111**); a **future mainnet** deployment is **deployment-specific** (update `SUPPORTED_CHAIN_ID`, contracts, and env together)
 
 6. **Premium Plan Pricing Updated**
    - **Current implementation**: Single premium at **$20 USD for 30 days**
@@ -1674,7 +1699,7 @@ All requested features have been implemented for the DID Identity Token smart co
 - **Token Information**: Displays token ID, owner address, creation/update dates
 - **Encrypted Chat History**: Shows encrypted messages with decrypt/view option
 - **Profile Data**: Displays DID profile information from contract
-- **Etherscan Integration**: Direct link to view token on Etherscan
+- **Block explorer**: Direct link to view the token on Sepolia Etherscan (or the explorer matching your configured chain)
 - **Copy to Clipboard**: Easy address copying
 
 ### ChatWidget Integration
@@ -1688,7 +1713,7 @@ All requested features have been implemented for the DID Identity Token smart co
 - **Period**: 30 days
 - **Payment Methods**: ETH, USDT, USDC, Stripe
 - **Recipient**: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
-- **Network**: Ethereum Mainnet (Chain ID: 1)
+- **Network**: **Sepolia** (chain ID **11155111**) for the live beta; mainnet is a **future / deployment-specific** change (constants + contracts + env must move together)
 
 ## Testing Checklist
 
@@ -1750,8 +1775,8 @@ All requested features have been implemented for the DID Identity Token smart co
 
 ## Notes
 
-- The contract address `0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8` is from a local deployment (block 2)
-- For production, deploy to Mainnet and update the address in `.env` files
+- The contract address `0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8` in this section is a **historical example** from a local or test deployment log; substitute your **Sepolia** deployment output and keep **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts` aligned with that chain.
+- **Future mainnet:** only after you intentionally change **`SUPPORTED_CHAIN_ID`**, redeploy contracts, and refresh all env addresses for chain ID **1**.
 - Premium pricing is set to $20 for 30 days in current implementation; target model adds $19/month, $69/month Gold with $PSY token and cashback to user wallet (see [TOKENOMICS.md](TOKENOMICS.md))
 - All encryption is handled client-side using wallet signatures
 - Chat history is stored encrypted in the database and referenced in the DID contract

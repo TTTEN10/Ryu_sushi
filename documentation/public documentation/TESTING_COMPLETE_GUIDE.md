@@ -1,6 +1,19 @@
 # Testing Implementation Summary
 
-This document summarizes the implementation of the testing infrastructure for SafePsy at `safepsy.com/testing/`.
+This document summarizes the implementation of the testing infrastructure for SafePsy at `polinapsycho.com/testing/`.
+
+## Production parity (wallet & DID)
+
+The SPA and production API use **`/api/auth/*`** and **`/api/did/*`**, not `/api/testing/*`. Examples:
+
+| Concern | Production (use this in prod) | Dev-only mirror (`NODE_ENV !== 'production'`) |
+|--------|--------------------------------|-----------------------------------------------|
+| Wallet connect message | `POST /api/auth/wallet/connect` | `POST /api/testing/wallet/connect` |
+| Wallet verify / session | `POST /api/auth/wallet/verify` | `POST /api/testing/wallet/verify` |
+| Logout | `POST /api/auth/logout` | `POST /api/testing/auth/logout` |
+| DID check | `POST /api/did/check` | `POST /api/testing/did/check` |
+
+See **`WALLET_COMPLETE_GUIDE.md`** for JSON body contracts and **`apps/api/src/routes/auth.ts`**.
 
 ## ✅ Completed Implementation
 

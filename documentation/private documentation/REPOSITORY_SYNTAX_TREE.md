@@ -2,7 +2,7 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPappv2**).
 
-> **Last updated:** 2026-05-10 — `apps/api/src/routes/metrics.ts` (`POST /api/metrics/funnel`); `apps/web/src/utils/conversionMetrics.ts`; `documentation/public documentation/CONVERSION_METRICS.md`.
+> **Last updated:** 2026-05-14 — `apps/web/scripts/verify-sepolia-staging-checklist.mjs`; `apps/web/src/utils/did-key-metadata.ts`; `POST /api/metrics/funnel` unchanged.
 
 ---
 
@@ -53,7 +53,8 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 ├── core/
 │   ├── agent_behavior.mdc
 │   ├── engineering_principles.mdc
-│   └── repository_syntax_tree.mdc  # When to refresh REPOSITORY_SYNTAX_TREE.md — MDC
+│   ├── repository_syntax_tree.mdc  # When to refresh REPOSITORY_SYNTAX_TREE.md — MDC
+│   └── senior_collaborator.mdc     # Voice, brevity, epistemic clarity — MDC
 ├── devops/
 │   ├── deployment.mdc
 │   ├── production_recovery.mdc
@@ -178,6 +179,7 @@ apps/api/
 │   │   ├── secret-manager.ts        # Secret manager (e.g. Scaleway) — TypeScript
 │   │   ├── security-audit.ts         # Security audit helpers — TypeScript
 │   │   ├── session.ts               # Session management — TypeScript
+│   │   ├── wallet-nonce.service.ts  # SIWE nonce register/consume (replay protection; in-memory — Redis for multi-instance) — TypeScript
 │   │   ├── storage.service.ts       # Storage (S3-compatible) — TypeScript
 │   │   ├── subscription.service.ts  # Subscription logic — TypeScript
 │   │   └── DIDIdentityToken.abi.json # DID token ABI — JSON
@@ -234,7 +236,7 @@ apps/web/
 ├── package.json              # Web app deps (React, ethers, WalletConnect, etc.) & scripts — JSON
 ├── README.md                 # Web app overview (guest vs wallet chat) — Markdown
 ├── index.html                # SPA shell + helmet placeholders + baseline OG/favicon; client loads `entry-client` — HTML
-├── env.example               # Frontend env template — Text
+├── env.example               # Frontend env template (`VITE_*`, DID Sepolia) — Text
 ├── tsconfig.json             # TypeScript config — JSON
 ├── tsconfig.node.json        # Node/TS config for Vite — JSON
 ├── vite.config.ts            # Vite client build (proxy, CSS ordering plugin, SSR `noExternal` hint) — TypeScript
@@ -246,6 +248,7 @@ apps/web/
 ├── public/                   # Static assets (`HeadsOnlyTransparent.png` favicon, `Logotransparent.png` OG/social, sitemap, robots, marketing imagery); `.well-known/apple-app-site-association` + README — mixed
 ├── scripts/
 │   ├── validate-aasa.mjs     # CLI: fetch AASA, check status/JSON/redirects — JavaScript (ESM)
+│   ├── verify-sepolia-staging-checklist.mjs # Sepolia env + API /healthz + RPC prereqs — JavaScript (ESM)
 │   └── prerender.mjs         # Post-build: SSR-render key routes into `dist/**/index.html` — JavaScript (ESM)
 ├── src/
 │   ├── main.tsx              # Loads `entry-client` — TypeScript (TSX)
@@ -270,9 +273,12 @@ apps/web/
 │   │   └── supportIssues.ts  # Support / issue taxonomy for Support page — TypeScript
 │   │
 │   ├── contexts/
-│   │   ├── AuthContext.tsx   # Auth state & methods — TypeScript (TSX)
+│   │   ├── AuthContext.tsx   # Session/JWT/DID bootstrap; sole owner of wallet login API flow — TypeScript (TSX)
 │   │   ├── ThemeContext.tsx  # Theme (light/dark) — TypeScript (TSX)
-│   │   └── WalletContext.tsx # Wallet connect, chain, address — TypeScript (TSX)
+│   │   └── WalletContext.tsx # EIP-1193 connect/disconnect/sign only — TypeScript (TSX)
+│   │
+│   ├── services/
+│   │   └── auth.service.ts   # HTTP: /api/auth/wallet/*, /api/auth/me, logout, /api/did/check — TypeScript
 │   │
 │   ├── hooks/
 │   │   ├── useChatEncryption.ts   # Chat encryption hook — TypeScript
@@ -282,7 +288,9 @@ apps/web/
 │   │   ├── useOffline.ts          # Offline detection — TypeScript
 │   │   ├── useScrollReveal.ts     # Scroll-triggered reveal — TypeScript
 │   │   ├── useSEO.ts              # SEO per route — TypeScript
-│   │   └── useToast.tsx           # Toast notifications — TypeScript (TSX)
+│   │   ├── useToast.tsx           # Toast notifications — TypeScript (TSX)
+│   │   ├── useWalletAuth.ts       # Thin facade: login/logout/session from AuthContext — TypeScript
+│   │   └── useWalletLogin.ts      # SIWE login orchestration (connect → challenge → sign → verify) — TypeScript
 │   │
 │   ├── utils/
 │   │   ├── chat-retrieval.ts      # Chat retrieval from API — TypeScript
@@ -291,6 +299,7 @@ apps/web/
 │   │   ├── cookieUtils.ts         # Cookie helpers — TypeScript
 │   │   ├── crypto-helpers.ts      # Web Crypto BufferSource normalization — TypeScript
 │   │   ├── did-contract.ts        # DID contract calls (frontend) — TypeScript
+│   │   ├── did-key-metadata.ts    # On-chain encrypted DEK wire format helpers — TypeScript
 │   │   ├── did-encryption.ts      # DID-based encryption — TypeScript
 │   │   ├── encryption.ts          # General encryption — TypeScript
 │   │   ├── ethers-helpers.ts      # Read-only ethers provider narrowing for DID reads — TypeScript
@@ -357,7 +366,7 @@ apps/web/
 apps/safepsy-mobile/
 ├── package.json              # Expo client: WC, ethers, quick-crypto, worklets, Gifted Chat, navigation, SecureStore, AsyncStorage, Sentry; EAS scripts — JSON
 ├── eas.json                  # EAS Build (dev internal, preview, production store); production `env` pins API + Universal + APP_DOMAIN — JSON
-├── app.json                  # Expo: display name SafePsy, scheme `safepsy://`, iOS bundleId + applinks + ITSAppUsesNonExemptEncryption, plugins — JSON
+├── app.json                  # Expo: display name SafePsy, scheme `safepsy://`, iOS bundleId + applinks (`polinapsycho.com`, `www`) + ITSAppUsesNonExemptEncryption, plugins — JSON
 ├── babel.config.js           # babel-preset-expo + Reanimated plugin — JavaScript
 ├── env.example               # EXPO_PUBLIC_*, TestFlight/EAS notes — Text
 ├── App.tsx                   # validateProductionEnvironment, Sentry init, QueryClient, WalletConnectProvider, hydrate + restoreSession, AppState resume — TypeScript (TSX)

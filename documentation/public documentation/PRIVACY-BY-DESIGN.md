@@ -6,6 +6,8 @@ This document describes the privacy by design implementation for IP address hand
 
 > **For comprehensive privacy and data protection information, including consent flows and encrypted storage details, see the [Data Protection Impact Assessment (DPIA)](/dpia) in the SafePsy application.**
 
+> **Path note:** Some sections below reference this monorepo under `apps/api/`. Older bullets that pointed at other codebases are **illustrative** unless the path starts with `apps/` in this repository.
+
 ## Key Principles
 
 1. **Default OFF**: IP hashing is disabled by default
@@ -25,79 +27,67 @@ IP_SALT=default-privacy-salt-change-in-production  # Change in production!
 
 ### Behavior
 
-- **When `IP_HASHING_ENABLED=false` (default)**:
-  - Raw IP addresses are NOT logged
-  - Placeholder `IP_HASHING_DISABLED` is used instead
-  - Maximum privacy protection
+- **When `IP_HASHING_ENABLED=false` (default)** (see `apps/api/src/lib/crypto.ts`):
+  - `ipHash()` returns **`undefined`** (no SHA-256 row is computed)
+  - Routes store **`null`** / omit the hash in Prisma where the field is optional; raw IPs are not written to those columns via `ipHash`
+  - Raw IPs should still not appear in application logs (see error-handler guidance)
 
 - **When `IP_HASHING_ENABLED=true`**:
-  - IP addresses are hashed using SHA-256 with salt
-  - `ipHash = sha256(ip + SALT)`
-  - Still provides privacy while enabling rate limiting
+  - IP addresses are hashed using SHA-256 with salt (`ip + IP_SALT`) when **`IP_SALT`** is at least 32 characters; otherwise hashing is refused and `ipHash` stays `undefined` (see `apps/api/src/lib/crypto.ts` and startup validation in `apps/api/src/index.ts`)
+  - Still provides privacy while enabling correlation for abuse prevention
 
-### Files Modified
+### Where this is implemented (this repo)
 
-#### 1. Centralized Privacy Utilities
-- **File**: `SPv3.x/packages/shared-types/src/privacy.ts`
-- **Purpose**: Centralized IP hashing utilities
-- **Exports**: `hashIP`, `getClientIP`, `getPrivacySafeIP`, `isIPHashingEnabled`
+#### 1. IP hashing helper
+- **File**: `apps/api/src/lib/crypto.ts`
+- **Export**: `ipHash(ip: string)` — returns `undefined` when hashing is off or salt is invalid; otherwise SHA-256 hex of `ip + IP_SALT`
+- **Behavior**: Hashing runs only when **`IP_HASHING_ENABLED=true`** and **`IP_SALT`** is at least 32 characters (see startup checks in `apps/api/src/index.ts`)
 
-#### 2. Rate Limiting Middleware
-- **File**: `SPv3.x/backend/src/middleware/rate-limit.ts`
-- **Changes**: Updated to use privacy-safe IP handling
-- **Impact**: Rate limiting now respects privacy settings
+#### 2. Routes that persist subscription / contact metadata
+- **Files**: `apps/api/src/routes/subscribe.ts`, `apps/api/src/routes/contact.ts`, `apps/api/src/routes/metrics.ts`
+- **Pattern**: Derive IP from `x-forwarded-for` / socket, pass `ipHash(ip)` into Prisma or metrics payloads (may be `undefined` when hashing is disabled)
 
-#### 3. Shared Logger
-- **File**: `SPv3.x/shared-logger/index.js`
-- **Changes**: IP addresses are hashed before logging
-- **Impact**: Logs contain privacy-safe IP information
+#### 3. Global API rate limiting
+- **File**: `apps/api/src/lib/ratelimit.ts` (mounted from `apps/api/src/app.ts`)
+- **Note**: Uses Express `req.ip` for limits; it does not automatically call `ipHash`. Optional IP hashing applies where routes store `ipHash` in the database.
 
-#### 4. Landing Page API
-- **Files**: 
-  - `SPlandingv0.1/safepsy-landing/apps/api/src/lib/crypto.ts`
-  - `SPlandingv0.1/safepsy-landing/backend/src/server.ts`
-- **Changes**: Updated IP hashing to respect privacy settings
-- **Impact**: Email subscriptions use privacy-safe IP handling
-
-#### 5. Environment Configuration
-- **Files**: All `env.example` files updated
-- **Changes**: Added `IP_HASHING_ENABLED` and `IP_SALT` variables
-- **Impact**: Clear documentation of privacy settings
+#### 4. Environment configuration
+- **Files**: `apps/api/.env.example`, repo root `env.example` (and related `*.example` env files as applicable)
+- **Variables**: `IP_HASHING_ENABLED`, `IP_SALT`
 
 ## Usage Examples
 
-### Basic IP Hashing
+### Basic IP hashing (API)
 
 ```typescript
-import { hashIP, getClientIP } from '@safepsy/shared-types';
+import { ipHash } from "../lib/crypto";
 
-// Get privacy-safe IP from request
-const safeIP = getClientIP(req);
+const ip =
+  (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+  req.socket.remoteAddress ||
+  "";
 
-// Hash a specific IP
-const hashedIP = hashIP('192.168.1.1');
+const stored = ipHash(ip); // undefined when IP hashing is disabled
 ```
 
-### Rate Limiting with Privacy
+### Rate limiting (API)
 
 ```typescript
-import { rateLimitPerIP } from './middleware/rate-limit';
+import rateLimit from "express-rate-limit";
 
-// Rate limiting automatically uses privacy-safe IPs
-app.use('/api', rateLimitPerIP({
+// Example: default express-rate-limit uses req.ip; combine with ipHash only where you persist IPs
+export const rateLimitMiddleware = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
-}));
+  max: 100,
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 ```
 
-### Logging with Privacy
+### Logging with privacy
 
-```javascript
-const { createLogger } = require('@safepsy/shared-logger');
-
-const logger = createLogger('my-service');
-logger.logRequest(req, res, next); // Automatically uses privacy-safe IPs
-```
+`apps/api/src/middleware/error-handler.ts` passes request metadata through `redactLogObject`; in **production** the logged `ip` field is replaced with `<REDACTED: ip>`. Development builds may include `req.ip` in error logs, so keep dev logs off shared sinks if that matters for your threat model.
 
 ## Security Considerations
 
@@ -150,10 +140,10 @@ This implementation supports:
 ### Testing
 
 ```bash
-# Test privacy settings
-curl -H "X-Forwarded-For: 192.168.1.1" http://localhost:3000/api/subscribe
+# Test privacy settings (default API port in this monorepo is often 3001)
+curl -H "X-Forwarded-For: 192.168.1.1" http://localhost:3001/api/subscribe
 
-# Check logs - should show 'IP_HASHING_DISABLED' or hashed IP
+# With IP hashing off, stored ipHash in DB is typically null/undefined from ipHash(); with hashing on, expect a hex digest
 ```
 
 ## Monitoring
@@ -252,7 +242,7 @@ SafePsy implements **client-side encryption with server-side temporary decryptio
 - Transient plaintext (only in memory during processing)
 - No persistent plaintext storage
 
-For complete details, see `TECHNICAL_REVIEW.md` Section 2 "Encryption Scope & Trust Boundaries".
+For complete details, see `documentation/private documentation/TECHNICAL_REVIEW.md` Section 2 "Encryption Scope & Trust Boundaries".
 
 ---
 

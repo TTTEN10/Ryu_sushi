@@ -3,8 +3,9 @@ import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquar
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useChatEncryption } from '../hooks/useChatEncryption';
+import { useChatEncryption, type SaveChatResult } from '../hooks/useChatEncryption';
 import { updateChatReference } from '../utils/did-contract';
+import { keyMetadataBytesForDidUpdate } from '../utils/did-key-metadata';
 import { useOffline } from '../hooks/useOffline';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
@@ -59,7 +60,7 @@ export default function ChatWidget() {
   const [searchParams] = useSearchParams();
   const { authState, userMode } = useAuth();
   const { wallet, signer } = useWallet();
-  const { symmetricKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
+  const { symmetricKey, encryptedKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
   
@@ -101,6 +102,49 @@ export default function ChatWidget() {
     document.getElementById('wallet-connect-region')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
+  const syncDidChatReferenceIfNeeded = useCallback(
+    async (saveResult: SaveChatResult, options?: { showToasts?: boolean }) => {
+      const showToasts = options?.showToasts ?? false;
+      if (
+        isGuest ||
+        !signer ||
+        !wallet ||
+        !saveResult.requiresDidUpdate ||
+        !saveResult.blobHash
+      ) {
+        return;
+      }
+      const chatRef = saveResult.chatReference ?? saveResult.blobHash;
+      try {
+        if (showToasts) {
+          showToast('info', 'Updating DID contract...');
+        }
+        const metaBytes = keyMetadataBytesForDidUpdate(
+          encryptedKey,
+          saveResult.preserveEncryptedKeyMetadata,
+        );
+        const receipt = await updateChatReference(signer, chatRef, metaBytes);
+        if (showToasts) {
+          showToast('success', 'DID updated! Chat reference stored on-chain');
+          console.log(
+            'DID updated successfully:',
+            (receipt as { hash?: string }).hash ||
+              (receipt as { transactionHash?: string }).transactionHash,
+          );
+        }
+      } catch (didError: unknown) {
+        console.error('Error updating DID:', didError);
+        if (showToasts) {
+          showToast(
+            'warning',
+            'Chat saved. DID update failed - you can update later from DID settings.',
+          );
+        }
+      }
+    },
+    [isGuest, signer, wallet, encryptedKey, showToast],
+  );
+
   // After the 5th guest message is sent, show conversion modal once streaming finishes.
   useEffect(() => {
     if (!isGuest || isStreaming) return;
@@ -114,19 +158,16 @@ export default function ChatWidget() {
     if (!wallet?.address) return false;
 
     try {
-      const token = localStorage.getItem('walletSessionToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       headers['x-wallet-address'] = wallet.address;
       headers['x-chain-id'] = wallet.chainId.toString();
 
       const response = await fetch(apiUrl('/chat/concurrency'), {
         method: 'GET',
         headers,
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -254,7 +295,7 @@ export default function ChatWidget() {
           : msg
       );
       if (!isGuest) {
-        await saveChat(
+        const saveResult = await saveChat(
           updatedMessages.map((msg) => ({
             id: msg.id,
             role: msg.role,
@@ -262,6 +303,7 @@ export default function ChatWidget() {
             timestamp: msg.timestamp,
           }))
         );
+        await syncDidChatReferenceIfNeeded(saveResult);
       }
       showToast('success', 'Message updated');
     } catch (error) {
@@ -290,7 +332,7 @@ export default function ChatWidget() {
     try {
       const updatedMessages = messages.filter((msg) => msg.id !== messageId);
       if (!isGuest) {
-        await saveChat(
+        const saveResult = await saveChat(
           updatedMessages.map((msg) => ({
             id: msg.id,
             role: msg.role,
@@ -298,6 +340,7 @@ export default function ChatWidget() {
             timestamp: msg.timestamp,
           }))
         );
+        await syncDidChatReferenceIfNeeded(saveResult);
       }
       showToast('success', 'Message deleted');
     } catch (error) {
@@ -402,12 +445,6 @@ export default function ChatWidget() {
         'Content-Type': 'application/json',
       };
 
-      // Add JWT token if available
-      const token = localStorage.getItem('walletSessionToken');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       // Also add wallet headers for quota checking
       if (wallet) {
         headers['x-wallet-address'] = wallet.address;
@@ -424,6 +461,7 @@ export default function ChatWidget() {
       const response = await fetch(chatUrl.toString(), {
         method: 'POST',
         headers,
+        credentials: 'include',
         body: JSON.stringify({
           messages: decryptedMessages.map((m) => ({
             role: m.role,
@@ -492,7 +530,7 @@ export default function ChatWidget() {
           if (!isGuest && signer && wallet) {
             // Step 1: Save encrypted chat to backend (useChatEncryption handles encryption)
             const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
-            await saveChat(
+            const saveResult = await saveChat(
               updatedMessages.map((msg) => ({
                 id: msg.id,
                 role: msg.role,
@@ -501,46 +539,7 @@ export default function ChatWidget() {
               }))
             );
 
-            // Step 2: Fetch the latest chat data from backend to get the blob hash
-            // This is needed to update the DID contract with the correct hash
-            const token = localStorage.getItem('walletSessionToken');
-            const headers: HeadersInit = {
-              'Content-Type': 'application/json',
-            };
-            if (token) {
-              headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            // Get the latest chat record to retrieve the blob hash
-            const loadResponse = await fetch(apiUrl('/chat/load'), {
-              method: 'GET',
-              headers,
-              credentials: 'include',
-            });
-
-            if (loadResponse.ok) {
-              const loadData = await loadResponse.json();
-              if (loadData.success && loadData.data.hasChat && loadData.data.blobHash) {
-                const chatRef = loadData.data.blobHash;
-
-                // Step 3: Update DID contract with chat reference hash
-                // This stores the hash on-chain for verifiability
-                try {
-                  showToast('info', 'Updating DID contract...');
-                  const receipt = await updateChatReference(signer, chatRef, new Uint8Array(0));
-                  showToast('success', 'DID updated! Chat reference stored on-chain');
-                  // ethers v6 uses `hash` on the receipt object
-                  console.log('DID updated successfully:', (receipt as any).hash || (receipt as any).transactionHash);
-                } catch (didError: any) {
-                  // Non-fatal: chat is saved even if DID update fails
-                  console.error('Error updating DID:', didError);
-                  showToast(
-                    'warning',
-                    'Chat saved. DID update failed - you can update later from DID settings.'
-                  );
-                }
-              }
-            }
+            await syncDidChatReferenceIfNeeded(saveResult, { showToasts: true });
           } else if (!isGuest) {
             // No signer/wallet, just save without DID update
             const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];

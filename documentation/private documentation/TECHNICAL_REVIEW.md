@@ -372,7 +372,7 @@ body { font-size: 1rem; } /* 16px minimum */
 // NEVER default to '*'
 const allowedOrigins = process.env.FRONTEND_URL 
   ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : ['https://safepsy.com']; // Default to production domain
+  : ['https://polinapsycho.com']; // Default to production domain
 
 app.use(cors({
   origin: (origin, callback) => {

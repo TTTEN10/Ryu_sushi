@@ -162,7 +162,7 @@ Covers: encryption (E2E?, who can read?, key loss), compliance (HIPAA, GDPR, ISO
 
 2. **`terraform.tfvars`** in that directory (from `terraform.tfvars.example`; gitignored).
 
-**SSH + hosts** (optional): `SSH_KEY`, `APP_HOST`, `CHATBOT_HOST`, `APP_DOMAIN`, `CADDY_SITE_NAMES` — see `deployment/deploy.sh` defaults (`safepsy.com`, app/chatbot IPs).
+**SSH + hosts** (optional): `SSH_KEY`, `APP_HOST`, `CHATBOT_HOST`, `APP_DOMAIN`, `CADDY_SITE_NAMES` — see `deployment/deploy.sh` defaults (`polinapsycho.com`, app/chatbot IPs).
 
 **Full deploy:** `./deployment/deploy.sh` from repo root. **App-only:** `DEPLOY_LEGACY=1 ./deployment/deploy.sh`.
 
@@ -180,7 +180,7 @@ VLLM_TOKENIZER_MODE=mistral \
 ./deployment/deploy-app.sh
 ```
 
-**Verify:** `APP_DOMAIN=safepsy.com APP_IP=<app-public-ip> CHECK_LLM=1 ./deployment/verify-production.sh`; then HTTPS, `/api/healthz`, and chat as needed.
+**Verify:** `APP_DOMAIN=polinapsycho.com APP_IP=<app-public-ip> CHECK_LLM=1 ./deployment/verify-production.sh`; then HTTPS, `/api/healthz`, and chat as needed.
 
 ---
 

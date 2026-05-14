@@ -24,7 +24,7 @@ set -euo pipefail
 #   VLLM_DOCKER_MEMORY=... ./deployment/deploy-app.sh
 #
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
-#   Default: safepsy.com, www.safepsy.com
+#   Default: polinapsycho.com, www.polinapsycho.com
 #
 # SINGLE_HOST=1: run vLLM on APP_IP only (bind 127.0.0.1:8000). Use when SSH to API_IP fails or there is no separate API VM.
 #   Example: SINGLE_HOST=1 APP_IP=51.159.149.66 ./deployment/deploy-app.sh
@@ -41,9 +41,9 @@ REUSE_CONTAINERS="${REUSE_CONTAINERS:-0}"
 SKIP_VLLM_DEPLOY="${SKIP_VLLM_DEPLOY:-0}"
 CHATBOT_HEALTH_PATH="${CHATBOT_HEALTH_PATH:-/health}"
 # Canonical browser URL (used in success output / checks)
-APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
+APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
 # Hostnames Caddy will terminate TLS for (must match DNS A/AAAA to this server)
-CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-safepsy.com, www.safepsy.com}"
+CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
 APP_USER="${APP_USER:-safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"

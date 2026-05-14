@@ -13,6 +13,7 @@ import {
   SUPPORTED_CHAIN_ID_HEX,
   SUPPORTED_NETWORK_NAME,
 } from '../config/supportedChain';
+import { requestWalletMessage, verifyWalletSignature } from '../services/auth.service';
 
 // ============================================================================
 // Types & Interfaces
@@ -110,11 +111,17 @@ interface SafePsyConfig {
 /**
  * Get configuration from environment or defaults
  */
+function normalizeApiOriginForClient(raw: string | undefined): string {
+  const t = (raw ?? '').trim();
+  if (!t) return '';
+  return t.replace(/\/$/, '').replace(/\/api$/, '');
+}
+
 function getConfig(): Required<SafePsyConfig> {
   return {
-    apiBaseUrl: typeof window !== 'undefined' 
-      ? (import.meta.env?.VITE_API_URL || 'http://localhost:3001')
-      : process.env.VITE_API_URL || 'http://localhost:3001',
+    apiBaseUrl: typeof window !== 'undefined'
+      ? normalizeApiOriginForClient(import.meta.env?.VITE_API_URL as string | undefined)
+      : normalizeApiOriginForClient(process.env.VITE_API_URL),
     didContractAddress: typeof window !== 'undefined'
       ? (import.meta.env?.VITE_DID_IDENTITY_TOKEN_ADDRESS || '')
       : process.env.VITE_DID_IDENTITY_TOKEN_ADDRESS || '',
@@ -141,6 +148,43 @@ const DID_IDENTITY_TOKEN_ABI = [
   'function createMyDid() external returns (uint256)',
   'function ownerOf(uint256 tokenId) external view returns (address)',
 ];
+
+const WRITE_TX_MAX_ATTEMPTS = 4;
+const WRITE_TX_BASE_DELAY_MS = 900;
+
+async function sleepRpc(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableContractWrite(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /nonce|timeout|NETWORK_ERROR|rate limit|too many|ECONNRESET|ETIMEDOUT|replacement|underpriced|ECONNREFUSED|503|502/i.test(
+    msg,
+  );
+}
+
+async function sendContractTxWithWaitRetry(
+  send: () => Promise<ethers.ContractTransactionResponse>,
+): Promise<ethers.ContractTransactionReceipt> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= WRITE_TX_MAX_ATTEMPTS; attempt++) {
+    try {
+      const tx = await send();
+      const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('Transaction receipt not available');
+      }
+      return receipt;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= WRITE_TX_MAX_ATTEMPTS || !isRetryableContractWrite(err)) {
+        throw err;
+      }
+      await sleepRpc(WRITE_TX_BASE_DELAY_MS * 2 ** (attempt - 1));
+    }
+  }
+  throw lastError;
+}
 
 // ============================================================================
 // SafePsy Web3 Client Class
@@ -313,17 +357,11 @@ export class SafePsyWeb3Client {
   // ==========================================================================
 
   /**
-   * Connect wallet and authenticate with backend
-   * 
-   * Flow:
-   * 1. Initialize provider
-   * 2. Request account access
-   * 3. Validate network (switch if needed)
-   * 4. Request verification message from backend
-   * 5. Sign message with wallet
-   * 6. Verify signature with backend
-   * 7. Create session
-   * 
+   * Connect wallet and authenticate with backend.
+   *
+   * HTTP for `wallet/connect` and `wallet/verify` delegates to `auth.service` (one verify POST,
+   * `credentials: 'include'`). This class only performs the EIP-191 signature locally.
+   *
    * @returns UserSession with authenticated wallet info
    */
   async connectWalletAndAuthenticate(): Promise<UserSession> {
@@ -356,59 +394,20 @@ export class SafePsyWeb3Client {
         await this.validateNetwork();
       }
 
-      // Request verification message from backend
-      // Send address in both headers (for middleware) and body (for validation)
-      const connectResponse = await this.apiRequest<{
-        success: boolean;
-        data: {
-          address: string;
-          chainId: number;
-          nonce: string;
-          message: string;
-        };
-      }>('/api/auth/wallet/connect', {
-        method: 'POST',
-        headers: {
-          'x-wallet-address': walletAddress,
-          'x-chain-id': SUPPORTED_CHAIN_ID.toString(),
-        },
-        body: JSON.stringify({
-          address: walletAddress,
-          chainId: SUPPORTED_CHAIN_ID,
-        }),
-      });
+      const httpOpts = { apiBaseUrl: this.config.apiBaseUrl };
+      const message = await requestWalletMessage(walletAddress, SUPPORTED_CHAIN_ID, httpOpts);
 
-      if (!connectResponse.success || !connectResponse.data) {
-        throw new AuthenticationError('Failed to get verification message');
-      }
-
-      const { message } = connectResponse.data;
-
-      // Sign message
       const signature = await signer.signMessage(message);
 
-      // Verify signature with backend
-      const verifyResponse = await this.apiRequest<{
-        success: boolean;
-        data: {
-          address: string;
-          chainId: number;
-          verified: boolean;
-          token?: string;
-        };
-      }>('/api/auth/wallet/verify', {
-        method: 'POST',
-        body: JSON.stringify({
+      const verifyResponse = await verifyWalletSignature(
+        {
           address: walletAddress,
-          signature,
           message,
+          signature,
           chainId: SUPPORTED_CHAIN_ID,
-        }),
-      });
-
-      if (!verifyResponse.success || !verifyResponse.data) {
-        throw new AuthenticationError('Signature verification failed');
-      }
+        },
+        httpOpts,
+      );
 
       // Create session
       this.session = {
@@ -687,9 +686,9 @@ export class SafePsyWeb3Client {
         keyMetadataBytes = encryptedKeyMetadata;
       }
 
-      // Call updateChatReference on contract
-      const tx = await contract.updateChatReference(chatReference, keyMetadataBytes);
-      await tx.wait();
+      await sendContractTxWithWaitRetry(() =>
+        (contract as ethers.Contract).getFunction('updateChatReference')(chatReference, keyMetadataBytes),
+      );
 
       // Refresh DID info
       await this.getCurrentUserDid();

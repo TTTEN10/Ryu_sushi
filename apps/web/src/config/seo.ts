@@ -13,7 +13,7 @@ function getBaseUrl(): string {
   }
 
   // Build-time fallback (must not rely on process.env in the browser bundle).
-  return import.meta.env.PROD ? 'https://safepsy.com' : 'http://localhost:5173';
+  return import.meta.env.PROD ? 'https://polinapsycho.com' : 'http://localhost:5173';
 }
 
 const baseUrl = getBaseUrl();

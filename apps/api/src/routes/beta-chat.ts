@@ -15,7 +15,7 @@ const FALLBACK_BODY = {
     'The assistant is temporarily unavailable. Please try again in a moment.',
 };
 
-/** Add https:// if no scheme (e.g. safepsy.com/beta/chat). */
+/** Add https:// if no scheme (e.g. polinapsycho.com/beta/chat). */
 function normalizeOriginOrUrl(raw: string): string {
   const t = raw.trim();
   if (t.startsWith('http://') || t.startsWith('https://')) return t;

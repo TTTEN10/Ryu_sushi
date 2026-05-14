@@ -205,8 +205,8 @@ npx hardhat run scripts/deploy-did-registry.ts --network mainnet
 
 1. **Test Chat Flow:**
    ```bash
-   curl https://safepsy.com/api/chat/health
-   curl https://safepsy.com/api/chat/completions \
+   curl https://polinapsycho.com/api/chat/health
+   curl https://polinapsycho.com/api/chat/completions \
      -H "Content-Type: application/json" \
      -d '{"messages":[{"role":"user","content":"Hello"}],"stream":false}'
    ```

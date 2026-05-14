@@ -39,7 +39,7 @@ export function createApp() {
   function parseAllowedOrigins(): string[] {
     const raw = (process.env.FRONTEND_URL || "").trim();
     const defaults = isProd
-      ? ["https://safepsy.com", "https://www.safepsy.com"]
+      ? ["https://polinapsycho.com", "https://www.polinapsycho.com"]
       : ["http://localhost:3000", "http://localhost:3001"];
 
     const origins = raw

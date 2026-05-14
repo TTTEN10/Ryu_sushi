@@ -4,7 +4,7 @@
  * Validates Universal Links AASA hosting requirements for production.
  *
  * Usage:
- *   node scripts/validate-aasa.mjs https://safepsy.com
+ *   node scripts/validate-aasa.mjs https://polinapsycho.com
  *
  * Expects:
  *   GET /.well-known/apple-app-site-association → 200

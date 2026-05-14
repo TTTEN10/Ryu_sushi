@@ -127,7 +127,7 @@ export const Config = {
   
   // Email
   postmarkApiToken: () => getConfig('POSTMARK_API_TOKEN', 'postmark-api-token'),
-  emailFromAddress: () => getConfigSync('EMAIL_FROM_ADDRESS', 'noreply@safepsy.com'),
+  emailFromAddress: () => getConfigSync('EMAIL_FROM_ADDRESS', 'noreply@polinapsycho.com'),
   
   // Security
   ipSalt: () => getConfig('IP_SALT', 'ip-salt'),

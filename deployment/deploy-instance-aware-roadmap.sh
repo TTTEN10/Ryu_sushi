@@ -22,16 +22,16 @@ set -euo pipefail
 #   MODEL_ID=... FALLBACK_MODEL_ID=... MAX_MODEL_LEN=... ./deployment/deploy-instance-aware-roadmap.sh
 #
 # CADDY_SITE_NAMES: comma-separated hostnames for one Caddy site block (ACME cert covers all).
-#   Default: safepsy.com, www.safepsy.com
+#   Default: polinapsycho.com, www.polinapsycho.com
 #
 # LLM routing: see deploy-app.sh (LLM_UPSTREAM_URL, APP_PRIVATE_IP). Same variables apply here.
 
 APP_IP="${APP_IP:-51.159.149.66}"
 API_IP="${API_IP:-62.210.238.160}"
 # Canonical browser URL (used in success output / checks)
-APP_DOMAIN="${APP_DOMAIN:-safepsy.com}"
+APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
 # Hostnames Caddy will terminate TLS for (must match DNS A/AAAA to this server)
-CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-safepsy.com, www.safepsy.com}"
+CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
 APP_USER="${APP_USER:-safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"

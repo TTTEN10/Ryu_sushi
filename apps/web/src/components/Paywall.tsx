@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Lock, Zap, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
 import { ethers } from 'ethers';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from '../config/api';
 
 interface QuotaInfo {
   dailyUsed: number;
@@ -131,17 +130,11 @@ export default function Paywall({
 
     try {
       // Get JWT token from localStorage
-      const token = localStorage.getItem('walletSessionToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
 
-      // Add Authorization header if token exists
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/payment/crypto`, {
+      const response = await fetch(apiUrl('/payment/crypto'), {
         method: 'POST',
         headers,
         credentials: 'include', // Include cookies

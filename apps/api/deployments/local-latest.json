@@ -11,7 +11,7 @@
   "configuration": {
     "name": "SafePsy DID",
     "symbol": "SAFEPSY-DID",
-    "baseURI": "https://api.safepsy.com/metadata/",
+    "baseURI": "https://api.polinapsycho.com/metadata/",
     "allowPublicMinting": false
   },
   "deployedAt": "2025-12-07T16:40:00.000Z",

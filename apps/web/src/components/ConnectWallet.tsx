@@ -14,7 +14,7 @@ type ConnectWalletVariant = 'default' | 'header';
 
 export default function ConnectWallet({ variant = 'default' }: { variant?: ConnectWalletVariant }) {
   const { wallet, connectWallet, isLoading: walletLoading, error: walletError } = useWallet();
-  const { authState, verifyWallet, logout, checkDID } = useAuth();
+  const { authState, loginWithWallet, logout, checkDID } = useAuth();
   const { showToast, ToastContainer } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -45,8 +45,6 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   };
 
   const handleVerify = useCallback(async () => {
-    if (!wallet) return;
-
     try {
       setIsVerifying(true);
       setVerificationStep('requesting');
@@ -56,7 +54,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       await new Promise(resolve => setTimeout(resolve, 300));
       setVerificationStep('signing');
       
-      await verifyWallet();
+      await loginWithWallet();
       
       setVerificationStep('verifying');
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -77,7 +75,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
     } finally {
       setIsVerifying(false);
     }
-  }, [wallet, verifyWallet, showToast]);
+  }, [loginWithWallet, showToast]);
 
   // If user just connected, trigger verification once wallet state is available.
   // (connectWallet updates context state asynchronously; relying on wallet immediately after await can fail.)

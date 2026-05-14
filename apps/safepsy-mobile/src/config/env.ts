@@ -9,7 +9,7 @@ export const API_BASE_URL =
 export const UNIVERSAL_LINK_BASE =
   process.env.EXPO_PUBLIC_UNIVERSAL_LINK_BASE?.trim().replace(/\/$/, '') ?? '';
 
-/** Optional strict lock: registrable domain, e.g. `safepsy.com` (see `productionEnv.ts`). */
+/** Optional strict lock: registrable domain, e.g. `polinapsycho.com` (see `productionEnv.ts`). */
 export const APP_DOMAIN_LOCK = process.env.EXPO_PUBLIC_APP_DOMAIN?.trim().toLowerCase() ?? '';
 
 export const WALLETCONNECT_PROJECT_ID = process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() ?? '';
