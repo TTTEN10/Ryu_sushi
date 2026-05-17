@@ -77,7 +77,7 @@ export default function ChatWidget() {
   const { symmetricKey, encryptedKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
-  
+
   // Check if withContext query parameter is set
   const withContext = searchParams.get('withContext') === 'true';
   const [messages, setMessages] = useState<Message[]>([]);
@@ -96,12 +96,17 @@ export default function ChatWidget() {
   const [guestPromptCount, setGuestPromptCount] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [isMockMode, setIsMockMode] = useState(false);
+  const [widgetVisible, setWidgetVisible] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const concurrencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
 
   const isGuest = userMode === 'guest';
+
+  // Track if user has sent at least one message (for concurrency polling optimization)
+  const hasSentMessage = guestPromptCount > 0 || (messages.length > 0 && !isGuest);
 
   // Wallet verified mid-session: reset guest limit and allow persistence path (load replaces thread).
   useEffect(() => {
@@ -110,6 +115,39 @@ export default function ChatWidget() {
       setShowGuestLimitModal(false);
     }
   }, [authState.isVerified]);
+
+  // Warn guest users about data loss on refresh/close if they have an active conversation
+  useEffect(() => {
+    if (!isGuest || messages.length === 0) {
+      return;
+    }
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'You have an active conversation in guest mode. Refreshing or closing this tab will lose your chat history. Connect a wallet to save it securely.';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isGuest, messages.length]);
+
+  // IntersectionObserver: only poll concurrency when widget is visible AND user has sent at least one message
+  useEffect(() => {
+    if (!widgetRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setWidgetVisible(entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(widgetRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const scrollToWalletConnect = useCallback(() => {
     document.getElementById('wallet-connect-region')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -211,8 +249,9 @@ export default function ChatWidget() {
   }, [wallet?.address, wallet?.chainId]);
 
   // Poll concurrency status periodically when wallet is connected
+  // Only poll when: widget is visible, user has sent at least one message, and symmetric key is ready
   useEffect(() => {
-    if (wallet?.address && symmetricKey && !encryptionLoading) {
+    if (wallet?.address && symmetricKey && !encryptionLoading && widgetVisible && hasSentMessage) {
       // Check immediately
       checkConcurrencyStatus();
 
@@ -227,10 +266,14 @@ export default function ChatWidget() {
         }
       };
     } else {
-      // Reset requestInProgress when wallet disconnects
+      // Reset requestInProgress when wallet disconnects or widget not visible
       setRequestInProgress(false);
+      if (concurrencyCheckIntervalRef.current) {
+        clearInterval(concurrencyCheckIntervalRef.current);
+        concurrencyCheckIntervalRef.current = null;
+      }
     }
-  }, [wallet?.address, symmetricKey, encryptionLoading, checkConcurrencyStatus]);
+  }, [wallet?.address, symmetricKey, encryptionLoading, checkConcurrencyStatus, widgetVisible, hasSentMessage]);
 
   // Load encrypted chat history when wallet session is verified and the symmetric key is ready.
   // Always replaces in-memory messages so a prior guest thread does not leak after verification.
@@ -726,7 +769,7 @@ export default function ChatWidget() {
           }}
         />
       )}
-      <div className="flex flex-col h-[600px] bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-white/10 shadow-sm">
+      <div ref={widgetRef} className="flex flex-col h-[600px] bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-white/10 shadow-sm">
       {/* Header */}
       <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg space-y-2">
         {isMockMode && (
