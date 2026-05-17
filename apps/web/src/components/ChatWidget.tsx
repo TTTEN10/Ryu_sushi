@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
@@ -10,7 +10,7 @@ import { useOffline } from '../hooks/useOffline';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 import { recordFirstMessageSent, recordFirstReplyReceived } from '../utils/conversionMetrics';
-import { apiUrl } from '../config/api';
+import { apiFetch, apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
@@ -56,6 +56,20 @@ const FIRST_MESSAGE_SUGGESTIONS = [
   "Hi, I'm reaching out because I need a calm, structured perspective on something personal.",
 ];
 
+function TypingDots({ className = '' }: { className?: string }) {
+  return (
+    <div className={`flex items-center gap-1 px-2 py-1 ${className}`} aria-hidden="true">
+      {[0, 150, 300].map((delay) => (
+        <span
+          key={delay}
+          className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ChatWidget() {
   const [searchParams] = useSearchParams();
   const { authState, userMode } = useAuth();
@@ -69,7 +83,6 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendPhase, setSendPhase] = useState<
     'idle' | 'checking' | 'encrypting' | 'sending' | 'streaming' | 'saving' | 'error'
@@ -101,6 +114,18 @@ export default function ChatWidget() {
   const scrollToWalletConnect = useCallback(() => {
     document.getElementById('wallet-connect-region')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    });
+  }, []);
+
+  const showAssistantTyping = useMemo(() => {
+    if (!isSending && !isStreaming) return false;
+    const last = messages[messages.length - 1];
+    return !last || last.role !== 'assistant' || last.content.length === 0;
+  }, [isSending, isStreaming, messages]);
 
   const syncDidChatReferenceIfNeeded = useCallback(
     async (saveResult: SaveChatResult, options?: { showToasts?: boolean }) => {
@@ -164,17 +189,16 @@ export default function ChatWidget() {
       headers['x-wallet-address'] = wallet.address;
       headers['x-chain-id'] = wallet.chainId.toString();
 
-      const response = await fetch(apiUrl('/chat/concurrency'), {
+      const response = await apiFetch('/chat/concurrency', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
           const inProgress = data.data.requestInProgress || false;
-          setRequestInProgress(inProgress);
+          setRequestInProgress((prev) => (prev === inProgress ? prev : inProgress));
           return inProgress;
         }
       }
@@ -192,10 +216,10 @@ export default function ChatWidget() {
       // Check immediately
       checkConcurrencyStatus();
 
-      // Then poll every 2 seconds
+      // Then poll every 5 seconds (avoid unnecessary re-renders)
       concurrencyCheckIntervalRef.current = setInterval(() => {
         checkConcurrencyStatus();
-      }, 2000);
+      }, 5000);
 
       return () => {
         if (concurrencyCheckIntervalRef.current) {
@@ -245,26 +269,35 @@ export default function ChatWidget() {
     }
   }, [symmetricKey, encryptionLoading, loadChat, showToast, authState.isVerified]);
 
-  // Check if message can be edited (within 30 seconds)
+  // Scroll chat to latest message when history changes or while waiting for a reply
   useEffect(() => {
+    const behavior: ScrollBehavior = isStreaming ? 'auto' : 'smooth';
+    scrollToBottom(behavior);
+  }, [messages, isStreaming, isSending, showAssistantTyping, scrollToBottom]);
+
+  // Check if message can be edited (within 30 seconds) — only while editable messages exist
+  useEffect(() => {
+    if (!messages.some((msg) => msg.role === 'user' && msg.canEdit)) return;
+
     const interval = setInterval(() => {
-      setMessages((prev) =>
-        prev.map((msg) => {
+      setMessages((prev) => {
+        let changed = false;
+        const next = prev.map((msg) => {
           if (msg.role === 'user' && msg.canEdit) {
             const now = Date.now();
             const messageTime = msg.timestamp.getTime();
-            return {
-              ...msg,
-              canEdit: (now - messageTime) < EDIT_WINDOW_MS,
-            };
+            const canEdit = now - messageTime < EDIT_WINDOW_MS;
+            if (canEdit !== msg.canEdit) changed = true;
+            return { ...msg, canEdit };
           }
           return msg;
-        })
-      );
-    }, 1000);
+        });
+        return changed ? next : prev;
+      });
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [messages]);
 
   // Handle editing a message
   const handleEditMessage = (messageId: string) => {
@@ -423,12 +456,6 @@ export default function ChatWidget() {
       setInput('');
       setIsStreaming(true);
       setSendPhase('sending');
-      setIsTyping(true);
-
-      // Show typing indicator
-      setTimeout(() => {
-        setIsTyping(false);
-      }, 500);
 
       // Create abort controller for cancellation
       abortControllerRef.current = new AbortController();
@@ -458,10 +485,9 @@ export default function ChatWidget() {
       }
 
       // Stream response from API
-      const response = await fetch(chatUrl.toString(), {
+      const response = await apiFetch(chatUrl.toString(), {
         method: 'POST',
         headers,
-        credentials: 'include',
         body: JSON.stringify({
           messages: decryptedMessages.map((m) => ({
             role: m.role,
@@ -661,7 +687,6 @@ export default function ChatWidget() {
       if (!streamFinalized) {
         setIsStreaming(false);
       }
-      setIsTyping(false);
       setIsSending(false);
       setSendPhase('idle');
     }
@@ -672,14 +697,7 @@ export default function ChatWidget() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsStreaming(false);
-      setIsTyping(false);
     }
-  };
-
-  // Display message (already decrypted by hook)
-  const displayMessage = async (message: Message): Promise<string> => {
-    // Messages are already decrypted when loaded from the hook
-    return message.content;
   };
 
   const guestAtLimit = isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT;
@@ -717,7 +735,7 @@ export default function ChatWidget() {
             role="status"
           >
             Chat is running in local mock mode (LLM upstream not configured). To enable real responses, set
-            {' '}<code className="font-mono">SCALEWAY_API_KEY</code> or <code className="font-mono">AI_GPU_BASE_URL</code>.
+            {' '}<code className="font-mono">SCALEWAY_API_KEY</code> (set <code className="font-mono">USE_SCALEWAY_DIRECT=1</code> on the API).
           </p>
         )}
         {isGuest ? (
@@ -778,7 +796,6 @@ export default function ChatWidget() {
             <MessageBubble
               key={message.id}
               message={message}
-              displayMessage={displayMessage}
               isEditing={editingMessageId === message.id}
               editContent={editContent}
               onEdit={handleEditMessage}
@@ -790,23 +807,9 @@ export default function ChatWidget() {
           ))
         )}
 
-        {/* Connection Status */}
-        {isStreaming && (
-          <div className="flex items-center gap-2 text-xs text-body opacity-75 px-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span>Connected - Streaming response...</span>
-          </div>
-        )}
-
-        {/* Typing Indicator */}
-        {isTyping && (
-          <div className="flex items-center space-x-2 text-body opacity-75">
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-            </div>
-            <span className="text-xs">Assistant is typing...</span>
+        {showAssistantTyping && (
+          <div className="flex justify-start" role="status" aria-live="polite" aria-label="Assistant is responding">
+            <TypingDots className="py-2" />
           </div>
         )}
 
@@ -904,13 +907,6 @@ export default function ChatWidget() {
               maxLength={MAX_MESSAGE_LENGTH}
               className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-neutral-950 text-heading placeholder:text-body placeholder:opacity-50"
             />
-            {/* Character Counter */}
-            <div className="absolute bottom-1 right-2 text-xs text-body opacity-50">
-              {editingMessageId ? editContent.length : input.length}/{MAX_MESSAGE_LENGTH}
-              {((editingMessageId ? editContent.length : input.length) / MAX_MESSAGE_LENGTH) > 0.8 && (
-                <span className="text-yellow-600 dark:text-yellow-400 ml-1">⚠️</span>
-              )}
-            </div>
           </div>
           {editingMessageId ? (
             <>
@@ -959,24 +955,15 @@ export default function ChatWidget() {
             </button>
           )}
         </div>
-        {/* Reliability / progress line */}
-        {!isGuest && (isSending || isStreaming || encryptionLoading) && (
-          <p className="text-xs text-body opacity-80 mt-2" role="status" aria-live="polite">
-            {encryptionLoading
-              ? 'Preparing secure encryption…'
-              : sendPhase === 'checking'
-                ? 'Checking session…'
-                : sendPhase === 'encrypting'
-                  ? 'Encrypting…'
-                  : sendPhase === 'sending'
-                    ? 'Sending…'
-                    : sendPhase === 'streaming'
-                      ? 'Receiving…'
-                      : sendPhase === 'saving'
-                        ? 'Saving securely…'
-                        : 'Working…'}
-          </p>
-        )}
+        <p className="sr-only" role="status" aria-live="polite">
+          {!isGuest && encryptionLoading
+            ? 'Preparing secure encryption'
+            : showAssistantTyping
+              ? 'Assistant is responding'
+              : sendPhase === 'saving'
+                ? 'Saving securely'
+                : ''}
+        </p>
         {!isGuest && encryptionLoading && (
           <p className="text-xs text-body opacity-75 mt-2 flex items-center gap-1">
             <span className="animate-spin">⟳</span>
@@ -994,9 +981,8 @@ export default function ChatWidget() {
 }
 
 // Message Bubble Component
-function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message,
-  displayMessage,
   isEditing = false,
   editContent = '',
   onEdit,
@@ -1006,7 +992,6 @@ function MessageBubble({
   setEditContent,
 }: {
   message: Message;
-  displayMessage: (message: Message) => Promise<string>;
   isEditing?: boolean;
   editContent?: string;
   onEdit?: (id: string) => void;
@@ -1015,38 +1000,11 @@ function MessageBubble({
   onDelete?: (id: string) => void;
   setEditContent?: (content: string) => void;
 }) {
-  const [decryptedContent, setDecryptedContent] = useState<string>('');
-  const [isDecrypting, setIsDecrypting] = useState(true);
   const [showActions, setShowActions] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadContent = async () => {
-      setIsDecrypting(true);
-      try {
-        const content = await displayMessage(message);
-        if (isMounted) {
-          setDecryptedContent(content);
-          setIsDecrypting(false);
-        }
-      } catch (error) {
-        console.error('Error loading message content:', error);
-        if (isMounted) {
-          setDecryptedContent('[Error loading message]');
-          setIsDecrypting(false);
-        }
-      }
-    };
-    loadContent();
-    return () => {
-      isMounted = false;
-    };
-  }, [message, displayMessage]);
-
   const isUser = message.role === 'user';
 
   return (
-    <div 
+    <div
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} group`}
       onMouseEnter={() => isUser && setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
@@ -1082,15 +1040,9 @@ function MessageBubble({
               </button>
             </div>
           </div>
-        ) : isDecrypting ? (
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse"></div>
-            <span className={`text-xs ${isUser ? 'text-white' : 'text-body opacity-75'}`}>Decrypting...</span>
-          </div>
         ) : (
           <>
-            <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{decryptedContent}</p>
-            {/* Action Buttons (for user messages) */}
+            <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{message.content}</p>
             {isUser && showActions && message.canEdit && !isEditing && (
               <div className="absolute -top-8 right-0 flex gap-1 bg-gray-800 dark:bg-gray-700 rounded-lg p-1">
                 <button
@@ -1125,5 +1077,5 @@ function MessageBubble({
       </div>
     </div>
   );
-}
+});
 
