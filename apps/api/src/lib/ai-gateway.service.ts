@@ -2,6 +2,10 @@ import logger from './logger';
 import axios, { AxiosInstance } from 'axios';
 import { resolveDrSafeSystemPrompt } from './dr-safe-system-prompt';
 import { registerUpstreamUrls, isUpstreamHealthy } from './llm-upstream-health';
+import { shouldUseScalewayDirect } from './llm-routing';
+import { detectCrisisInMessages, CRISIS_PREPEND_TEXT } from './crisis-detection';
+import { getCachedResponse, cacheResponse, isResponseCacheEnabled } from './response-cache';
+import { logScalewayUsage, createUsageRecord } from './scaleway-metrics';
 import { Config } from './config';
 
 /**
@@ -76,17 +80,20 @@ export type TokenStreamCallback = (token: string, event: SSEEventType) => void;
 
 /**
  * AI Gateway Service
- * Handles AI completions using GPU service (if AI_GPU_BASE_URL is set) or Scaleway Generative API (fallback)
- * Single source of truth: reads AI_GPU_BASE_URL environment variable, never hardcodes
+ * Primary: Scaleway Generative API (direct) when USE_SCALEWAY_DIRECT=1 or no self-hosted URL.
+ * Legacy: self-hosted OpenAI-compatible chatbot (AI_GPU_BASE_URL) with Scaleway fallback.
  */
 class AIGatewayService {
   private axiosClient: AxiosInstance | null = null;
   private readonly defaultModel = 'mistral-small-3.2-24b-instruct-2506'; // Mistral Small 3.2 - optimized for psychotherapy conversations
   private readonly defaultTemperature = 0.4; // Lower temperature for more focused, consistent responses (psychotherapy context)
   private readonly defaultTopP = 0.9; // Nucleus sampling for balanced creativity/focus
-  private readonly defaultMaxTokens = 1000;
+  private readonly defaultMaxTokens = 300; // Shorter responses for conversational flow
   // Scaleway Generative AI endpoint: https://api.scaleway.ai/{project_id}/v1
-  // Configured via SCALEWAY_API_BASE_URL environment variable or defaults to project 5dad0cb7-c16a-4447-9a25-e89bd3448e8a
+
+  private resolveDefaultModel(): string {
+    return process.env.SCALEWAY_MODEL?.trim() || this.defaultModel;
+  }
 
   /** After repeated failures, pause calls to that upstream for a short window. */
   private circuitOpenUntil = new Map<string, number>();
@@ -551,6 +558,359 @@ class AIGatewayService {
     };
   }
 
+  private async *yieldCachedResponseStream(
+    content: string
+  ): AsyncGenerator<SSEMessage, void, unknown> {
+    yield {
+      event: SSEEventType.METADATA,
+      data: JSON.stringify({
+        model: 'cached',
+        temperature: 0,
+        maxTokens: content.length,
+      }),
+    };
+
+    let tokenIndex = 0;
+    const tokens = content.split(/(\s+)/).filter((t) => t.length > 0);
+    for (const token of tokens) {
+      yield {
+        event: SSEEventType.TOKEN,
+        data: JSON.stringify({
+          token,
+          index: tokenIndex,
+          finishReason: null,
+        }),
+        id: `token-${tokenIndex}`,
+      };
+      tokenIndex++;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+
+    yield {
+      event: SSEEventType.DONE,
+      data: JSON.stringify({
+        finishReason: 'stop',
+        usage: {
+          promptTokens: 0,
+          completionTokens: tokenIndex,
+          totalTokens: tokenIndex,
+        },
+      }),
+    };
+  }
+
+  /**
+   * Stream completion from Scaleway (direct path) with crisis prepend and usage logging.
+   */
+  private async *generateScalewayCompletionStream(
+    request: ChatCompletionRequest,
+    model: string,
+    temperature: number,
+    maxTokens: number
+  ): AsyncGenerator<SSEMessage, void, unknown> {
+    logger.info(`Generating Scaleway completion (direct): model=${model}, messages=${request.messages.length}`);
+
+    if (!process.env.SCALEWAY_API_KEY) {
+      if (this.shouldUseLocalMock()) {
+        logger.warn('No LLM upstream configured; using local mock stream (set AI_LOCAL_MOCK=0 to disable).');
+        yield* this.generateLocalMockStream(request);
+        return;
+      }
+      logger.error('SCALEWAY_API_KEY not configured');
+      yield {
+        event: SSEEventType.ERROR,
+        data: JSON.stringify({
+          error: 'Scaleway API key not configured',
+          message: 'Please configure SCALEWAY_API_KEY environment variable',
+        }),
+      };
+      return;
+    }
+
+    const crisisResult = detectCrisisInMessages(request.messages);
+
+    try {
+      const scalewayMessages = this.buildSanitizedMessages(request);
+      const scalewayClient = this.getScalewayClient();
+      const response = await scalewayClient.post(
+        '/chat/completions',
+        {
+          model,
+          messages: scalewayMessages,
+          temperature,
+          top_p: request.topP ?? this.defaultTopP,
+          max_tokens: maxTokens,
+          stream: true,
+        },
+        {
+          responseType: 'stream',
+        }
+      );
+
+      yield {
+        event: SSEEventType.METADATA,
+        data: JSON.stringify({
+          model,
+          temperature,
+          maxTokens,
+        }),
+      };
+
+      let tokenIndex = 0;
+      if (crisisResult.isCrisis) {
+        yield {
+          event: SSEEventType.TOKEN,
+          data: JSON.stringify({
+            token: CRISIS_PREPEND_TEXT,
+            index: tokenIndex,
+            finishReason: null,
+          }),
+          id: `token-${tokenIndex}`,
+        };
+        tokenIndex++;
+      }
+
+      let fullContent = crisisResult.prependText;
+      let finishReason: string | null = null;
+      let buffer = '';
+      const tokenQueue: string[] = [];
+      let streamEnded = false;
+      let streamError: Error | null = null;
+      const stream = response.data;
+
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') {
+              continue;
+            }
+            try {
+              const data = JSON.parse(dataStr);
+              const choice = data.choices?.[0];
+              if (choice?.delta?.content) {
+                const token = choice.delta.content;
+                fullContent += token;
+                tokenQueue.push(token);
+              }
+              if (choice?.finish_reason) {
+                finishReason = choice.finish_reason;
+              }
+            } catch {
+              continue;
+            }
+          }
+        }
+      });
+
+      stream.on('end', () => {
+        if (buffer.trim()) {
+          const lines = buffer.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === '[DONE]') {
+                continue;
+              }
+              try {
+                const data = JSON.parse(dataStr);
+                const choice = data.choices?.[0];
+                if (choice?.delta?.content) {
+                  const token = choice.delta.content;
+                  fullContent += token;
+                  tokenQueue.push(token);
+                }
+                if (choice?.finish_reason) {
+                  finishReason = choice.finish_reason;
+                }
+              } catch {
+                // skip
+              }
+            }
+          }
+        }
+        streamEnded = true;
+      });
+
+      stream.on('error', (error: Error) => {
+        streamError = error;
+        streamEnded = true;
+      });
+
+      while (!streamEnded || tokenQueue.length > 0) {
+        if (streamError) {
+          throw streamError;
+        }
+        if (tokenQueue.length > 0) {
+          const token = tokenQueue.shift()!;
+          yield {
+            event: SSEEventType.TOKEN,
+            data: JSON.stringify({
+              token,
+              index: tokenIndex,
+              finishReason: null,
+            }),
+            id: `token-${tokenIndex}`,
+          };
+          tokenIndex++;
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      }
+
+      const estimatedPromptTokens = Math.ceil(
+        scalewayMessages.reduce((sum, msg) => sum + msg.content.length, 0) / 4
+      );
+      const estimatedCompletionTokens = Math.ceil(fullContent.length / 4);
+
+      logScalewayUsage(
+        createUsageRecord(model, estimatedPromptTokens, estimatedCompletionTokens)
+      );
+
+      yield {
+        event: SSEEventType.DONE,
+        data: JSON.stringify({
+          finishReason: finishReason || 'stop',
+          usage: {
+            promptTokens: estimatedPromptTokens,
+            completionTokens: estimatedCompletionTokens,
+            totalTokens: estimatedPromptTokens + estimatedCompletionTokens,
+          },
+        }),
+      };
+    } catch (error: unknown) {
+      const ax = error as {
+        message?: string;
+        name?: string;
+        response?: { status?: number; data?: { message?: string } };
+      };
+      logger.error('Scaleway streaming error:', {
+        error: ax.message ?? 'Unknown error',
+        name: ax.name,
+        status: ax.response?.status,
+      });
+
+      let errorMessage = 'Unknown error';
+      const msg = ax.message ?? '';
+      const st = ax.response?.status;
+      if (msg) {
+        errorMessage = msg;
+      }
+      if (msg.includes('API key') || msg.includes('auth') || st === 401) {
+        errorMessage = 'Scaleway API key is invalid or missing';
+      } else if (msg.includes('rate limit') || st === 429) {
+        errorMessage = 'Scaleway API rate limit exceeded. Please try again later.';
+      } else if (msg.includes('quota') || st === 403) {
+        errorMessage = 'Scaleway API quota exceeded. Please check your account.';
+      } else if (ax.response?.data?.message) {
+        errorMessage = ax.response.data.message;
+      }
+
+      yield {
+        event: SSEEventType.ERROR,
+        data: JSON.stringify({
+          error: 'Scaleway API error',
+          message: errorMessage,
+        }),
+      };
+    }
+  }
+
+  private async generateScalewayCompletion(
+    request: ChatCompletionRequest,
+    model: string,
+    temperature: number,
+    maxTokens: number
+  ): Promise<ChatCompletionResponse> {
+    if (isResponseCacheEnabled()) {
+      const cached = await getCachedResponse(request.messages);
+      if (cached) {
+        logger.info('Scaleway response cache hit (non-stream)');
+        return {
+          id: `cache-${Date.now()}`,
+          model: 'cached',
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: 'assistant',
+                content: cached,
+                timestamp: new Date(),
+              },
+              finishReason: 'stop',
+            },
+          ],
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          created: Math.floor(Date.now() / 1000),
+        };
+      }
+    }
+
+    if (!process.env.SCALEWAY_API_KEY) {
+      if (this.shouldUseLocalMock()) {
+        return this.generateLocalMockCompletion(request);
+      }
+      throw new Error('SCALEWAY_API_KEY not configured');
+    }
+
+    const crisisResult = detectCrisisInMessages(request.messages);
+    const scalewayMessages = this.buildSanitizedMessages(request);
+    const scalewayClient = this.getScalewayClient();
+    const response = await scalewayClient.post('/chat/completions', {
+      model,
+      messages: scalewayMessages,
+      temperature,
+      top_p: request.topP ?? this.defaultTopP,
+      max_tokens: maxTokens,
+      stream: false,
+    });
+
+    const completion = response.data;
+    const choice = completion.choices?.[0];
+    if (!choice || !choice.message) {
+      throw new Error('No response from Scaleway');
+    }
+
+    let content = choice.message.content || '';
+    if (crisisResult.isCrisis) {
+      content = crisisResult.prependText + content;
+    }
+
+    const promptTokens = completion.usage?.prompt_tokens || 0;
+    const completionTokens = completion.usage?.completion_tokens || 0;
+    logScalewayUsage(createUsageRecord(model, promptTokens, completionTokens));
+
+    if (isResponseCacheEnabled() && content) {
+      await cacheResponse(request.messages, content);
+    }
+
+    return {
+      id: completion.id || `scaleway-${Date.now()}`,
+      model: completion.model || model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: choice.message.role as 'assistant',
+            content,
+            timestamp: new Date(),
+          },
+          finishReason: choice.finish_reason || 'stop',
+        },
+      ],
+      usage: {
+        promptTokens,
+        completionTokens,
+        totalTokens: completion.usage?.total_tokens || promptTokens + completionTokens,
+      },
+      created: completion.created || Math.floor(Date.now() / 1000),
+    };
+  }
+
   /**
    * Generate completion response using GPU service or Scaleway API
    * Streams tokens from the configured AI service
@@ -558,9 +918,14 @@ class AIGatewayService {
   async *generateCompletionStream(
     request: ChatCompletionRequest
   ): AsyncGenerator<SSEMessage, void, unknown> {
-    const model = request.model || this.defaultModel;
+    const model = request.model || this.resolveDefaultModel();
     const temperature = request.temperature ?? this.defaultTemperature;
     const maxTokens = request.maxTokens ?? this.defaultMaxTokens;
+
+    if (shouldUseScalewayDirect()) {
+      yield* this.generateScalewayCompletionStream(request, model, temperature, maxTokens);
+      return;
+    }
 
     if (this.hasSelfHostedUpstream()) {
       const rawLen = this.getSelfHostedBaseUrlChain().length;
@@ -591,222 +956,7 @@ class AIGatewayService {
       logger.info('Self-hosted upstreams exhausted; falling back to Scaleway');
     }
 
-    // Fallback to Scaleway
-    logger.info(`Generating Scaleway completion: model=${model}, messages=${request.messages.length}`);
-
-    // Check if API key is available
-    if (!process.env.SCALEWAY_API_KEY) {
-      if (this.shouldUseLocalMock()) {
-        logger.warn('No LLM upstream configured; using local mock stream (set AI_LOCAL_MOCK=0 to disable).');
-        yield* this.generateLocalMockStream(request);
-        return;
-      }
-      logger.error('SCALEWAY_API_KEY not configured');
-      yield {
-        event: SSEEventType.ERROR,
-        data: JSON.stringify({
-          error: 'Scaleway API key not configured',
-          message: 'Please configure SCALEWAY_API_KEY environment variable',
-        }),
-      };
-      return;
-    }
-
-    try {
-      // Same system prompt + guest-mode handling as self-hosted path (single code path).
-      const scalewayMessages = this.buildSanitizedMessages(request);
-
-      // Create Scaleway API request - send model, messages, temperature, top_p, max_tokens
-      // DO NOT send: userId, sessionId, wallet addresses, DID, IP addresses, or any other metadata
-      const scalewayClient = this.getScalewayClient();
-      const response = await scalewayClient.post(
-        '/chat/completions',
-        {
-          model,
-          messages: scalewayMessages, // Only role and content, no identifiers
-          temperature,
-          top_p: request.topP ?? this.defaultTopP, // Nucleus sampling
-          max_tokens: maxTokens,
-          stream: true,
-        },
-        {
-          responseType: 'stream',
-        }
-      );
-
-      // Send metadata event
-      yield {
-        event: SSEEventType.METADATA,
-        data: JSON.stringify({
-          model,
-          temperature,
-          maxTokens,
-        }),
-      };
-
-      let tokenIndex = 0;
-      let fullContent = '';
-      let finishReason: string | null = null;
-      let buffer = '';
-
-      // Use a queue-based approach for proper async iteration
-      const tokenQueue: string[] = [];
-      let streamEnded = false;
-      let streamError: Error | null = null;
-
-      // Convert Node.js stream to async iterable using a queue
-      const stream = response.data;
-      
-      stream.on('data', (chunk: Buffer) => {
-        buffer += chunk.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6).trim();
-            if (dataStr === '[DONE]') {
-              continue;
-            }
-
-            try {
-              const data = JSON.parse(dataStr);
-              const choice = data.choices?.[0];
-              
-              // Handle content delta
-              if (choice?.delta?.content) {
-                const token = choice.delta.content;
-                fullContent += token;
-                tokenQueue.push(token);
-              }
-
-              // Handle finish reason
-              if (choice?.finish_reason) {
-                finishReason = choice.finish_reason;
-              }
-            } catch (parseError) {
-              // Skip invalid JSON lines
-              continue;
-            }
-          }
-        }
-      });
-
-      stream.on('end', () => {
-        // Process any remaining buffer
-        if (buffer.trim()) {
-          const lines = buffer.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === '[DONE]') {
-                continue;
-              }
-              try {
-                const data = JSON.parse(dataStr);
-                const choice = data.choices?.[0];
-                if (choice?.delta?.content) {
-                  const token = choice.delta.content;
-                  fullContent += token;
-                  tokenQueue.push(token);
-                }
-                if (choice?.finish_reason) {
-                  finishReason = choice.finish_reason;
-                }
-              } catch (parseError) {
-                // Skip invalid JSON
-              }
-            }
-          }
-        }
-        streamEnded = true;
-      });
-
-      stream.on('error', (error: Error) => {
-        streamError = error;
-        streamEnded = true;
-      });
-
-      // Yield tokens as they arrive
-      while (!streamEnded || tokenQueue.length > 0) {
-        if (streamError) {
-          throw streamError;
-        }
-
-        if (tokenQueue.length > 0) {
-          const token = tokenQueue.shift()!;
-          yield {
-            event: SSEEventType.TOKEN,
-            data: JSON.stringify({
-              token,
-              index: tokenIndex,
-              finishReason: null,
-            }),
-            id: `token-${tokenIndex}`,
-          };
-          tokenIndex++;
-        } else {
-          // Wait a bit before checking again
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-      }
-
-      // Estimate usage (Scaleway may not provide usage in streaming mode)
-      // Rough estimate: ~4 characters per token
-      const estimatedPromptTokens = Math.ceil(
-        scalewayMessages.reduce((sum, msg) => sum + msg.content.length, 0) / 4
-      );
-      const estimatedCompletionTokens = Math.ceil(fullContent.length / 4);
-
-      // Send done event
-      yield {
-        event: SSEEventType.DONE,
-        data: JSON.stringify({
-          finishReason: finishReason || 'stop',
-          usage: {
-            promptTokens: estimatedPromptTokens,
-            completionTokens: estimatedCompletionTokens,
-            totalTokens: estimatedPromptTokens + estimatedCompletionTokens,
-          },
-        }),
-      };
-    } catch (error: unknown) {
-      const ax = error as {
-        message?: string;
-        name?: string;
-        response?: { status?: number; data?: { message?: string } };
-      };
-      // Log error without request/response bodies (redacted)
-      logger.error('Scaleway streaming error:', {
-        error: ax.message ?? 'Unknown error',
-        name: ax.name,
-        status: ax.response?.status,
-      });
-
-      let errorMessage = 'Unknown error';
-      const msg = ax.message ?? '';
-      const st = ax.response?.status;
-      if (msg) {
-        errorMessage = msg;
-      }
-      if (msg.includes('API key') || msg.includes('auth') || st === 401) {
-        errorMessage = 'Scaleway API key is invalid or missing';
-      } else if (msg.includes('rate limit') || st === 429) {
-        errorMessage = 'Scaleway API rate limit exceeded. Please try again later.';
-      } else if (msg.includes('quota') || st === 403) {
-        errorMessage = 'Scaleway API quota exceeded. Please check your account.';
-      } else if (ax.response?.data?.message) {
-        errorMessage = ax.response.data.message;
-      }
-      
-      yield {
-        event: SSEEventType.ERROR,
-        data: JSON.stringify({
-          error: 'Scaleway API error',
-          message: errorMessage,
-        }),
-      };
-    }
+    yield* this.generateScalewayCompletionStream(request, model, temperature, maxTokens);
   }
 
   /**
@@ -815,9 +965,13 @@ class AIGatewayService {
   async generateCompletion(
     request: ChatCompletionRequest
   ): Promise<ChatCompletionResponse> {
-    const model = request.model || this.defaultModel;
+    const model = request.model || this.resolveDefaultModel();
     const temperature = request.temperature ?? this.defaultTemperature;
     const maxTokens = request.maxTokens ?? this.defaultMaxTokens;
+
+    if (shouldUseScalewayDirect()) {
+      return this.generateScalewayCompletion(request, model, temperature, maxTokens);
+    }
 
     if (this.hasSelfHostedUpstream()) {
       const rawLen = this.getSelfHostedBaseUrlChain().length;
@@ -850,69 +1004,7 @@ class AIGatewayService {
       logger.info('Self-hosted upstreams exhausted; falling back to Scaleway (non-stream)');
     }
 
-    // Fallback to Scaleway
-    logger.info(`Generating Scaleway completion (non-streaming): model=${model}`);
-
-    // Check if API key is available
-    if (!process.env.SCALEWAY_API_KEY) {
-      if (this.shouldUseLocalMock()) {
-        logger.warn('No LLM upstream configured; using local mock completion (set AI_LOCAL_MOCK=0 to disable).');
-        return this.generateLocalMockCompletion(request);
-      }
-      throw new Error('SCALEWAY_API_KEY not configured');
-    }
-
-    try {
-      const scalewayMessages = this.buildSanitizedMessages(request);
-
-      // Call Scaleway API - send model, messages, temperature, top_p, max_tokens
-      // DO NOT send: userId, sessionId, wallet addresses, DID, IP addresses, or any other metadata
-      const scalewayClient = this.getScalewayClient();
-      const response = await scalewayClient.post('/chat/completions', {
-        model,
-        messages: scalewayMessages, // Only role and content, no identifiers
-        temperature,
-        top_p: request.topP ?? this.defaultTopP, // Nucleus sampling
-        max_tokens: maxTokens,
-        stream: false,
-      });
-
-      const completion = response.data;
-      const choice = completion.choices?.[0];
-      if (!choice || !choice.message) {
-        throw new Error('No response from Scaleway');
-      }
-
-      return {
-        id: completion.id || `scaleway-${Date.now()}`,
-        model: completion.model || model,
-        choices: [
-          {
-            index: 0,
-            message: {
-              role: choice.message.role as 'assistant',
-              content: choice.message.content || '',
-              timestamp: new Date(),
-            },
-            finishReason: choice.finish_reason || 'stop',
-          },
-        ],
-        usage: {
-          promptTokens: completion.usage?.prompt_tokens || 0,
-          completionTokens: completion.usage?.completion_tokens || 0,
-          totalTokens: completion.usage?.total_tokens || 0,
-        },
-        created: completion.created || Math.floor(Date.now() / 1000),
-      };
-    } catch (error: unknown) {
-      const ax = error as { message?: string; name?: string; response?: { status?: number } };
-      logger.error('Scaleway completion error:', {
-        error: ax.message ?? 'Unknown error',
-        name: ax.name,
-        status: ax.response?.status,
-      });
-      throw error;
-    }
+    return this.generateScalewayCompletion(request, model, temperature, maxTokens);
   }
 
   /**

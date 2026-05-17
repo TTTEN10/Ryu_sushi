@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# App stack deploy (Caddy + Vite SPA + Python API proxy). Invoked by deployment/deploy.sh — prefer that entrypoint.
+#
+# Direct use only for debugging or DEPLOY_LEGACY=1:
+#   DEPLOY_LEGACY=1 ./deployment/deploy.sh
+#   # or: USE_SCALEWAY_DIRECT=1 SCALEWAY_API_KEY=... ./deployment/deploy-app.sh
+#
 # Instance-aware end-to-end deployment script for:
-# - API server (vLLM/OpenAI-compatible endpoint)
-# - App server (frontend + backend + caddy)
+# - API server (vLLM/OpenAI-compatible endpoint) — legacy when USE_SCALEWAY_DIRECT=0
+# - App server (frontend + Python API proxy + caddy)
+#
+# LLM routing (see documentation/chatbot-migration.md and documentation/private documentation/chatbot.md):
+#   USE_SCALEWAY_DIRECT=1  — Python proxy → Scaleway Generative API (no chatbot :8000)
+#   USE_SCALEWAY_DIRECT=0  — Python proxy → FastAPI chatbot (MODEL_API_URL / SKIP_VLLM_DEPLOY)
 #
 # Strict order:
 # 1) Deploy API server first
@@ -31,12 +41,19 @@ set -euo pipefail
 #
 # REUSE_CONTAINERS=1: restart existing Docker containers only (docker restart vllm; docker compose restart).
 #   No rm/run, no compose --build, no frontend sync. Requires a prior full deploy on the host(s).
+#
+# DEPLOY_FRESH_CONTAINERS=1: on the app host, docker compose down --remove-orphans, compose build --no-cache,
+#   then up --force-recreate (full image rebuild for frontend/backend). Ignored when REUSE_CONTAINERS=1.
+#
+# USE_SCALEWAY_DIRECT=1: skip chatbot/vLLM health gates; backend calls Scaleway (requires SCALEWAY_API_KEY on deploy host).
+# SKIP_CHATBOT_DEPLOY=1: same skip semantics when invoked from deployment/deploy.sh.
 
-# Defaults: scw-happy-app (app+frontend) and scw-new-psy (FastAPI chatbot / LLM API)
-APP_IP="${APP_IP:-51.159.149.66}"
-API_IP="${API_IP:-62.210.238.160}"
+# Defaults: scw-happy-app (app+frontend) and scw-new-psy (FastAPI chatbot / LLM API — legacy)
+APP_IP="${APP_IP:-151.115.151.231}"
+API_IP="${API_IP:-151.115.151.231}"
 SINGLE_HOST="${SINGLE_HOST:-0}"
 REUSE_CONTAINERS="${REUSE_CONTAINERS:-0}"
+DEPLOY_FRESH_CONTAINERS="${DEPLOY_FRESH_CONTAINERS:-0}"
 # When 1, do not run the vLLM docker container; use an external FastAPI chatbot (e.g. docker compose on API_IP).
 SKIP_VLLM_DEPLOY="${SKIP_VLLM_DEPLOY:-0}"
 CHATBOT_HEALTH_PATH="${CHATBOT_HEALTH_PATH:-/health}"
@@ -49,6 +66,15 @@ SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
 # When 1, deployment must not fail if chatbot/vLLM is unavailable.
 ALLOW_DEGRADED_CHATBOT="${ALLOW_DEGRADED_CHATBOT:-0}"
+SKIP_CHATBOT_DEPLOY="${SKIP_CHATBOT_DEPLOY:-0}"
+USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT:-}"
+if [[ "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
+  SKIP_CHATBOT_DEPLOY=1
+fi
+SCALEWAY_API_KEY="${SCALEWAY_API_KEY:-}"
+SCALEWAY_PROJECT_ID="${SCALEWAY_PROJECT_ID:-5dad0cb7-c16a-4447-9a25-e89bd3448e8a}"
+SCALEWAY_MODEL="${SCALEWAY_MODEL:-mistral-small-3.2-24b-instruct-2506}"
+SCALEWAY_API_BASE_URL="${SCALEWAY_API_BASE_URL:-}"
 
 API_PORT="${API_PORT:-8000}"
 # Dolphin 24B needs a CUDA image + GPU; override for CPU-only dev (e.g. smaller MODEL_ID + vllm/vllm-openai-cpu:latest).
@@ -98,12 +124,36 @@ else
 fi
 
 log() { printf "\n[%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+warn() { printf "\n[WARN] %s\n" "$*" >&2; }
 die() { printf "\n[ERROR] %s\n" "$*" >&2; exit 1; }
 
 run_ssh() {
   local host="$1"
   shift
   ssh "${SSH_OPTS[@]}" "root@${host}" "$@"
+}
+
+_ssh_probe_once() {
+  local host="$1"
+  ssh "${SSH_OPTS[@]}" "root@${host}" "echo ok" >/dev/null 2>&1
+}
+
+# Poll sshd after heavy remote Docker work (same env as deploy.sh).
+wait_for_ssh_ready() {
+  local host="$1"
+  local max_wait="${SSH_BOOT_WAIT_SEC:-0}"
+  [[ "${max_wait}" -gt 0 ]] || return 0
+  local elapsed=0 step=5
+  log "[SSH WAIT] Up to ${max_wait}s for sshd on ${host} before app deploy"
+  while [[ "${elapsed}" -lt "${max_wait}" ]]; do
+    if _ssh_probe_once "${host}"; then
+      log "[SSH WAIT] sshd ready (~${elapsed}s)"
+      return 0
+    fi
+    sleep "${step}"
+    elapsed=$((elapsed + step))
+  done
+  return 1
 }
 
 wait_http() {
@@ -122,12 +172,35 @@ wait_http() {
 
 log "Preflight: checking SSH access"
 log "Running deploy-app.sh v${SCRIPT_VERSION}"
+if [[ "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
+  log "LLM routing: Scaleway Generative API direct (USE_SCALEWAY_DIRECT=1)"
+  if [[ -z "${SCALEWAY_API_KEY}" ]]; then
+    die "USE_SCALEWAY_DIRECT=1 requires SCALEWAY_API_KEY in the deploy environment"
+  fi
+elif [[ "${SKIP_VLLM_DEPLOY}" == "1" ]]; then
+  log "LLM routing: legacy FastAPI chatbot (MODEL_API_URL → :8000)"
+else
+  log "LLM routing: vLLM container on API host"
+fi
+wait_for_ssh_ready "${APP_IP}" || warn "SSH_BOOT_WAIT_SEC exhausted before preflight; trying SSH anyway"
 if [[ "${REUSE_CONTAINERS}" == "1" ]]; then
   log "REUSE_CONTAINERS=1: will docker restart vllm and docker compose restart (no new containers / no --build)"
 fi
 if [[ "${SINGLE_HOST}" == "1" ]]; then
   log "SINGLE_HOST=1: vLLM + app stack on APP_IP=${APP_IP} (no SSH to API_IP)"
   run_ssh "${APP_IP}" "echo 'APP SSH OK on $(hostname)'" || die "Cannot SSH to APP server ${APP_IP}"
+  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+    log "ALLOW_DEGRADED_CHATBOT=1: swap + pause chatbot before app build (free RAM on 4GB host)"
+    run_ssh "${APP_IP}" "bash -s" <<'EOS' || true
+set -euo pipefail
+if ! grep -qE '^/swapfile[[:space:]]' /proc/swaps 2>/dev/null; then
+  fallocate -l 4G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
+  chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  grep -qE '^/swapfile[[:space:]]' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+docker stop safepsy-chatbot-api 2>/dev/null || true
+EOS
+  fi
 else
   run_ssh "${API_IP}" "echo 'API SSH OK on $(hostname)'" || die "Cannot SSH to API server ${API_IP}. If vLLM runs on the app host: SINGLE_HOST=1 ./deployment/deploy.sh"
   run_ssh "${APP_IP}" "echo 'APP SSH OK on $(hostname)'" || die "Cannot SSH to APP server ${APP_IP}"
@@ -247,7 +320,9 @@ else
 fi
 
 log "STEP 4: Verify inference endpoint is reachable"
-if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+if [[ "${SKIP_CHATBOT_DEPLOY}" == "1" || "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
+  log "SKIP_CHATBOT_DEPLOY / USE_SCALEWAY_DIRECT — skipping FastAPI chatbot inference health gate"
+elif [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
   log "ALLOW_DEGRADED_CHATBOT=1: skipping inference health gate"
 else
   if [[ "${SKIP_VLLM_DEPLOY}" == "1" ]]; then
@@ -286,8 +361,15 @@ else
   run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/frontend && rm -rf ${APP_BASE_DIR}/frontend/*'"
   COPYFILE_DISABLE=1 tar -C "${WEB_SRC_DIR}" -cf - . | run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/frontend -xf -'"
 
+  BACKEND_SRC="${SCRIPT_DIR}/local-app/backend"
+  [[ -d "${BACKEND_SRC}" ]] || die "Backend source directory not found: ${BACKEND_SRC}"
+  log "STEP 5a-backend: Sync ${BACKEND_SRC} -> ${APP_IP}:${APP_BASE_DIR}/backend"
+  run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/backend && rm -rf ${APP_BASE_DIR}/backend/*'"
+  COPYFILE_DISABLE=1 tar -C "${BACKEND_SRC}" -cf - . | run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/backend -xf -'"
+
   run_ssh "${APP_IP}" "bash -lc '
   set -euo pipefail
+  export DEPLOY_FRESH=${DEPLOY_FRESH_CONTAINERS:-0}
   mkdir -p ${APP_BASE_DIR}/frontend ${APP_BASE_DIR}/backend
   cd ${APP_BASE_DIR}
 
@@ -300,140 +382,6 @@ ENV VITE_API_URL=https://${APP_DOMAIN}
 RUN npm install --legacy-peer-deps && npx vite build
 RUN npm install -g serve
 CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"]
-EOF
-
-  cat > backend/requirements.txt <<\"EOF\"
-fastapi
-uvicorn
-httpx
-EOF
-
-  cat > backend/main.py <<\"EOF\"
-import json
-import os
-import time
-import httpx
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from starlette.responses import StreamingResponse
-
-app = FastAPI()
-MODEL_API_URL = os.getenv(\"MODEL_API_URL\", \"http://127.0.0.1:8000\").rstrip(\"/\")
-MODEL_API_URL_ALT = os.getenv(\"MODEL_API_URL_ALT\", \"\").strip().rstrip(\"/\")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[\"*\"],
-    allow_credentials=True,
-    allow_methods=[\"*\"],
-    allow_headers=[\"*\"],
-)
-
-@app.get(\"/health\")
-@app.get(\"/healthz\")
-def healthz():
-  return {\"ok\": True, \"service\": \"backend\"}
-
-def _upstream_bases():
-  out = []
-  for b in (MODEL_API_URL, MODEL_API_URL_ALT):
-    if b and b not in out:
-      out.append(b)
-  return out if out else [\"http://127.0.0.1:8000\"]
-
-def _models_upstream():
-  \"\"\"Proxy GET /v1/models; try each upstream base; never return HTTP 500 (verify + UIs).\"\"\"
-  errors = []
-  timeout = httpx.Timeout(45.0, connect=15.0)
-  for base in _upstream_bases():
-    try:
-      with httpx.Client(timeout=timeout) as client:
-        r = client.get(f\"{base}/v1/models\")
-        if r.status_code == 200:
-          data = r.json()
-          if isinstance(data, dict) and \"data\" in data:
-            return data
-        errors.append(f\"{base}: HTTP {r.status_code}\")
-    except Exception as e:
-      errors.append(f\"{base}: {type(e).__name__}\")
-  return JSONResponse(
-    status_code=200,
-    content={
-      \"object\": \"list\",
-      \"data\": [
-        {
-          \"id\": os.getenv(\"FALLBACK_MODEL_ID\", \"dr-safe\"),
-          \"object\": \"model\",
-          \"created\": int(time.time()),
-          \"owned_by\": \"safepsy\",
-        }
-      ],
-      \"warning\": \"chatbot /v1/models unreachable from app proxy: \" + \"; \".join(errors[:5]),
-    },
-  )
-
-@app.get(\"/models\")
-def models():
-  return _models_upstream()
-
-@app.get(\"/v1/models\")
-def v1_models():
-  return _models_upstream()
-
-def _want_stream(body: bytes) -> bool:
-  try:
-    return json.loads(body).get(\"stream\", True) is True
-  except Exception:
-    return True
-
-# Caddy handle_path /api/* strips /api prefix:
-#   /api/chat/completions → /chat/completions
-#   /api/v1/chat/completions → /v1/chat/completions
-@app.post(\"/chat/completions\")
-@app.post(\"/v1/chat/completions\")
-async def v1_chat_completions(request: Request):
-  body = await request.body()
-  ctype = request.headers.get(\"content-type\", \"application/json\")
-  headers = {\"Content-Type\": ctype}
-  timeout = httpx.Timeout(300.0, connect=30.0)
-  want_stream = _want_stream(body)
-  last_err = None
-  for base in _upstream_bases():
-    url = f\"{base}/v1/chat/completions\"
-    try:
-      if want_stream:
-        async def gen(u=url):
-          async with httpx.AsyncClient(timeout=timeout) as client:
-            async with client.stream(\"POST\", u, content=body, headers=headers) as response:
-              async for chunk in response.aiter_bytes():
-                yield chunk
-
-        return StreamingResponse(
-          gen(),
-          media_type=\"text/event-stream\",
-          status_code=200,
-        )
-
-      async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(url, content=body, headers=headers)
-      return Response(
-        content=r.content,
-        status_code=r.status_code,
-        media_type=r.headers.get(\"content-type\", \"application/json\"),
-      )
-    except Exception as e:
-      last_err = e
-      continue
-  raise HTTPException(status_code=502, detail=f\"chatbot unreachable: {last_err!s}\")
-EOF
-
-  cat > backend/Dockerfile <<\"EOF\"
-FROM python:3.11-slim
-WORKDIR /app
-COPY . .
-RUN pip install --no-cache-dir -r requirements.txt
-CMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"5000\"]
 EOF
 
   cat > docker-compose.yml <<\"EOF\"
@@ -454,6 +402,11 @@ services:
     environment:
       - MODEL_API_URL=${MODEL_API_URL_FOR_COMPOSE}
       - MODEL_API_URL_ALT=${MODEL_API_URL_ALT_FOR_COMPOSE:-}
+      - USE_SCALEWAY_DIRECT=${USE_SCALEWAY_DIRECT:-0}
+      - SCALEWAY_API_KEY=${SCALEWAY_API_KEY:-}
+      - SCALEWAY_PROJECT_ID=${SCALEWAY_PROJECT_ID:-}
+      - SCALEWAY_MODEL=${SCALEWAY_MODEL:-}
+      - SCALEWAY_API_BASE_URL=${SCALEWAY_API_BASE_URL:-}
     deploy:
       resources:
         limits:
@@ -498,14 +451,31 @@ http://${APP_IP} {
 }
 EOF
 
-  docker compose up -d --build --force-recreate
+  if [[ \"\$DEPLOY_FRESH\" == \"1\" ]]; then
+    echo \"[deploy-app] DEPLOY_FRESH_CONTAINERS=1: compose down, build --no-cache, force-recreate\"
+    docker compose down --remove-orphans || true
+    docker compose build --no-cache
+    docker compose up -d --force-recreate
+  else
+    docker compose up -d --build --force-recreate
+  fi
   docker compose ps
   curl -fsS http://localhost >/dev/null
 '"
 fi
 
 log "STEP 6: Validate APP -> inference from APP server"
-if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+if [[ "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
+  log "STEP 6: Scaleway direct — probe POST /api/chat/completions (guest, non-stream)"
+  run_ssh "${APP_IP}" "bash -lc '
+    set -euo pipefail
+    curl -fsS -X POST \"http://127.0.0.1/api/chat/completions\" \
+      -H \"Content-Type: application/json\" \
+      -d \"{\\\"model\\\":\\\"${SCALEWAY_MODEL}\\\",\\\"messages\\\":[{\\\"role\\\":\\\"user\\\",\\\"content\\\":\\\"Reply with OK only.\\\"}],\\\"stream\\\":false,\\\"mode\\\":\\\"guest\\\",\\\"maxTokens\\\":16}\" \
+      | grep -q \"\\\"choices\\\"\"
+    docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
+  '" || die "Scaleway direct chat probe failed on APP host (check SCALEWAY_API_KEY in backend env)"
+elif [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
   log "ALLOW_DEGRADED_CHATBOT=1: skipping APP -> inference validation"
   run_ssh "${APP_IP}" "bash -lc '
     set -euo pipefail
@@ -570,7 +540,13 @@ fi
 log "STEP 8: Final checks"
 wait_http "http://${APP_IP}" 30 2 || die "App root is not reachable at http://${APP_IP}"
 run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/healthz && echo'"
-run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/models >/dev/null && echo backend_to_api_ok'"
+if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
+  log "ALLOW_DEGRADED_CHATBOT=1: skipping /api/models (chatbot may be down)"
+elif [[ "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
+  run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/v1/models >/dev/null && echo scaleway_direct_models_ok'"
+else
+  run_ssh "${APP_IP}" "bash -lc 'curl -fsS http://localhost/api/models >/dev/null && echo backend_to_api_ok'"
+fi
 
 log "STEP 8b: HTTPS / domain (Caddy auto-HTTPS; requires DNS → ${APP_IP})"
 if wait_http "https://${APP_DOMAIN}" 25 3; then
@@ -584,11 +560,12 @@ cat <<EOF
 SUCCESS
 - Frontend reachable:  http://${APP_IP}
 - Domain (HTTPS):       https://${APP_DOMAIN}  (also ${CADDY_SITE_NAMES})
-- Inference URL:        $([[ "${SKIP_VLLM_DEPLOY}" == "1" ]] && echo "http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH} (FastAPI chatbot)" || ([[ "${SINGLE_HOST}" == "1" ]] && echo "http://127.0.0.1:${API_PORT}/v1/models (on APP) / backend uses ${MODEL_API_URL_FOR_COMPOSE}" || echo "http://${API_IP}:${API_PORT}/v1/models"))
+- LLM routing:          $([[ "${USE_SCALEWAY_DIRECT}" == "1" ]] && echo "Scaleway Generative API direct (model ${SCALEWAY_MODEL})" || ([[ "${SKIP_VLLM_DEPLOY}" == "1" ]] && echo "FastAPI chatbot http://${API_IP}:${API_PORT}${CHATBOT_HEALTH_PATH}" || echo "vLLM http://${API_IP}:${API_PORT}/v1/models"))
 - App stack path:       ${APP_BASE_DIR}
-- Inference container:  $([[ "${SKIP_VLLM_DEPLOY}" == "1" ]] && echo "safepsy-chatbot-api (compose)" || echo "vllm")
+- Inference container:  $([[ "${USE_SCALEWAY_DIRECT}" == "1" ]] && echo "(none — Scaleway SaaS)" || ([[ "${SKIP_VLLM_DEPLOY}" == "1" ]] && echo "safepsy-chatbot-api (compose)" || echo "vllm"))
 
 Useful follow-ups:
-- App logs: ssh root@${APP_IP} \"cd ${APP_BASE_DIR} && docker compose logs -f\"
-- Inference logs (SKIP_VLLM): ssh root@${VLLM_SSH_HOST} \"cd /opt/safepsy/deployment/chatbot && docker compose logs -f\"  OR  (vLLM): ssh root@${VLLM_SSH_HOST} \"docker logs -f vllm\"
+- App logs: ssh root@${APP_IP} \"cd ${APP_BASE_DIR} && docker compose logs -f backend\"
+- Verify prod: CHECK_LLM=1 USE_SCALEWAY_DIRECT=${USE_SCALEWAY_DIRECT:-0} bash deployment/verify-production.sh
+$([[ "${USE_SCALEWAY_DIRECT}" != "1" && "${SKIP_VLLM_DEPLOY}" != "1" ]] && echo "- vLLM logs: ssh root@${VLLM_SSH_HOST} \"docker logs -f vllm\"")
 EOF
