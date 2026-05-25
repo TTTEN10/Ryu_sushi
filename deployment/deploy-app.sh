@@ -59,6 +59,8 @@ SKIP_VLLM_DEPLOY="${SKIP_VLLM_DEPLOY:-0}"
 CHATBOT_HEALTH_PATH="${CHATBOT_HEALTH_PATH:-/health}"
 # Canonical browser URL (used in success output / checks)
 APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
+# Vite build-time vars (baked into SPA bundle on deploy)
+VITE_WALLETCONNECT_PROJECT_ID="${VITE_WALLETCONNECT_PROJECT_ID:-391299af5aedd1d51ef83d5e79e1a46d}"
 # Hostnames Caddy will terminate TLS for (must match DNS A/AAAA to this server)
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
 APP_USER="${APP_USER:-safepsy}"
@@ -377,8 +379,9 @@ else
 FROM node:20-alpine
 WORKDIR /app
 COPY . .
-# apps/web currently has strict TS errors in some files; build production bundle via Vite.
+  # apps/web currently has strict TS errors in some files; build production bundle via Vite.
 ENV VITE_API_URL=https://${APP_DOMAIN}
+ENV VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID}
 RUN npm install --legacy-peer-deps && npx vite build
 RUN npm install -g serve
 CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"]
@@ -469,10 +472,19 @@ if [[ "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
   log "STEP 6: Scaleway direct — probe POST /api/chat/completions (guest, non-stream)"
   run_ssh "${APP_IP}" "bash -lc '
     set -euo pipefail
-    curl -fsS -X POST \"http://127.0.0.1/api/chat/completions\" \
-      -H \"Content-Type: application/json\" \
-      -d \"{\\\"model\\\":\\\"${SCALEWAY_MODEL}\\\",\\\"messages\\\":[{\\\"role\\\":\\\"user\\\",\\\"content\\\":\\\"Reply with OK only.\\\"}],\\\"stream\\\":false,\\\"mode\\\":\\\"guest\\\",\\\"maxTokens\\\":16}\" \
-      | grep -q \"\\\"choices\\\"\"
+    _probe_ok=0
+    for _i in \$(seq 1 30); do
+      if curl -fsS --resolve \"${APP_DOMAIN}:443:127.0.0.1\" \
+        -X POST \"https://${APP_DOMAIN}/api/chat/completions\" \
+        -H \"Content-Type: application/json\" \
+        -d \"{\\\"messages\\\":[{\\\"role\\\":\\\"user\\\",\\\"content\\\":\\\"Reply with OK only.\\\"}],\\\"stream\\\":false,\\\"mode\\\":\\\"guest\\\",\\\"maxTokens\\\":16}\" \
+        2>/dev/null | grep -q \"\\\"choices\\\"\"; then
+        _probe_ok=1
+        break
+      fi
+      sleep 2
+    done
+    [[ \"\${_probe_ok}\" -eq 1 ]] || { echo \"Scaleway chat probe timed out after ~60s\"; exit 1; }
     docker compose -f ${APP_BASE_DIR}/docker-compose.yml ps
   '" || die "Scaleway direct chat probe failed on APP host (check SCALEWAY_API_KEY in backend env)"
 elif [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then

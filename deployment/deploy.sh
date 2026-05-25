@@ -1,17 +1,30 @@
 #!/usr/bin/env bash
-# End-to-end deploy: pre-flight → Terraform (prod) → chatbot (dedicated or colocated) → deploy-app.sh
+# Canonical production deploy entrypoint.
+# Full: pre-flight → Terraform (prod) → deploy-app.sh → HTTPS verify (Scaleway Generative API direct).
+# App-only: DEPLOY_LEGACY=1 or no terraform.tfvars / TF_VAR_scaleway_* (auto app-only).
+#
+# deploy-app.sh is the app-stack implementation (Caddy + SPA + API proxy); do not fork it — call this script.
+# Wrappers deploy-safepsy.sh and deploy-live-app.sh only forward here with presets.
 #
 # Usage:
+#   ./deployment/deploy-live-app.sh          # recommended prod (see DEPLOY-RUNBOOK.md)
 #   ./deployment/deploy.sh
-#   ./deployment/deploy.sh --diagnose     # pre-flight + SSH + inter-VM probes only (no terraform apply / no image deploy)
-#   DEPLOY_LEGACY=1 ./deployment/deploy.sh  # app stack only (see deploy-app.sh)
+#   USE_SCALEWAY_DIRECT=1 SCALEWAY_API_KEY=... ./deployment/deploy.sh
+#   ./deployment/deploy.sh --diagnose     # pre-flight + app SSH (no separate chatbot VM)
+#   DEPLOY_LEGACY=1 ./deployment/deploy.sh  # app stack only (skips Terraform)
 #
-# Optional env: SKIP_PREFLIGHT_GIT=1  SKIP_DNS_VALIDATION=1  REFRESH_IPS_FROM_TF=0  FORCE_COLOCATE_ON_ROUTING_FAIL=1
+# Optional env: SKIP_PREFLIGHT_GIT=1  SKIP_DNS_VALIDATION=1  REFRESH_IPS_FROM_TF=0 (default 1)  FORCE_COLOCATE_ON_ROUTING_FAIL=1
+#   REFRESH_IPS_FROM_TF=0 — keep APP_HOST / CHATBOT_HOST from the environment after terraform apply (needed when
+#   Terraform still models a separate chatbot IP but you deploy both stacks onto one public VIP, e.g. scw-beta-app).
+#   DEPLOY_FRESH_CONTAINERS=1 — passed through to deploy-app.sh (compose build --no-cache + up --force-recreate).
+#   USE_SCALEWAY_DIRECT=1 — Python proxy → Scaleway Generative API (default when unset on full deploy).
+#   SSH_BOOT_WAIT_SEC=120 — after Terraform, poll sshd until banner succeeds (fresh instance start).
+#   DEPLOY_SKIP_TERRAFORM=1 — skip terraform init/apply (resume after a successful apply).
 #               PREFLIGHT_SSH=1  SKIP_POST_DEPLOY_VERIFY=1  CHECK_LLM=1 (post-deploy)
 #               DEPLOY_RETRY_MAX=3  DEPLOY_RETRY_DELAY_SEC=2  SSH_CONNECT_TIMEOUT=12  SSH_KEY=...
 #
 # Success gates (all must pass unless skipped by env): preflight → Terraform → app SSH →
-#   code sync + compose → /health → app→chatbot (or colocate) → deploy-app.sh → post-deploy HTTPS checks.
+#   deploy-app.sh → post-deploy HTTPS checks.
 #
 set -euo pipefail
 
@@ -25,13 +38,19 @@ DEBUG_NDJSON="${DEPLOY_LOG_DIR}/debug-fcc1a0.log"
 
 APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
-CHATBOT_HOST="${CHATBOT_HOST:-62.210.238.160}"
-APP_HOST="${APP_HOST:-51.159.149.66}"
+CHATBOT_HOST="${CHATBOT_HOST:-151.115.151.231}"
+APP_HOST="${APP_HOST:-151.115.151.231}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
-# When 1, deploy must NOT fail if chatbot is down; landing page must still go live.
+# When 1, deploy must NOT fail if upstream LLM checks are skipped; landing page must still go live.
 ALLOW_DEGRADED_CHATBOT="${ALLOW_DEGRADED_CHATBOT:-0}"
+USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT:-1}"
+# Scaleway Generative API (passed through to deploy-app.sh backend container)
+SCALEWAY_API_KEY="${SCALEWAY_API_KEY:-}"
+SCALEWAY_PROJECT_ID="${SCALEWAY_PROJECT_ID:-5dad0cb7-c16a-4447-9a25-e89bd3448e8a}"
+SCALEWAY_MODEL="${SCALEWAY_MODEL:-mistral-small-3.2-24b-instruct-2506}"
+SCALEWAY_API_BASE_URL="${SCALEWAY_API_BASE_URL:-}"
 OUTBOUND_IP=""
 DEPLOY_DIAGNOSE=0
 for _arg in "$@"; do
@@ -39,6 +58,21 @@ for _arg in "$@"; do
 done
 
 if [[ "${DEPLOY_LEGACY:-0}" == "1" ]]; then
+  exec "${SCRIPT_DIR}/deploy-app.sh" "$@"
+fi
+
+_has_terraform_config() {
+  [[ -f "${TF_DIR}/terraform.tfvars" ]] && return 0
+  [[ -n "${TF_VAR_scaleway_access_key:-}" && -n "${TF_VAR_scaleway_secret_key:-}" && -n "${TF_VAR_scaleway_project_id:-}" ]] && return 0
+  return 1
+}
+
+# No prod Terraform config → app-only (same as former deploy-safepsy.sh fallback).
+if [[ "${DEPLOY_FORCE_FULL:-0}" != "1" ]] && ! _has_terraform_config; then
+  warn "No infra/terraform/envs/prod/terraform.tfvars or TF_VAR_scaleway_* — app-only deploy"
+  warn "Set DEPLOY_FORCE_FULL=1 to require the full Terraform pipeline"
+  export DEPLOY_SKIP_TERRAFORM=1
+  USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT:-1}"
   exec "${SCRIPT_DIR}/deploy-app.sh" "$@"
 fi
 
@@ -207,6 +241,12 @@ validate_dns_mode() {
   if ! command -v dig >/dev/null 2>&1; then
     die "[PRE-FLIGHT] dig(1) not found; install bind-tools / dnsutils for DNS validation."
   fi
+  # App and chatbot share one public VIP (e.g. scw-beta-app): apex A → that IP is correct; do not apply the split-host rule.
+  if [[ -n "${APP_HOST:-}" && -n "${CHATBOT_HOST:-}" && "${CHATBOT_HOST}" == "${APP_HOST}" ]]; then
+    log "[PRE-FLIGHT] DNS OK (single public IP: APP_HOST==CHATBOT_HOST==${CHATBOT_HOST})"
+    log_event "preflight_dns_ok_single_vip" "{\"APP_DOMAIN\":\"${APP_DOMAIN}\",\"ip\":\"${CHATBOT_HOST}\"}"
+    return 0
+  fi
   local ns_list ns name combined ipv4
   ns_list="$(dig +short "${APP_DOMAIN}" NS 2>/dev/null | tr -d '\r' | sed 's/\.$//' | grep -E '^[a-zA-Z0-9.-]+\.[a-zA-Z]' || true)"
   if [[ -z "${ns_list}" ]]; then
@@ -260,10 +300,24 @@ run_preflight() {
 
 ssh_failure_banner() {
   local role="$1" host="$2"
+  local tcp22_open=0
+  if command -v nc >/dev/null 2>&1 && nc -z -w 4 "${host}" 22 2>/dev/null; then
+    tcp22_open=1
+  fi
   printf '\n[SSH FAILURE]\n' >&2
   printf '  Target: %s (%s)\n' "${role}" "${host}" >&2
-  printf '  Cause:   TCP 22 blocked, security group mismatch, or instance down\n' >&2
-  printf '  Action:  In Scaleway, allow inbound TCP/22 from your public IPv4 /32\n' >&2
+  if [[ "${tcp22_open}" -eq 1 ]]; then
+    printf '  Cause:   TCP/22 is open but sshd did not complete the SSH banner (sshd hung, still booting, or wrong service on 22)\n' >&2
+    printf '  Action:  Scaleway console → Instance → Open console (or rescue). On the VM run:\n' >&2
+    printf '             systemctl status ssh || systemctl status sshd\n' >&2
+    printf '             systemctl restart ssh || systemctl restart sshd\n' >&2
+    printf '             journalctl -u ssh -n 40 --no-pager || journalctl -u sshd -n 40 --no-pager\n' >&2
+    printf '           Then retry: ssh -o ConnectTimeout=20 root@%s\n' "${host}" >&2
+    printf '  Note:     Security group rules may already be correct (0.0.0.0/0 on 22 is enough).\n' >&2
+  else
+    printf '  Cause:   TCP 22 not reachable (security group not attached, instance down, or wrong IP)\n' >&2
+    printf '  Action:  In Scaleway, attach the SG to this instance NIC and allow inbound TCP/22 from your IP /32\n' >&2
+  fi
   printf '  Hint:    OUTBOUND_IP=%s\n' "${OUTBOUND_IP:-unknown}" >&2
   printf '  (If you saw tar|ssh Write error, the SSH leg failed — same fix.)\n\n' >&2
 }
@@ -272,6 +326,50 @@ ssh_failure_banner() {
 _ssh_probe_once() {
   local host="$1"
   ssh "${SSH_OPTS[@]}" "root@${host}" "echo ok" >/dev/null 2>&1
+}
+
+# Poll until sshd completes banner exchange (common right after instance start).
+wait_for_ssh_ready() {
+  local host="$1"
+  local max_wait="${SSH_BOOT_WAIT_SEC:-0}"
+  [[ "${max_wait}" -gt 0 ]] || return 0
+  local elapsed=0 step=5
+  log "[SSH WAIT] Up to ${max_wait}s for sshd on ${host} (post-boot / banner)"
+  log_event "ssh_boot_wait_start" "{\"host\":\"${host}\",\"max_wait_sec\":${max_wait}}"
+  while [[ "${elapsed}" -lt "${max_wait}" ]]; do
+    if _ssh_probe_once "${host}"; then
+      log "[SSH WAIT] sshd ready (~${elapsed}s)"
+      log_event "ssh_boot_wait_ok" "{\"host\":\"${host}\",\"elapsed_sec\":${elapsed}}"
+      return 0
+    fi
+    sleep "${step}"
+    elapsed=$((elapsed + step))
+  done
+  log_event "ssh_boot_wait_timeout" "{\"host\":\"${host}\",\"max_wait_sec\":${max_wait}}"
+  return 1
+}
+
+# 4GB instances: swap avoids OOM killing sshd during parallel Docker builds + HF model load.
+ensure_host_swap() {
+  local host="$1"
+  local size_gb="${DEPLOY_SWAP_GB:-4}"
+  log "[SWAP] Ensuring ${size_gb}G swap on ${host} (DEV1-M OOM guard)"
+  ssh "${SSH_OPTS[@]}" "root@${host}" "bash -s" -- "${size_gb}" <<'EOS' || warn "[SWAP] setup failed on ${host} — continuing"
+set -euo pipefail
+size_gb="${1:-4}"
+if grep -qE '^/swapfile[[:space:]]' /proc/swaps 2>/dev/null; then
+  echo "[swap] already active"
+  exit 0
+fi
+if [[ ! -f /swapfile ]]; then
+  fallocate -l "${size_gb}G" /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=$((size_gb * 1024)) status=progress
+  chmod 600 /swapfile
+  mkswap /swapfile
+fi
+swapon /swapfile 2>/dev/null || true
+grep -qE '^/swapfile[[:space:]]' /etc/fstab 2>/dev/null || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+swapon --show
+EOS
 }
 
 ssh_probe() {
@@ -287,20 +385,6 @@ ssh_probe() {
   ssh_failure_banner "${name}" "${host}"
   agent_dbg_log "SSH" "ssh_fail" "{\"role\":\"${name}\",\"host\":\"${host}\"}"
   log_event "ssh_probe_fail" "{\"role\":\"${name}\",\"host\":\"${host}\"}"
-  return 1
-}
-
-# From app VM: HTTP reachability to chatbot :8000 (split-host path)
-check_app_to_chatbot() {
-  local chatbot_ip="$1"
-  log "[CHECK] App → chatbot (${APP_HOST} → http://${chatbot_ip}:8000/health)"
-  log_event "intervm_probe_start" "{\"from\":\"app\",\"to\":\"${chatbot_ip}\"}"
-  if retry ssh "${SSH_OPTS[@]}" "root@${APP_HOST}" "curl -fsS --connect-timeout 5 --max-time 8 http://${chatbot_ip}:8000/health" >/dev/null 2>&1; then
-    log_event "intervm_ok" "{\"from\":\"app\",\"to\":\"${chatbot_ip}\",\"port\":8000}"
-    return 0
-  fi
-  printf '\n[ROUTING FAILURE]\n  App %s cannot GET http://%s:8000/health\n  Action: allow TCP/8000 on chatbot SG from app IP %s\n\n' "${APP_HOST}" "${chatbot_ip}" "${APP_HOST}" >&2
-  log_event "intervm_fail" "{\"from\":\"app\",\"to\":\"${chatbot_ip}\",\"port\":8000}"
   return 1
 }
 
@@ -353,95 +437,19 @@ post_deploy_verify() {
     || die "post-deploy: https://${APP_DOMAIN}/api/v1/models failed"
   log_event "post_deploy_verify_ok" "{\"APP_DOMAIN\":\"${APP_DOMAIN}\"}"
   if [[ "${CHECK_LLM:-0}" == "1" ]]; then
-    warn "CHECK_LLM=1 — run: CHECK_LLM=1 bash deployment/verify-production.sh (full chat probe)"
+    log "CHECK_LLM=1 — running deployment/verify-production.sh (chat completions probe)"
+    CHECK_LLM=1 USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT:-0}" APP_DOMAIN="${APP_DOMAIN}" APP_IP="${APP_HOST}" \
+      bash "${SCRIPT_DIR}/verify-production.sh" || die "post-deploy: verify-production.sh CHECK_LLM failed"
   fi
   log "POST-DEPLOY VERIFY OK"
 }
 
-sync_and_compose_chatbot_on() {
-  local target_host="$1"
-  log "Sync chatbot slice → ${target_host}:${REMOTE_BASE}"
-  COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - apps/ai-chatbot deployment/chatbot | ssh "${SSH_OPTS[@]}" "root@${target_host}" "mkdir -p '${REMOTE_BASE}' && tar -C '${REMOTE_BASE}' -xf -" \
-    || die "[ERROR] tar|ssh to ${target_host} failed — likely SSH unreachable or disk full. If you saw 'Write error', the SSH leg failed (check TCP/22). Outbound IP hint: ${OUTBOUND_IP:-unknown}"
-  run_ssh "${target_host}" "bash -lc '
-    set -euo pipefail
-    mkdir -p /data
-    cd \"${REMOTE_BASE}/deployment/chatbot\"
-    docker compose pull || true
-    docker compose up -d --build
-    docker compose ps
-  '"
-}
-
-wait_chatbot_http_ok_ssh() {
-  local target="$1"
-  local max_tries="${2:-36}"
-  local delay="${3:-5}"
-  local i ok=0
-  for ((i = 1; i <= max_tries; i++)); do
-    if ssh "${SSH_OPTS[@]}" "root@${target}" "curl -fsS --max-time 8 http://127.0.0.1:8000/health" >/dev/null 2>&1; then
-      ok=1
-      break
-    fi
-    sleep "${delay}"
-  done
-  [[ "${ok}" -eq 1 ]] || die "[ERROR] Colocated chatbot /health failed on ${target} (containers not healthy)"
-  log_event "chatbot_loopback_ok" "{\"host\":\"${target}\"}"
-}
-
-# --- optional: model_loaded / model_ready in JSON (best-effort grep) ---
-_health_json_has_model_true() {
-  printf '%s' "$1" | grep -qE '"(model_loaded|model_ready)"[[:space:]]*:[[:space:]]*true'
-}
-
-wait_chatbot_model_ready_optional() {
-  local base_url="$1"
-  local max_tries="${2:-30}"
-  local delay="${3:-5}"
-  local i body
-  for ((i = 1; i <= max_tries; i++)); do
-    body="$(curl -fsS --max-time 8 "${base_url}" 2>/dev/null || true)"
-    if _health_json_has_model_true "${body}"; then
-      log "[INFO] Chatbot reports model ready (${base_url})"
-      log_event "model_ready" "{\"url\":\"${base_url}\"}"
-      return 0
-    fi
-    sleep "${delay}"
-  done
-  log "[WARN] model not reported ready yet — continuing (service may still be degraded)"
-  log_event "model_ready_timeout_warn" "{\"url\":\"${base_url}\"}"
-  return 0
-}
-
-wait_chatbot_model_ready_optional_ssh() {
-  local target="$1"
-  local max_tries="${2:-30}"
-  local delay="${3:-5}"
-  local i body
-  for ((i = 1; i <= max_tries; i++)); do
-    body="$(ssh "${SSH_OPTS[@]}" "root@${target}" "curl -fsS --max-time 8 http://127.0.0.1:8000/health" 2>/dev/null || true)"
-    if _health_json_has_model_true "${body}"; then
-      log "[INFO] Chatbot on ${target} reports model ready (loopback /health)"
-      log_event "model_ready" "{\"host\":\"${target}\",\"via\":\"ssh_loopback\"}"
-      return 0
-    fi
-    sleep "${delay}"
-  done
-  log "[WARN] model not reported ready on ${target} — continuing (degraded)"
-  log_event "model_ready_timeout_warn" "{\"host\":\"${target}\",\"via\":\"ssh_loopback\"}"
-  return 0
-}
-
-# ========== --diagnose (preflight + SSH + routing; no Terraform / no image deploy) ==========
+# ========== --diagnose (preflight + app SSH; no Terraform / no image deploy) ==========
 if [[ "${DEPLOY_DIAGNOSE}" == "1" ]]; then
-  log "[DIAGNOSE] Preflight + SSH + app→chatbot (no Terraform apply, no stack deploy)"
+  log "[DIAGNOSE] Preflight + app SSH (no Terraform apply, no stack deploy)"
   run_preflight
   ssh_probe "app" "${APP_HOST}" || exit 1
-  if ssh_probe "chatbot" "${CHATBOT_HOST}"; then
-    check_app_to_chatbot "${CHATBOT_HOST}" || warn "[DIAGNOSE] app cannot reach chatbot :8000 (fix SG or use colocation)"
-  else
-    warn "[DIAGNOSE] chatbot SSH failed — production deploy would set colocated chatbot on app (requires app SSH above)"
-  fi
+  log "[DIAGNOSE] LLM: Scaleway Generative API direct (no FastAPI chatbot VM)"
   log "[DIAGNOSE] Done."
   exit 0
 fi
@@ -449,29 +457,24 @@ fi
 # ========== PRE-FLIGHT (mandatory, before Terraform) ==========
 run_preflight
 
-# ========== Local docker (optional) ==========
-log "STEP 1 — Build (optional local validation)"
-if command -v docker >/dev/null 2>&1; then
-  COPYFILE_DISABLE=1 docker build -t safepsy-chatbot:local "${REPO_ROOT}/apps/ai-chatbot" || log "Local docker build skipped or failed (non-fatal)"
-else
-  log "docker not installed locally; build will happen on remote host"
-fi
-
 # ========== Terraform apply ==========
-log "STEP 2 — Terraform apply (${TF_DIR})"
-(
-  cd "${TF_DIR}"
-  terraform init -backend=false
-  terraform apply -auto-approve -input=false
-) || die "terraform apply failed"
+if [[ "${DEPLOY_SKIP_TERRAFORM:-0}" == "1" ]]; then
+  log "STEP 2 — DEPLOY_SKIP_TERRAFORM=1 (using existing Terraform state / outputs)"
+  log_event "terraform_apply_skipped" "{}"
+else
+  log "STEP 2 — Terraform apply (${TF_DIR})"
+  (
+    cd "${TF_DIR}"
+    terraform init -backend=false
+    terraform apply -auto-approve -input=false
+  ) || die "terraform apply failed"
+fi
 
 mkdir -p "${DEPLOY_LOG_DIR}" 2>/dev/null || true
 (cd "${TF_DIR}" && terraform output -json > "${DEPLOY_LOG_DIR}/tf-output.json") 2>/dev/null || true
 log_event "terraform_output_json" "{\"path\":\"${DEPLOY_LOG_DIR}/tf-output.json\"}"
 log_terraform_outputs_to_jsonl
 
-CHATBOT_PRIVATE_IP="$(cd "${TF_DIR}" && terraform output -raw chatbot_private_ip)"
-[[ -n "${CHATBOT_PRIVATE_IP}" ]] || die "terraform output chatbot_private_ip empty"
 APP_TF_PUBLIC_IP="$(cd "${TF_DIR}" && terraform output -raw app_public_ip 2>/dev/null || echo "")"
 refresh_hosts_from_terraform
 validate_dns_mode
@@ -480,106 +483,38 @@ _key_set="false"
 [[ -n "${SSH_KEY}" ]] && _key_set="true"
 _match_tf="false"
 [[ -n "${APP_TF_PUBLIC_IP}" && "${APP_HOST}" == "${APP_TF_PUBLIC_IP}" ]] && _match_tf="true"
-agent_dbg_log H5 "post_terraform_hosts" "{\"CHATBOT_HOST\":\"${CHATBOT_HOST}\",\"APP_HOST\":\"${APP_HOST}\",\"chatbot_private_ip\":\"${CHATBOT_PRIVATE_IP}\",\"app_public_ip_tf\":\"${APP_TF_PUBLIC_IP}\",\"app_host_matches_tf\":${_match_tf},\"SSH_CONNECT_TIMEOUT\":${SSH_CONNECT_TIMEOUT},\"ssh_key_path_set\":\"${_key_set}\"}"
+agent_dbg_log H5 "post_terraform_hosts" "{\"CHATBOT_HOST\":\"${CHATBOT_HOST}\",\"APP_HOST\":\"${APP_HOST}\",\"app_public_ip_tf\":\"${APP_TF_PUBLIC_IP}\",\"app_host_matches_tf\":${_match_tf},\"SSH_CONNECT_TIMEOUT\":${SSH_CONNECT_TIMEOUT},\"ssh_key_path_set\":\"${_key_set}\"}"
 log "Debug NDJSON: ${DEBUG_NDJSON}"
 log_event "terraform_apply_done" "{\"CHATBOT_HOST\":\"${CHATBOT_HOST}\",\"APP_HOST\":\"${APP_HOST}\"}"
 
 # App SSH is mandatory (hard stop before tar|ssh)
+if [[ "${SSH_BOOT_WAIT_SEC:-0}" -gt 0 ]]; then
+  wait_for_ssh_ready "${APP_HOST}" || warn "SSH_BOOT_WAIT_SEC exhausted; trying ssh_probe retries anyway"
+fi
 ssh_probe "app" "${APP_HOST}" || die "Cannot deploy: app host SSH failed."
 
-COLOCATE_CHATBOT_ON_APP=0
-_ts0="$(python3 -c 'import time; print(int(time.time()*1000))')"
-if ssh_probe "chatbot" "${CHATBOT_HOST}"; then
-  CHATBOT_SSH_RC=0
-else
-  CHATBOT_SSH_RC=1
-fi
-_ts1="$(python3 -c 'import time; print(int(time.time()*1000))')"
-CHATBOT_SSH_MS=$((_ts1 - _ts0))
-agent_dbg_log H1 "chatbot_ssh_probe" "{\"host\":\"${CHATBOT_HOST}\",\"exitCode\":${CHATBOT_SSH_RC},\"durationMs\":${CHATBOT_SSH_MS}}"
-
-if [[ "${CHATBOT_SSH_RC}" -ne 0 ]]; then
-  COLOCATE_CHATBOT_ON_APP=1
-  warn "Chatbot SSH failed → SINGLE_HOST / colocated chatbot on app ${APP_HOST}"
-  log_event "fallback_colocate_ssh" "{\"reason\":\"chatbot_ssh\",\"chatbotHost\":\"${CHATBOT_HOST}\"}"
-  agent_dbg_log H2 "colocate_branch_selected" "{\"reason\":\"chatbot_ssh_nonzero\",\"chatbotSshExitCode\":${CHATBOT_SSH_RC}}"
-  log "Hint — allow Scaleway inbound TCP/22 from: ${OUTBOUND_IP:-unknown}"
-fi
-
-if [[ "${COLOCATE_CHATBOT_ON_APP}" -eq 1 ]]; then
-  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
-    warn "ALLOW_DEGRADED_CHATBOT=1 — skipping chatbot deployment/health on app host; continuing with app deploy."
-    log_event "chatbot_skipped_degraded" "{\"mode\":\"colocate\",\"host\":\"${APP_HOST}\"}"
-  else
-    sync_and_compose_chatbot_on "${APP_HOST}"
-    wait_chatbot_http_ok_ssh "${APP_HOST}" 36 5
-    wait_chatbot_model_ready_optional_ssh "${APP_HOST}" 24 5 || true
-  fi
-else
-  log "STEP 3 — Dedicated chatbot on ${CHATBOT_HOST}"
-  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
-    warn "ALLOW_DEGRADED_CHATBOT=1 — skipping dedicated chatbot deploy/health; continuing with app deploy."
-    log_event "chatbot_skipped_degraded" "{\"mode\":\"dedicated\",\"host\":\"${CHATBOT_HOST}\"}"
-  else
-    sync_and_compose_chatbot_on "${CHATBOT_HOST}"
-    log "STEP 4 — Verify chatbot /health (public or on-host)"
-    ok=0
-    for _i in 1 2 3 4 5 6 7 8 9 10; do
-      if curl -fsS --max-time 5 "http://${CHATBOT_HOST}:8000/health" >/dev/null 2>&1; then
-        ok=1
-        break
-      fi
-      if ssh "${SSH_OPTS[@]}" "root@${CHATBOT_HOST}" "curl -fsS --max-time 5 http://127.0.0.1:8000/health" >/dev/null 2>&1; then
-        ok=1
-        break
-      fi
-      sleep 3
-    done
-    [[ "${ok}" -eq 1 ]] || die "Chatbot health check failed on ${CHATBOT_HOST}"
-    log_event "dedicated_chatbot_health_ok" "{\"host\":\"${CHATBOT_HOST}\"}"
-    wait_chatbot_model_ready_optional "http://${CHATBOT_HOST}:8000/health" 24 5 || true
-  fi
-
-  if [[ "${ALLOW_DEGRADED_CHATBOT}" == "1" ]]; then
-    warn "ALLOW_DEGRADED_CHATBOT=1 — skipping app→chatbot routing check."
-    log_event "intervm_probe_skipped_degraded" "{\"from\":\"app\",\"to\":\"${CHATBOT_HOST}\",\"port\":8000}"
-  elif ! check_app_to_chatbot "${CHATBOT_HOST}"; then
-    if [[ "${FORCE_COLOCATE_ON_ROUTING_FAIL:-0}" == "1" ]]; then
-      warn "Inter-VM routing failed → forcing colocated mode on ${APP_HOST}"
-      log_event "fallback_colocate_intervm" "{\"reason\":\"app_to_chatbot_http\"}"
-      COLOCATE_CHATBOT_ON_APP=1
-      sync_and_compose_chatbot_on "${APP_HOST}"
-      wait_chatbot_http_ok_ssh "${APP_HOST}" 36 5
-      wait_chatbot_model_ready_optional_ssh "${APP_HOST}" 24 5 || true
-    else
-      die "Inter-VM routing failed: app cannot reach chatbot :8000. Fix Scaleway SG (TCP 8000 app→chatbot) or set FORCE_COLOCATE_ON_ROUTING_FAIL=1."
-    fi
-  fi
-fi
-
-log "STEP 5 — App stack (deploy-app.sh)"
+log "STEP 3 — App stack (deploy-app.sh, Scaleway Generative API direct)"
+wait_for_ssh_ready "${APP_HOST}" || warn "SSH wait before deploy-app exhausted; deploy-app will retry"
+ensure_host_swap "${APP_HOST}" || true
 export APP_DOMAIN
 export CADDY_SITE_NAMES
 export APP_IP="${APP_HOST}"
 export SKIP_VLLM_DEPLOY=1
-export CHATBOT_HEALTH_PATH=/health
-if [[ "${COLOCATE_CHATBOT_ON_APP}" -eq 1 ]]; then
-  export SINGLE_HOST=1
-  export API_IP="${APP_HOST}"
-  unset MODEL_API_URL_FOR_COMPOSE || true
-  unset MODEL_API_URL_ALT_FOR_COMPOSE || true
-else
-  export SINGLE_HOST=0
-  export API_IP="${CHATBOT_HOST}"
-  export MODEL_API_URL_FOR_COMPOSE="http://${CHATBOT_HOST}:8000"
-  export MODEL_API_URL_ALT_FOR_COMPOSE="http://${CHATBOT_PRIVATE_IP}:8000"
-fi
+export USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT}"
+export SKIP_CHATBOT_DEPLOY=1
+export SCALEWAY_API_KEY SCALEWAY_PROJECT_ID SCALEWAY_MODEL SCALEWAY_API_BASE_URL
+export MODEL_API_URL_FOR_COMPOSE=""
+export MODEL_API_URL_ALT_FOR_COMPOSE=""
+export SINGLE_HOST=1
+export API_IP="${APP_HOST}"
 export ALLOW_DEGRADED_CHATBOT
-log_event "exec_deploy_app" "{\"SINGLE_HOST\":\"${SINGLE_HOST:-0}\",\"COLOCATE\":\"${COLOCATE_CHATBOT_ON_APP}\"}"
+export DEPLOY_FRESH_CONTAINERS="${DEPLOY_FRESH_CONTAINERS:-0}"
+log_event "exec_deploy_app" "{\"SINGLE_HOST\":1,\"USE_SCALEWAY_DIRECT\":\"${USE_SCALEWAY_DIRECT}\",\"DEPLOY_FRESH_CONTAINERS\":\"${DEPLOY_FRESH_CONTAINERS}\"}"
 export OUTBOUND_IP
-if ! "${SCRIPT_DIR}/deploy-app.sh" "$@"; then
-  die "deploy-app.sh failed — app stack not fully updated (inspect SSH host ${APP_HOST})"
-fi
+export SSH_BOOT_WAIT_SEC="${SSH_BOOT_WAIT_SEC:-180}"
+_deploy_app_rc=0
+"${SCRIPT_DIR}/deploy-app.sh" "$@" || _deploy_app_rc=$?
+[[ "${_deploy_app_rc}" -eq 0 ]] || die "deploy-app.sh failed — app stack not fully updated (inspect SSH host ${APP_HOST})"
 post_deploy_verify
 log "DEPLOY SUCCESS — app SSH, sync, compose, /health gates, deploy-app, and post-deploy HTTPS checks passed."
 exit 0

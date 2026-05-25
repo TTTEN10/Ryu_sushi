@@ -23,10 +23,20 @@ _PROMPT_DIR = Path(__file__).resolve().parent
 
 
 def _load_dr_safe_system_prompt(mode: str | None) -> str:
-    base = (_PROMPT_DIR / "dr_safe_system_prompt.txt").read_text(encoding="utf-8").strip()
+    fallback = "You are Dr. Safe, a supportive mental wellness assistant. You do not diagnose or treat."
+    base_path = _PROMPT_DIR / "dr_safe_system_prompt.txt"
+    try:
+        base = base_path.read_text(encoding="utf-8").strip() if base_path.is_file() else fallback
+    except OSError:
+        base = fallback
     if mode == "guest":
-        guest = (_PROMPT_DIR / "dr_safe_guest_append.txt").read_text(encoding="utf-8").strip()
-        return f"{base}\n\n{guest}"
+        guest_path = _PROMPT_DIR / "dr_safe_guest_append.txt"
+        try:
+            guest = guest_path.read_text(encoding="utf-8").strip() if guest_path.is_file() else ""
+        except OSError:
+            guest = ""
+        if guest:
+            return f"{base}\n\n{guest}"
     return base
 
 

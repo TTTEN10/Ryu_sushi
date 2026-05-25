@@ -1,8 +1,8 @@
 # Deployment blockers and mitigations
 
-This document summarizes issues that have blocked or complicated production deployment for SafePsy (`./deployment/deploy.sh` and related scripts). IPs and hostnames match the current Terraform defaults for prod; override with `APP_HOST`, `CHATBOT_HOST`, etc. if your infrastructure differs.
+This document summarizes issues that have blocked or complicated production deployment for SafePsy (`./deployment/deploy.sh`, `./deployment/deploy-live-app.sh`, and related scripts). Override hosts with `APP_HOST`, `APP_IP`, etc. if your infrastructure differs.
 
-**Prod Scaleway (defaults in repo):** app **`scw-happy-app`** public **`51.159.149.66`**; chatbot / LLM API **`scw-new-psy`** public **`62.210.238.160`** (instance id `60a5e86a-07a8-4e17-aa3b-862ae586d030`, PAR2). Ensure **TCP 8000** on the chatbot SG allows the app instance IP.
+**Prod Scaleway (validated May 2026):** single app host **`scw-last-app`** public **`151.115.151.231`** (`polinapsycho.com`). LLM is **Scaleway Generative API direct** (`USE_SCALEWAY_DIRECT=1`); there is no separate chatbot VM or TCP 8000 hop in the default deploy path. See `deployment/DEPLOY-RUNBOOK.md` and `documentation/chatbot-migration.md`.
 
 ---
 
@@ -12,24 +12,23 @@ This mirrors a real `deploy.sh` run where **Terraform completes** but **no code 
 
 ### Timeline (success then hard stop)
 
-1. **Pre-flight** — Passes: `git` matches `origin/main`, `terraform validate` OK, outbound IPv4 printed (e.g. `88.160.139.5` when running from Cursor’s cloud agent, or your home ISP IP from a Mac).
-2. **STEP 1 — Local Docker build** — Passes (optional); only validates the chatbot image on the laptop.
-3. **STEP 2 — `terraform apply`** — Often reports **“No changes”** if instances already match `variables.tf` / `terraform.tfvars`. Outputs still list **app** and **chatbot** IPs from the Scaleway API.
-4. **Immediately after** — `[CHECK] SSH → app (51.159.149.66)` runs with **retries** (default 3, `DEPLOY_RETRY_DELAY_SEC` between attempts).
-5. **Failure** — Each attempt ends with **`Connection timed out during banner exchange`** and/or **`Connection to 51.159.149.66 port 22 timed out`**. Script exits: **`[ERROR] Cannot deploy: app host SSH failed.`**
+1. **Pre-flight** — Passes: `git` matches `origin/main`, `terraform validate` OK, outbound IPv4 printed (e.g. when running from Cursor’s cloud agent, or your home ISP IP from a Mac).
+2. **`terraform apply`** (full pipeline only) — Often reports **“No changes”** if instances already match `variables.tf` / `terraform.tfvars`.
+3. **Immediately after** — `[SSH CHECK] → app (<APP_HOST>)` runs with **retries** (default 3, `DEPLOY_RETRY_DELAY_SEC` between attempts).
+4. **Failure** — Each attempt ends with **`Connection timed out during banner exchange`** and/or **`Connection to <app-ip> port 22 timed out`**. Script exits: **`[ERROR] Cannot deploy: app host SSH failed.`**
 
 ### Why this is confusing
 
 - **Terraform does not need SSH.** It uses the Scaleway API with keys from `terraform.tfvars` (or `TF_VAR_*`). The API can read instance IDs and state while **port 22 is closed** to your current public IP.
-- **Deploy does need SSH** to push `tar` streams and run `docker compose`. The **first mandatory SSH** target is always the **app** host (`APP_HOST` / `app_public_ip`). If that fails, you never reach chatbot sync, `deploy-app.sh`, or container recreation.
+- **Deploy does need SSH** to push `tar` streams and run `docker compose`. The **first mandatory SSH** target is always the **app** host (`APP_HOST` / `app_public_ip`). If that fails, you never reach `deploy-app.sh` or container recreation.
 - **“Banner exchange” timeout** usually means the TCP path to port 22 is blocked, filtered, or too lossy for the handshake to finish—treat it as **network / security group**, not an application bug in the repo.
 
 ### Exact mitigations for the observed error
 
-1. In Scaleway, open **inbound TCP 22** on the **app** instance security group for the **exact IPv4** printed in **`[PRE-FLIGHT] Outbound IPv4`** (ideally a `/32` rule). Repeat for the **chatbot** instance if you use the dedicated two-VM path.
-2. **Different machines = different IPs.** If you whitelist your Mac but run deploy from **Cursor Agent / GitHub Actions / another VPN**, you must whitelist **that** outbound IP too—or always run `./deployment/deploy.sh` from one trusted machine whose IP is in the SG.
-3. Confirm the instance is **Running** and the **flexible IP** in the console still matches Terraform outputs (`51.159.149.66` app, `62.210.238.160` chatbot).
-4. Quick test from the same host as deploy: `ssh -v -o ConnectTimeout=10 root@51.159.149.66` — if it hangs at “Connecting…” or “banner exchange”, fix SG/routing before re-running deploy.
+1. In Scaleway, open **inbound TCP 22** on the **app** instance security group for the **exact IPv4** printed in **`[PRE-FLIGHT] Outbound IPv4`** (ideally a `/32` rule).
+2. **Different machines = different IPs.** If you whitelist your Mac but run deploy from **Cursor Agent / GitHub Actions / another VPN**, you must whitelist **that** outbound IP too—or always run deploy from one trusted machine whose IP is in the SG.
+3. Confirm the instance is **Running** and the **flexible IP** in the console still matches `APP_HOST` / Terraform `app_public_ip` (default `151.115.151.231`).
+4. Quick test from the same host as deploy: `ssh -v -o ConnectTimeout=10 root@151.115.151.231` — if it hangs at “Connecting…” or “banner exchange”, fix SG/routing before re-running deploy.
 
 ---
 
@@ -83,35 +82,15 @@ Even if the chatbot listens on `0.0.0.0:8000`, **routing or security groups** ma
 
 ---
 
-## 3. Chatbot container crash on boot (image / imports)
+## 3. (Historical) FastAPI chatbot container issues
 
-### Symptom
-
-- Colocated or remote chatbot container **restarts**; logs show `ModuleNotFoundError: No module named 'prompt_builder'` (or `session_redis`).
-
-### Cause
-
-The `apps/ai-chatbot/Dockerfile` only copied `main.py` and omitted helper modules.
-
-### Status
-
-**Fixed in repo:** `Dockerfile` copies `prompt_builder.py` and `session_redis.py`, runs **`RUN python -c "import prompt_builder, session_redis"`** so a bad image fails at build time, and defines a **Docker HEALTHCHECK** on `/health` with a long **start-period** for model load. Rebuild images after pull.
+The dedicated `apps/ai-chatbot` stack was **removed** in 2026-05. Production uses Scaleway Generative API direct from the app-host Python proxy. See `documentation/chatbot-migration.md`. This section is kept only for old run logs.
 
 ---
 
-## 4. Deploy health timeouts while the CPU model loads
+## 4. (Historical) Deploy health timeouts while CPU model loaded
 
-### Symptom
-
-- `deploy.sh` fails at “Verify colocated chatbot /health” even though the container eventually becomes healthy.
-
-### Cause
-
-`initialize_model()` used to run **synchronously** in the FastAPI lifespan **before** the server accepted connections, so `/health` was unreachable for a long time during Hugging Face weight load on small instances.
-
-### Status
-
-**Fixed in repo:** model init runs in a **background thread** so `/health` responds immediately (degraded until the model is ready).
+No longer applicable to the default deploy path (`USE_SCALEWAY_DIRECT=1`, no chatbot `/health` gate).
 
 ---
 
@@ -285,8 +264,9 @@ Egress filtering, geo/IP blocking, or Scaleway **SG rules on port 80/443** (if y
 
 | File | Role |
 |------|------|
-| `deployment/deploy.sh` | Full pipeline: pre-flight, optional `--diagnose`, Terraform → chatbot (dedicated or colocated) → `deploy-app.sh`; logs to `deployment-logs/` |
+| `deployment/deploy-live-app.sh` | **Default prod** — single host, Scaleway direct |
+| `deployment/deploy.sh` | Full pipeline: pre-flight, Terraform → `deploy-app.sh`; logs to `deployment-logs/` |
 | `deployment/deploy-app.sh` | Caddy + SPA + Python proxy on app host |
-| `deployment/bootstrap-chatbot-host.sh` | Chatbot-only sync when you SSH only to the chatbot host |
+| `documentation/chatbot-migration.md` | Removed chatbot VM artifacts and current LLM path |
 | `deployment/verify-production.sh` | HTTPS / `/api` smoke checks against `APP_DOMAIN` |
 | `infra/terraform/envs/prod/main.tf` | Notes on SG management vs Terraform |
