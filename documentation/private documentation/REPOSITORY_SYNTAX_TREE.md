@@ -2,7 +2,7 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPappv2**).
 
-> **Last updated:** 2026-05-17 — removed `apps/ai-chatbot`, `deploy/chatbot`, `deployment/chatbot`; prod LLM via Scaleway direct (`documentation/chatbot-migration.md`).
+> **Last updated:** 2026-05-24 — SIWE cookie-first auth; Scaleway direct LLM (`llm-routing`, crisis/cache/metrics); prod/local deploy via `deploy-live-app.sh` / `deploy-local-app.sh` (`documentation/chatbot-migration.md`, `deployment/DEPLOY-RUNBOOK.md`).
 
 ---
 
@@ -18,7 +18,7 @@ A tree view of the codebase where each **leaf** is a file with: **name**, **func
 ├── .dockerignore                   # Docker build ignore rules — Text
 ├── prisma/
 │   └── schema.prisma               # Legacy duplicate; canonical schema is `apps/api/schema.prisma` (root `db:*` use `--schema=apps/api/schema.prisma`) — Prisma
-├── public/                         # Shared static assets (logos, hero imagery, `.well-known/apple-app-site-association` for iOS Universal Links) — PNG/JPG/JSON
+├── public/                         # Shared static assets (`DrSafe1.png`, logos, `.well-known/apple-app-site-association`) — PNG/JPG/JSON
 ├── logs/                           # Local log mount (e.g. healthcheck) — Text
 ├── api/                            # Workspace-adjacent Cursor scope (not the Express API)
 │   └── .cursor/rules/service_scope.mdc
@@ -194,6 +194,9 @@ apps/api/
 │   │   └── subscribe.test.ts       # Subscribe route tests (consent, validation) — TypeScript
 │   │
 │   ├── lib/__tests__/
+│   │   ├── crisis-detection.test.ts   # Crisis keyword scan tests — TypeScript
+│   │   ├── response-cache.test.ts     # Redis response cache tests — TypeScript
+│   │   ├── scaleway-metrics.test.ts   # Scaleway usage logging tests — TypeScript
 │   │   └── retriever.service.test.ts # Retriever service tests — TypeScript
 │   │
 │   └── contracts/
@@ -311,6 +314,12 @@ apps/web/
 │   │   ├── errorMessages.ts      # User-facing error messages — TypeScript
 │   │   ├── queueManager.ts       # Request/queue management — TypeScript
 │   │   └── safepsy-web3-client.ts # Web3/wallet client — TypeScript
+│   │
+│   ├── lib/
+│   │   └── __tests__/
+│   │       ├── api-fetch.test.ts           # `apiFetch` cookie session tests — TypeScript
+│   │       ├── wallet-auth-contract.test.ts # SIWE auth contract tests — TypeScript
+│   │       └── wallet-error-messages.test.ts # Wallet error UX tests — TypeScript
 │   │
 │   ├── components/
 │   │   ├── AboutMe.tsx            # About me page — TypeScript (TSX)
@@ -583,30 +592,25 @@ tests/
 ```
 documentation/
 ├── README.md                    # Top-level doc pointer — Markdown
+├── chatbot-migration.md         # FastAPI VM removed; Scaleway direct on app host — Markdown
 │
 ├── public documentation/        # Shareable / external-facing copies of guides
 │   ├── README.md
-│   ├── AUTHORS.md
-│   ├── BETA_QUICKSTART.md
+│   ├── API_ENDPOINTS.md         # Health, auth (SIWE), DID, chat, metrics — Markdown
 │   ├── BETA_QUICKSTART_AND_OFFBOARDING.md
 │   ├── CHANGELOG.md
 │   ├── CHAT_COMPLETE_GUIDE.md
 │   ├── CLAIMS_AND_TRUST_LANGUAGE.md
 │   ├── CODE_OF_CONDUCT.md
 │   ├── CONVERSION_METRICS.md      # Funnel cookie schema (`sp_product_metrics`) — Markdown
-│   ├── DEPENDENCIES.md
 │   ├── DID_COMPLETE_GUIDE.md
 │   ├── ENCRYPTION_COMPLETE_GUIDE.md
 │   ├── FAQ.md
 │   ├── LAUNCH.md
-│   ├── LICENSE.md
-│   ├── NODE-LICENSE.md
 │   ├── outreach.md
 │   ├── PRICING_COMPLETE_GUIDE.md
 │   ├── PRIVACY-BY-DESIGN.md
-│   ├── PRODUCTION_FIXES_2026_05_08.md  # Critical production blockers resolved (DID update flow, env template, verification script) — Markdown
 │   ├── RAG_COMPLETE_GUIDE.md
-│   ├── SECURITY_COMPLETE_GUIDE.md
 │   ├── SMART_CONTRACTS_AUDIT_REPORT.md
 │   ├── TESTING_COMPLETE_GUIDE.md
 │   ├── THIRD-PARTY-NOTICES.md
@@ -619,7 +623,7 @@ documentation/
 │
 └── private documentation/       # Internal ops, CI/CD, contracts, runbooks (this file lives here)
     ├── README.md
-    ├── REPOSITORY_SYNTAX_TREE.md   # This file — Markdown (updated 2026-05-10)
+    ├── REPOSITORY_SYNTAX_TREE.md   # This file — Markdown
     ├── APPLY_SCHEMA.md
     ├── BACKUP_DR_COMPLETE_GUIDE.md
     ├── BACKUP_DR_IMPLEMENTATION_SUMMARY.md
@@ -638,7 +642,6 @@ documentation/
     ├── MOBILE_LAUNCH_STRESS_TEST.md  # Pre-ship device checklist (WC, DID, deep links, compliance) — Markdown
     ├── PRODUCTION_ENV_LOCK.md        # API + Universal Link + AASA same-domain matrix; EAS secrets — Markdown
     ├── chatbot.md               # Chatbot + API gateway + Scaleway direct (internal)
-    ├── ../chatbot-migration.md  # FastAPI VM removed; Scaleway direct (repo root documentation/)
     ├── CONTRACTS_SCRIPTS_TSC.md  # Why tsc reports errors under apps/api/src/contracts/scripts — Markdown
     ├── TYPESCRIPT_ISSUES_REPORT.md  # Snapshot of remaining TS diagnostics (esp. apps/web) — Markdown
     ├── GUEST_MODE.md           # Guest vs wallet chat flow (internal)

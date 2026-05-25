@@ -53,6 +53,40 @@ function healthOriginFromApiUrl(apiUrl) {
   }
 }
 
+/** Candidate health URLs: bare `/healthz` (Express) and `/api/healthz` (reverse proxy). */
+function healthCheckUrls(base) {
+  const b = String(base || '').trim().replace(/\/$/, '');
+  if (!b) return [];
+  const urls = [`${b}/healthz`, `${b}/api/healthz`];
+  if (b.endsWith('/api')) urls.unshift(`${b}/healthz`);
+  return [...new Set(urls)];
+}
+
+function isHealthOkBody(text) {
+  const t = String(text || '').trim();
+  if (t === 'ok') return true;
+  try {
+    const j = JSON.parse(t);
+    return j?.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+async function probeApiHealth(base) {
+  for (const url of healthCheckUrls(base)) {
+    try {
+      const res = await fetch(url, { redirect: 'manual' });
+      if (res.status !== 200) continue;
+      const text = await res.text();
+      if (isHealthOkBody(text)) return { ok: true, url };
+    } catch {
+      /* try next candidate */
+    }
+  }
+  return { ok: false, tried: healthCheckUrls(base) };
+}
+
 async function fetchJsonRpc(rpcUrl, body) {
   const r = await fetch(rpcUrl, {
     method: 'POST',
@@ -102,24 +136,16 @@ async function main() {
   const stagingOrigin = (process.env.STAGING_API_ORIGIN || '').trim();
   const healthBase = stagingOrigin || healthOriginFromApiUrl(apiUrlRaw);
   if (healthBase) {
-    const healthUrl = `${healthBase.replace(/\/$/, '')}/healthz`;
-    try {
-      const res = await fetch(healthUrl, { redirect: 'manual' });
-      if (res.status !== 200) {
-        failures.push(`GET ${healthUrl} returned ${res.status} (expected 200)`);
-      } else {
-        const text = await res.text();
-        if (text.trim() !== 'ok') {
-          failures.push(`GET ${healthUrl} body was not "ok" (got ${JSON.stringify(text.slice(0, 80))})`);
-        } else {
-          notes.push(`API health OK: ${healthUrl}`);
-        }
-      }
-    } catch (e) {
-      failures.push(`GET ${healthUrl} failed: ${e?.message || e}`);
+    const probe = await probeApiHealth(healthBase);
+    if (!probe.ok) {
+      failures.push(
+        `API health check failed for ${healthBase} (tried: ${(probe.tried || []).join(', ')})`,
+      );
+    } else {
+      notes.push(`API health OK: ${probe.url}`);
     }
   } else {
-    notes.push('Skipped API /healthz (set STAGING_API_ORIGIN=https://your-api-host or VITE_API_URL in apps/web/.env).');
+    notes.push('Skipped API health (set STAGING_API_ORIGIN=https://your-api-host or VITE_API_URL in apps/web/.env).');
   }
 
   const rpc =
