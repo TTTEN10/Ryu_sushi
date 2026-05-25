@@ -2,6 +2,61 @@
  * Utility to provide actionable, context-specific error messages
  */
 
+const WALLET_REJECTION_RE =
+  /user rejected|action_rejected|ethers-user-denied|rejectallapprovals|rejected the request|denied message signature/i;
+
+function isWalletUserRejection(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    const e = error as { code?: unknown; message?: unknown; shortMessage?: unknown };
+    const code = e.code;
+    if (code === 'ACTION_REJECTED' || code === 4001 || code === '4001') {
+      return true;
+    }
+    const msg = String(e.message ?? e.shortMessage ?? '');
+    if (WALLET_REJECTION_RE.test(msg)) {
+      return true;
+    }
+  }
+  const msg = typeof error === 'string' ? error : '';
+  return WALLET_REJECTION_RE.test(msg);
+}
+
+/** Short, user-facing copy for wallet connect / sign failures (ethers, WalletConnect, MetaMask). */
+export function getWalletErrorMessage(error: unknown): string {
+  if (error == null || error === '') {
+    return "Couldn't connect wallet. Please try again.";
+  }
+
+  if (isWalletUserRejection(error)) {
+    return 'Wallet request declined.';
+  }
+
+  const msg =
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? error.message
+        : '';
+
+  if (!msg) {
+    return "Couldn't connect wallet. Please try again.";
+  }
+
+  if (msg.includes('Sepolia Testnet') || msg.includes('No Ethereum wallet')) {
+    return msg;
+  }
+
+  if (WALLET_REJECTION_RE.test(msg)) {
+    return 'Wallet request declined.';
+  }
+
+  if (msg.length > 120 || /info=\{|jsonrpc|version=6\./i.test(msg)) {
+    return "Couldn't connect wallet. Please try again.";
+  }
+
+  return msg;
+}
+
 interface ErrorContext {
   status?: number;
   code?: string;
@@ -88,6 +143,10 @@ export function getActionableErrorMessage(error: unknown, context: ErrorContext 
 
   // Generic fallback
   if (error instanceof Error) {
+    if (isWalletUserRejection(error)) {
+      return 'Wallet request declined.';
+    }
+
     // Check for common error patterns
     if (error.message.toLowerCase().includes('network')) {
       return 'Network error. Check your connection and try again.';

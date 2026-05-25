@@ -2,12 +2,13 @@
  * Sole HTTP layer for wallet **session establishment** (`/wallet/connect`, `/wallet/verify`)
  * and cookie-backed session calls used by the React app (`/me`, `/logout`). Signing stays in
  * `WalletContext` / callers; this module performs exactly **one** `POST .../wallet/verify` per
- * successful login flow (`useWalletLogin`). Always use **`credentials: 'include'`** so httpOnly
+ * successful login flow (`useWalletLogin`). Uses **`API_SESSION_CREDENTIALS`** so httpOnly
  * `walletSession` is set and sent.
  *
  * Default base: `apps/web/src/config/api.ts` (`/api/...` when `VITE_API_URL` unset, Vite proxy).
  */
-import { apiUrl } from '../config/api';
+import { API_SESSION_CREDENTIALS, apiUrl } from '../config/api';
+import { ethers } from 'ethers';
 
 export type WalletAuthHttpOptions = {
   /** Server origin only, e.g. `http://localhost:3001` (used by `SafePsyWeb3Client`). Omit for same-origin `apiUrl`. */
@@ -25,12 +26,41 @@ function walletAuthFetchUrl(pathUnderApi: string, options?: WalletAuthHttpOption
   return `${origin}/api${p}`;
 }
 
+/** Matches API `walletSignature` schema: message + signature required; address/chainId optional (SIWE recovery). */
 export type WalletVerifyPayload = {
-  address: string;
   message: string;
   signature: string;
-  chainId: number;
+  address?: string;
+  chainId?: number;
 };
+
+function walletConnectJsonBody(address: string, chainId: number): string {
+  return JSON.stringify({ address, chainId });
+}
+
+function walletVerifyJsonBody(data: WalletVerifyPayload): string {
+  const body: WalletVerifyPayload = {
+    message: data.message,
+    signature: data.signature,
+  };
+  if (data.address !== undefined) body.address = data.address;
+  if (data.chainId !== undefined) body.chainId = data.chainId;
+  return JSON.stringify(body);
+}
+
+function walletAuthLegacyHeaders(fields: {
+  address?: string;
+  chainId?: number;
+  message?: string;
+  signature?: string;
+}): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (fields.address) headers['x-wallet-address'] = fields.address;
+  if (fields.chainId !== undefined) headers['x-chain-id'] = String(fields.chainId);
+  if (fields.message) headers['x-wallet-message'] = fields.message;
+  if (fields.signature) headers['x-wallet-signature'] = fields.signature;
+  return headers;
+}
 
 export type WalletConnectResponse = {
   success: boolean;
@@ -69,15 +99,13 @@ export async function requestWalletMessage(
   chainId: number,
   options?: WalletAuthHttpOptions,
 ): Promise<string> {
+  // Checksum the address (EIP-55) - API validation requires checksummed addresses
+  const checksummedAddress = ethers.getAddress(address);
   const response = await fetch(walletAuthFetchUrl('/auth/wallet/connect', options), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-wallet-address': address,
-      'x-chain-id': String(chainId),
-    },
-    credentials: 'include',
-    body: JSON.stringify({ address, chainId }),
+    headers: walletAuthLegacyHeaders({ address: checksummedAddress, chainId }),
+    credentials: API_SESSION_CREDENTIALS,
+    body: walletConnectJsonBody(checksummedAddress, chainId),
   });
 
   if (!response.ok) {
@@ -97,15 +125,14 @@ export async function verifyWalletSignature(
 ): Promise<WalletVerifyResponse> {
   const response = await fetch(walletAuthFetchUrl('/auth/wallet/verify', options), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-wallet-address': data.address,
-      'x-chain-id': String(data.chainId),
-      'x-wallet-message': data.message,
-      'x-wallet-signature': data.signature,
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
+    headers: walletAuthLegacyHeaders({
+      address: data.address,
+      chainId: data.chainId,
+      message: data.message,
+      signature: data.signature,
+    }),
+    credentials: API_SESSION_CREDENTIALS,
+    body: walletVerifyJsonBody(data),
   });
 
   if (!response.ok) {
@@ -131,7 +158,7 @@ export async function fetchWalletSession(): Promise<SessionMeResponse['data'] | 
   const response = await fetch(walletAuthFetchUrl('/auth/me'), {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
+    credentials: API_SESSION_CREDENTIALS,
   });
 
   if (response.status === 401) {
@@ -153,7 +180,7 @@ export async function logoutWalletSession(): Promise<void> {
   await fetch(walletAuthFetchUrl('/auth/logout'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
+    credentials: API_SESSION_CREDENTIALS,
   });
 }
 
@@ -170,7 +197,7 @@ export async function postDidCheck(): Promise<DidCheckResponse | 'unauthorized'>
   const response = await fetch(walletAuthFetchUrl('/did/check'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
+    credentials: API_SESSION_CREDENTIALS,
   });
 
   if (response.status === 401) {

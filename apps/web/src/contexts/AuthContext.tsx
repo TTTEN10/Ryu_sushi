@@ -50,6 +50,7 @@ interface AuthContextType {
   checkDID: (options?: { skipVerifiedCheck?: boolean }) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,6 +149,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
       clearLegacyWalletToken();
 
+      // One POST /wallet/verify in executeLogin; GET /auth/me confirms cookie (not a second verify).
       await executeLogin();
 
       const session = await fetchWalletSession();
@@ -196,6 +198,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       disconnectWallet();
     }
   }, [disconnectWallet]);
+
+  const clearAuthError = useCallback(() => {
+    setAuthState((prev) => ({ ...prev, error: null }));
+  }, []);
 
   const refreshAuth = useCallback(async () => {
     if (!wallet) {
@@ -308,6 +314,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         checkDID,
         logout,
         refreshAuth,
+        clearAuthError,
       }}
     >
       {children}

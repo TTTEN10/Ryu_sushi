@@ -4,7 +4,7 @@
  */
 
 import { decrypt } from './encryption';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface ChatRetrievalResult {
   success: boolean;
@@ -39,10 +39,9 @@ export async function retrieveChatData(
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(apiUrl('/chat/load'), {
+    const response = await apiFetch('/chat/load', {
       method: 'GET',
       headers,
-      credentials: 'include',
     });
 
     if (!response.ok) {

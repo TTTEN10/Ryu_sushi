@@ -7,7 +7,7 @@
 
 import { decrypt } from './encryption';
 import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 export interface ChatSummaryRetrievalResult {
   success: boolean;
@@ -56,10 +56,9 @@ export async function retrieveChatSummary(
 
     // Fetch encrypted summary from API (which handles IPFS/S3 download)
     // The API endpoint retrieves the reference from the database and downloads from storage
-    const response = await fetch(apiUrl('/chat/summary'), {
+    const response = await apiFetch('/chat/summary', {
       method: 'GET',
       headers: getWalletAuthHeaders(walletAddress, chainId),
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -130,10 +129,9 @@ export async function getChatSummaryReference(
   chainId?: number
 ): Promise<{ success: boolean; reference?: string; error?: string }> {
   try {
-    const response = await fetch(apiUrl('/chat/load'), {
+    const response = await apiFetch('/chat/load', {
       method: 'GET',
       headers: getWalletAuthHeaders(walletAddress, chainId),
-      credentials: 'include',
     });
 
     if (!response.ok) {

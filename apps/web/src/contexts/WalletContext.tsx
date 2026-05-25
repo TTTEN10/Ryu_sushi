@@ -5,6 +5,7 @@ import {
   SUPPORTED_CHAIN_ID_HEX,
 } from '../config/supportedChain';
 import { recordWalletClick, recordWalletSuccess } from '../utils/conversionMetrics';
+import { getWalletErrorMessage } from '../utils/errorMessages';
 
 type WalletConnectProvider = {
   accounts: string[];
@@ -190,10 +191,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             }
             
             const signer = await provider.getSigner();
+            const addr = ethers.getAddress(accounts[0].address);
             setProvider(provider);
             setSigner(signer);
             setWallet({
-              address: accounts[0].address,
+              address: addr,
               chainId,
               isConnected: true,
             });
@@ -219,10 +221,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             // Create ethers provider from WalletConnect
           const ethersProvider = new ethers.BrowserProvider(walletConnectProvider);
             const signer = await ethersProvider.getSigner();
+            const addr = ethers.getAddress(accounts[0]);
             setProvider(ethersProvider);
             setSigner(signer);
             setWallet({
-              address: accounts[0],
+              address: addr,
               chainId,
               isConnected: true,
             });
@@ -377,7 +380,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             if (accounts.length > 0) {
               const ethersProvider = new ethers.BrowserProvider(providerToUse);
               const signer = await ethersProvider.getSigner();
-              const addr = accounts[0];
+              const addr = ethers.getAddress(accounts[0]);
               walletSessionRef.current = { address: addr, chainId };
               providerRef.current = ethersProvider;
 
@@ -443,7 +446,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         }
 
         const signer = await provider.getSigner();
-        const addr = accounts[0];
+        const addr = ethers.getAddress(accounts[0]);
         const net = await provider.getNetwork();
         const resolvedChainId = Number(net.chainId);
 
@@ -465,7 +468,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         throw new Error('No Ethereum wallet found. Please install MetaMask or use WalletConnect.');
       }
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to connect wallet';
+      const errorMessage = getWalletErrorMessage(err);
       setError(errorMessage);
       console.error('Wallet connection error:', err);
       throw err;
@@ -490,19 +493,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const signMessage = useCallback(
     async (message: string): Promise<string> => {
-      if (!wallet?.address) {
-        throw new Error('Wallet not connected');
-      }
-      if (!provider) {
+      const prov = providerRef.current ?? provider;
+      const addr = walletSessionRef.current?.address ?? wallet?.address;
+      if (!addr || !prov) {
         throw new Error('Wallet not connected');
       }
 
       try {
-        const prov = providerRef.current ?? provider;
-        const addr = walletSessionRef.current?.address ?? wallet?.address;
-        if (!addr || !prov) {
-          throw new Error('Wallet not connected');
-        }
         const eip1193 = prov.provider as unknown as {
           request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
         };
@@ -512,7 +509,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         })) as string;
         return signature;
       } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to sign message';
+        const errorMessage = getWalletErrorMessage(err);
         setError(errorMessage);
         throw err;
       }

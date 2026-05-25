@@ -87,4 +87,30 @@ describe('wallet auth HTTP contract', () => {
     expect(body.signature).toBe(payload.signature);
     expect(body.chainId).toBe(payload.chainId);
   });
+
+  it('verifyWalletSignature omits optional address and chainId when not provided', async () => {
+    const message = 'SafePsy Wallet Verification\n\nAddress: 0x...\nNonce: 0x...\n';
+    const signature = `0x${'b'.repeat(130)}`;
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        success: true,
+        data: { address: '0x1234567890123456789012345678901234567890', chainId: 11155111, verified: true },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await verifyWalletSignature({ message, signature });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.message).toBe(message);
+    expect(body.signature).toBe(signature);
+    expect(body).not.toHaveProperty('address');
+    expect(body).not.toHaveProperty('chainId');
+    const headers = init.headers as Record<string, string>;
+    expect(headers['x-wallet-message']).toBe(message);
+    expect(headers['x-wallet-signature']).toBe(signature);
+    expect(headers['x-wallet-address']).toBeUndefined();
+    expect(headers['x-chain-id']).toBeUndefined();
+  });
 });

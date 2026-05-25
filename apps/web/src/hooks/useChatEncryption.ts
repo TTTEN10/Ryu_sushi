@@ -8,13 +8,25 @@ import {
   encryptChatHistory,
   decryptChatHistory,
 } from '../utils/did-encryption';
+import type { JsonRpcSigner } from 'ethers';
 import { getEncryptedKeyMetadata, updateEncryptedKeyMetadata } from '../utils/did-contract';
 import { onchainMetadataToEncryptedChatKey, encryptedChatKeyToOnchainBytes } from '../utils/did-key-metadata';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 /** Legacy cache key; read only for migration when on-chain metadata is still empty. */
 function legacyLocalStorageKey(walletAddress: string): string {
   return `encryptedKey_${walletAddress.toLowerCase()}`;
+}
+
+async function persistEncryptedKeyToChain(
+  signer: JsonRpcSigner,
+  encryptedKeyString: string,
+): Promise<void> {
+  const bytes = encryptedChatKeyToOnchainBytes(encryptedKeyString);
+  if (bytes.length > 10_000) {
+    throw new Error('Encrypted key metadata exceeds on-chain size limit');
+  }
+  await updateEncryptedKeyMetadata(signer, bytes);
 }
 
 interface ChatMessage {
@@ -39,9 +51,11 @@ export interface SaveChatResult {
  *
  * Flow (authenticated):
  * 1. Load wallet-wrapped symmetric key from DID `encryptedKeyMetadata` (on-chain), not localStorage.
- * 2. Optional: migrate from legacy `localStorage` once if chain metadata is empty.
- * 3. Decrypt DEK with wallet-derived KEK; load ciphertext from API; decrypt messages.
- * 4. On save: encrypt chat, POST /api/chat/save; caller updates chat reference on-chain with key bytes.
+ * 2. Optional: migrate from legacy `localStorage` once if chain metadata is empty, then write
+ *    `encryptedKeyMetadata` on-chain and remove the legacy key.
+ * 3. New keys with an existing DID: persist via `updateEncryptedKeyMetadata` immediately.
+ * 4. On save: encrypt chat, POST /api/chat/save; caller updates chat reference on-chain with key bytes
+ *    (`updateChatReference` via `ChatWidget` / `keyMetadataBytesForDidUpdate`).
  */
 export function useChatEncryption() {
   const { wallet, signer, provider } = useWallet();
@@ -89,6 +103,14 @@ export function useChatEncryption() {
           );
           setSymmetricKey(decryptedKey);
           setEncryptedKey(storedEncryptedKey);
+          if (provider && didContractConfigured) {
+            try {
+              await persistEncryptedKeyToChain(signer, storedEncryptedKey);
+              localStorage.removeItem(legacyLocalStorageKey(wallet.address));
+            } catch (err) {
+              console.warn('Could not migrate encrypted key to DID contract:', err);
+            }
+          }
           return;
         }
       }
@@ -98,6 +120,14 @@ export function useChatEncryption() {
 
       setSymmetricKey(newKey);
       setEncryptedKey(encrypted);
+
+      if (authState.didInfo?.hasDid && provider && didContractConfigured) {
+        try {
+          await persistEncryptedKeyToChain(signer, encrypted);
+        } catch (err) {
+          console.warn('Could not persist new encrypted key to DID contract:', err);
+        }
+      }
     } catch (err: any) {
       console.error('Error initializing encryption key:', err);
       setError(err.message || 'Failed to initialize encryption');
@@ -122,12 +152,7 @@ export function useChatEncryption() {
       return undefined;
     }
 
-    const bytes = encryptedChatKeyToOnchainBytes(encryptedKey);
-    if (bytes.length > 10_000) {
-      throw new Error('Encrypted key metadata exceeds on-chain size limit');
-    }
-
-    return updateEncryptedKeyMetadata(signer, bytes);
+    return persistEncryptedKeyToChain(signer, encryptedKey);
   }, [wallet, signer, encryptedKey, authState.didInfo]);
 
   const loadChat = useCallback(async (): Promise<ChatMessage[]> => {
@@ -140,10 +165,9 @@ export function useChatEncryption() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/chat/load'), {
+      const response = await apiFetch('/chat/load', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -183,10 +207,9 @@ export function useChatEncryption() {
 
       const didTokenId = authState.didInfo?.tokenId ?? authState.didInfo?.did ?? null;
 
-      const response = await fetch(apiUrl('/chat/save'), {
+      const response = await apiFetch('/chat/save', {
         method: 'POST',
         headers,
-        credentials: 'include',
         body: JSON.stringify({
           encryptedChatBlob: encryptedBlob,
           didTokenId,

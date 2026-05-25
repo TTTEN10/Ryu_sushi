@@ -28,6 +28,24 @@ export function apiUrl(path: string): string {
   return `${base}${p}`
 }
 
+/** Web session auth: httpOnly `walletSession` cookie (no Bearer in JS). */
+export const API_SESSION_CREDENTIALS = 'include' as const
+
+/**
+ * Fetch against the API with session cookies. Use for all authenticated `/api/*` routes.
+ * Mobile (`safepsy-mobile`) uses Bearer from SecureStore instead.
+ */
+export async function apiFetch(pathOrUrl: string, init: RequestInit = {}): Promise<Response> {
+  const url =
+    pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')
+      ? pathOrUrl
+      : apiUrl(pathOrUrl)
+  return fetch(url, {
+    credentials: API_SESSION_CREDENTIALS,
+    ...init,
+  })
+}
+
 /**
  * URLs for routes mounted on the API app root (not under `/api`), e.g. `/healthz`, `/readyz`.
  * When `VITE_API_URL` is unset, returns a same-origin path; Vite must proxy these to the API.
