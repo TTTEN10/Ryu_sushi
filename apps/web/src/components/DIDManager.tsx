@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, CheckCircle, AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface DIDInfo {
   hasDid: boolean;
@@ -43,10 +43,9 @@ export default function DIDManager() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/did/info'), {
+      const response = await apiFetch('/did/info', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -86,10 +85,9 @@ export default function DIDManager() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/did/create'), {
+      const response = await apiFetch('/did/create', {
         method: 'POST',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {

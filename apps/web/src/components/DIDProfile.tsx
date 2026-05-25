@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Shield, 
-  Wallet, 
-  Hash, 
-  Calendar, 
-  FileText, 
-  Download, 
-  Trash2, 
+import {
+  Shield,
+  Wallet,
+  Hash,
+  Calendar,
+  FileText,
+  Download,
+  Trash2,
   AlertTriangle,
   CheckCircle,
   Loader2,
   Copy,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  MessageSquare
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface DIDProfileData {
   hasDid: boolean;
@@ -53,6 +54,9 @@ export default function DIDProfile() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [isExportingChat, setIsExportingChat] = useState(false);
+  const [isDeletingChat, setIsDeletingChat] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,10 +81,9 @@ export default function DIDProfile() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/did/info'), {
+      const response = await apiFetch('/did/info', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -118,10 +121,9 @@ export default function DIDProfile() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/did/export'), {
+      const response = await apiFetch('/did/export', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -141,7 +143,7 @@ export default function DIDProfile() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showToast('success', 'DID profile exported successfully');
       } else {
         throw new Error(data.message || 'Failed to export DID data');
@@ -152,6 +154,113 @@ export default function DIDProfile() {
       showToast('error', err.message || 'Failed to export DID data');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportChat = async () => {
+    if (!authState.isVerified || !authState.walletAddress) {
+      showToast('error', 'Please verify your wallet first');
+      return;
+    }
+
+    try {
+      setIsExportingChat(true);
+      setError(null);
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      const response = await apiFetch('/chat/export', {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 404) {
+          showToast('info', 'No chat history found to export');
+          setIsExportingChat(false);
+          return;
+        }
+        throw new Error(errorData.message || 'Failed to export chat data');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        // Create and download JSON file
+        const jsonStr = JSON.stringify(data.data, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `safepsy-chat-${authState.walletAddress.slice(2, 10)}-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('success', 'Chat history exported successfully. Store this file securely - you will need your wallet to decrypt it.');
+      } else {
+        throw new Error(data.message || 'Failed to export chat data');
+      }
+    } catch (err: any) {
+      console.error('Error exporting chat:', err);
+      setError(err.message || 'Failed to export chat data');
+      showToast('error', err.message || 'Failed to export chat data');
+    } finally {
+      setIsExportingChat(false);
+    }
+  };
+
+  const handleDeleteChat = async () => {
+    if (!authState.isVerified || !authState.walletAddress) {
+      showToast('error', 'Please verify your wallet first');
+      return;
+    }
+
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
+
+    try {
+      setIsDeletingChat(true);
+      setError(null);
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      const response = await apiFetch('/chat', {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 404) {
+          showToast('info', 'No chat history found to delete');
+          setShowDeleteConfirm(false);
+          setIsDeletingChat(false);
+          return;
+        }
+        throw new Error(errorData.message || 'Failed to delete chat data');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        showToast('success', 'Chat history deleted successfully. Note: On-chain references remain but point to deleted data.');
+        setShowDeleteConfirm(false);
+      } else {
+        throw new Error(data.message || 'Failed to delete chat data');
+      }
+    } catch (err: any) {
+      console.error('Error deleting chat:', err);
+      setError(err.message || 'Failed to delete chat data');
+      showToast('error', err.message || 'Failed to delete chat data');
+    } finally {
+      setIsDeletingChat(false);
     }
   };
 
@@ -175,10 +284,9 @@ export default function DIDProfile() {
       };
 
       // First, get revocation instructions from backend
-      const response = await fetch(apiUrl('/did/revoke'), {
+      const response = await apiFetch('/did/revoke', {
         method: 'POST',
         headers,
-        credentials: 'include',
         body: JSON.stringify({ clearChatReference: true }),
       });
 
@@ -414,7 +522,7 @@ export default function DIDProfile() {
           )}
         </div>
 
-        {/* Action Buttons */}
+        {/* DID Action Buttons */}
         <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={handleExport}
@@ -429,7 +537,7 @@ export default function DIDProfile() {
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Export</span>
+                <span>Export DID</span>
               </>
             )}
           </button>
@@ -447,12 +555,98 @@ export default function DIDProfile() {
               ) : (
                 <>
                   <Trash2 className="w-4 h-4" />
-                  <span>Revoke</span>
+                  <span>Revoke DID</span>
                 </>
               )}
             </button>
           )}
         </div>
+
+        {/* Chat Data Management Section */}
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Chat Data Management
+          </h3>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportChat}
+              disabled={isExportingChat}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExportingChat ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Export Chat</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleDeleteChat}
+              disabled={isDeletingChat}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDeletingChat ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Chat</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+            Export your encrypted chat history for backup, or delete it permanently.
+            On-chain references (hashes) remain immutable but point to deleted data.
+          </p>
+        </div>
+
+        {/* Delete Chat Confirmation */}
+        {showDeleteConfirm && (
+          <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-orange-800 dark:text-orange-200 mb-2">
+                  Warning: Deleting chat history is permanent
+                </p>
+                <ul className="text-xs text-orange-700 dark:text-orange-300 space-y-1 mb-3">
+                  <li>• Your encrypted chat data will be permanently deleted from our servers</li>
+                  <li>• This action cannot be undone</li>
+                  <li>• On-chain DID metadata (hashes) will remain but point to deleted data</li>
+                  <li>• Export your chat first if you want to keep a backup</li>
+                </ul>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDeleteChat}
+                    disabled={isDeletingChat}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDeletingChat ? 'Confirming...' : 'Confirm Delete'}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeletingChat}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Revoke Confirmation */}
         {showRevokeConfirm && (

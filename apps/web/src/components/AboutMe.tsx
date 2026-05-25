@@ -9,7 +9,7 @@ import { exportChatData } from '../utils/chat-retrieval';
 import { updateChatDataReference, getDIDProfile } from '../utils/did-contract';
 import { decryptSymmetricKey, decryptChatHistory } from '../utils/did-encryption';
 import { onchainMetadataToEncryptedChatKey } from '../utils/did-key-metadata';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface DIDProfile {
   owner: string;
@@ -76,10 +76,9 @@ export default function AboutMe() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/did/info'), {
+      const response = await apiFetch('/did/info', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -269,10 +268,9 @@ export default function AboutMe() {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/chat/load'), {
+      const response = await apiFetch('/chat/load', {
         method: 'GET',
         headers,
-        credentials: 'include',
       });
 
       if (!response.ok) {

@@ -5,16 +5,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../config/supportedChain';
 import { useToast } from '../hooks/useToast';
-import { getActionableErrorMessage } from '../utils/errorMessages';
+import { getActionableErrorMessage, getWalletErrorMessage } from '../utils/errorMessages';
 
 type ConnectWalletVariant = 'default' | 'header';
 
 export default function ConnectWallet({ variant = 'default' }: { variant?: ConnectWalletVariant }) {
   const { wallet, connectWallet, isLoading: walletLoading, error: walletError } = useWallet();
-  const { authState, loginWithWallet, logout, checkDID } = useAuth();
+  const { authState, loginWithWallet, logout, checkDID, clearAuthError } = useAuth();
   const { showToast, ToastContainer } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -39,8 +39,8 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       await connectWallet();
       // After connection, automatically verify wallet (once wallet state is present).
       setAutoVerifyRequested(true);
-    } catch (err: any) {
-      setVerificationError(err.message || 'Failed to connect wallet');
+    } catch (err: unknown) {
+      setVerificationError(getWalletErrorMessage(err));
     }
   };
 
@@ -65,9 +65,9 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       setTimeout(() => {
         setVerificationStep('idle');
       }, 2000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMsg = getActionableErrorMessage(err, {
-        code: 'WALLET_NOT_VERIFIED',
+        originalMessage: err instanceof Error ? err.message : undefined,
       });
       setVerificationError(errorMsg);
       showToast('error', errorMsg);
@@ -104,7 +104,12 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   };
 
   const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    return `0x...${address.slice(-4)}`;
+  };
+
+  const dismissVerificationError = () => {
+    setVerificationError(null);
+    clearAuthError();
   };
 
   // Show network error if on wrong network
@@ -185,7 +190,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
             {authState.isVerified ? (
               <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+              <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
             )}
             <span className="text-sm font-mono text-green-700 dark:text-green-300">
               {formatAddress(wallet.address)}
@@ -195,13 +200,9 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
           {/* Verification Info Tooltip - drops down from wallet address */}
           {showVerificationInfo && !authState.isVerified && (
             <div className="absolute top-full left-0 mt-2 max-w-xs p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-800 dark:text-blue-300 z-50 shadow-lg">
-              <p className="font-semibold mb-2">Why verify?</p>
-              <ul className="space-y-1 list-disc list-inside">
-                <li>Keeps this space yours — saved chats link to keys you control</li>
-                <li>One signature — like a secure ID check, not a payment</li>
-                <li>Unlocks encrypted history and continuity across sessions</li>
-                <li>No funds are moved for verification</li>
-              </ul>
+              <p className="font-semibold mb-1">Why verify?</p>
+              <p className="mb-1">Keeps this space yours, saved chats link to your wallet</p>
+              <p>One signature, not a payment</p>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowVerificationInfo(false); }}
                 className="mt-2 text-blue-600 dark:text-blue-400 hover:underline text-xs"
@@ -270,11 +271,25 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
           {/* Error Messages - dropdown overlay, does not affect header size */}
           {(verificationError || authState.error) && (
             <div className="absolute top-full right-0 mt-2 z-50 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs space-y-1 shadow-lg">
-              <p className="font-semibold">Verification Failed</p>
-              <p>{verificationError || authState.error}</p>
-              {verificationError && !verificationError.includes('network') && (
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-semibold">Verification Failed</p>
                 <button
-                  onClick={handleVerify}
+                  type="button"
+                  onClick={dismissVerificationError}
+                  className="shrink-0 p-0.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+                  aria-label="Dismiss verification error"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p>{verificationError || authState.error}</p>
+              {!isWrongNetwork && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissVerificationError();
+                    void handleVerify();
+                  }}
                   className="mt-2 text-xs underline hover:no-underline"
                 >
                   Try again
@@ -310,8 +325,8 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       </button>
       {walletError && (
         <div className="absolute top-full mt-2 right-0 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300 max-w-xs z-50">
-          <p className="font-semibold mb-1">Connection Error</p>
-          <p>{walletError || 'Something went wrong. Please try again.'}</p>
+          <p className="font-semibold mb-1">Connection error</p>
+          <p>{getWalletErrorMessage(walletError)}</p>
           <button
             onClick={handleConnect}
             className="mt-2 text-xs underline hover:no-underline"

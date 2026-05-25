@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Lock, Zap, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
 import { ethers } from 'ethers';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface QuotaInfo {
   dailyUsed: number;
@@ -129,15 +129,13 @@ export default function Paywall({
     setError(null);
 
     try {
-      // Get JWT token from localStorage
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch(apiUrl('/payment/crypto'), {
+      const response = await apiFetch('/payment/crypto', {
         method: 'POST',
         headers,
-        credentials: 'include', // Include cookies
         body: JSON.stringify({
           tier: 'PREMIUM',
           txHash: hash,

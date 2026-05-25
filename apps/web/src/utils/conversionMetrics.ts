@@ -5,7 +5,7 @@
  * When analytics consent is on, the same JSON is POSTed to `/api/metrics/funnel` (debounced + on tab hide).
  */
 
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 export const PRODUCT_METRICS_COOKIE_NAME = 'sp_product_metrics';
 
@@ -142,7 +142,7 @@ function metricsPayloadHasTimestamps(state: ProductConversionMetricsV1): boolean
 
 /**
  * POST current cookie metrics to the API (same shape as `sp_product_metrics`).
- * No-op without analytics consent or without any timestamps. Uses `credentials: 'include'`.
+ * No-op without analytics consent or without any timestamps. Uses `apiFetch` (session cookie).
  */
 export async function flushProductMetricsToServer(): Promise<boolean> {
   if (typeof window === 'undefined' || !hasAnalyticsConsent()) return false;
@@ -156,10 +156,9 @@ export async function flushProductMetricsToServer(): Promise<boolean> {
   }
 
   try {
-    const res = await fetch(apiUrl('/metrics/funnel'), {
+    const res = await apiFetch('/metrics/funnel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body,
     });
     if (res.status === 204) {

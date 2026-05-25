@@ -13,6 +13,7 @@ import {
   SUPPORTED_CHAIN_ID_HEX,
   SUPPORTED_NETWORK_NAME,
 } from '../config/supportedChain';
+import { API_SESSION_CREDENTIALS } from '../config/api';
 import { requestWalletMessage, verifyWalletSignature } from '../services/auth.service';
 
 // ============================================================================
@@ -338,7 +339,7 @@ export class SafePsyWeb3Client {
     const response = await fetch(url, {
       ...options,
       headers,
-      credentials: 'include', // Include cookies for session
+      credentials: API_SESSION_CREDENTIALS,
     });
 
     if (!response.ok) {
@@ -360,7 +361,7 @@ export class SafePsyWeb3Client {
    * Connect wallet and authenticate with backend.
    *
    * HTTP for `wallet/connect` and `wallet/verify` delegates to `auth.service` (one verify POST,
-   * `credentials: 'include'`). This class only performs the EIP-191 signature locally.
+   * `API_SESSION_CREDENTIALS`). This class only performs the EIP-191 signature locally.
    *
    * @returns UserSession with authenticated wallet info
    */

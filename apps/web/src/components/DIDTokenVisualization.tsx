@@ -6,7 +6,7 @@ import { getDIDProfile } from '../utils/did-contract';
 import { decryptChatHistory } from '../utils/did-encryption';
 import { useChatEncryption } from '../hooks/useChatEncryption';
 import { toEthersReadProvider } from '../utils/ethers-helpers';
-import { apiUrl } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface DIDTokenVisualizationProps {
   className?: string;
@@ -49,10 +49,9 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
             'Content-Type': 'application/json',
           };
 
-          const response = await fetch(apiUrl('/chat/load'), {
+          const response = await apiFetch('/chat/load', {
             method: 'GET',
             headers,
-            credentials: 'include',
           });
 
           if (response.ok) {

@@ -4,7 +4,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { SUPPORTED_CHAIN_ID } from '../config/supportedChain';
 import { Wallet, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { ethers } from 'ethers';
-import { apiUrl } from '../config/api';
+import { apiFetch, apiUrl } from '../config/api';
 
 interface PricingTier {
   name: string;
@@ -69,8 +69,7 @@ export default function Payment() {
     if (!authState.isVerified) return;
 
     try {
-      const response = await fetch(apiUrl('/payment/subscription'), {
-        credentials: 'include',
+      const response = await apiFetch('/payment/subscription', {
         headers: {
           'x-wallet-address': wallet?.address || '',
           'x-chain-id': wallet?.chainId?.toString() ?? String(SUPPORTED_CHAIN_ID),
@@ -159,14 +158,13 @@ export default function Payment() {
       
       if (receipt.status === 1) {
         // Transaction confirmed, process payment
-        const paymentResponse = await fetch(apiUrl('/payment/crypto'), {
+        const paymentResponse = await apiFetch('/payment/crypto', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-wallet-address': wallet.address,
             'x-chain-id': wallet.chainId.toString(),
           },
-          credentials: 'include',
           body: JSON.stringify({
             tier,
             txHash: receipt.hash,
