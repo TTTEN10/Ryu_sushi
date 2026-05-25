@@ -17,7 +17,9 @@ import { SUPPORTED_CHAIN_ID } from '../apps/api/src/lib/constants';
 dotenv.config();
 
 const API_BASE_URL = process.env.API_URL || 'http://localhost:3001';
-const TEST_WALLET_PRIVATE_KEY = process.env.TEST_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // Default Hardhat account
+const TEST_WALLET_PRIVATE_KEY =
+  process.env.TEST_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // Default Hardhat account (local only)
+const TEST_WALLET_ADDRESS = (process.env.TEST_WALLET_ADDRESS || '').trim().toLowerCase();
 
 interface TestResult {
   step: string;
@@ -39,6 +41,11 @@ class FlowVerifier {
     const rpcUrl = process.env.RPC_URL || process.env.ETH_RPC_URL || 'http://localhost:8545';
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.wallet = new ethers.Wallet(TEST_WALLET_PRIVATE_KEY, this.provider);
+    if (TEST_WALLET_ADDRESS && this.wallet.address.toLowerCase() !== TEST_WALLET_ADDRESS) {
+      console.warn(
+        `⚠️  TEST_WALLET_PRIVATE_KEY (${this.wallet.address}) does not match TEST_WALLET_ADDRESS (${TEST_WALLET_ADDRESS}).`,
+      );
+    }
   }
 
   private addResult(step: string, success: boolean, message: string, data?: any, error?: any) {

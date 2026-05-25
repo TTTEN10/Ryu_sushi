@@ -14,7 +14,6 @@ echo "2) Point AI_GPU_BASE_URL at a dead host, then call POST /api/chat/completi
 echo "   Example (local shell, API restarted with bad URL):"
 echo "   export AI_GPU_BASE_URL=http://127.0.0.1:59999"
 echo ""
-echo "3) Chatbot direct health:"
-echo "   curl -sS \${CHATBOT_BASE_URL:-http://127.0.0.1:8000}/health"
+echo "3) Scaleway / proxy health: curl -sS \${API_BASE}/api/v1/models"
 echo ""
 echo "Done."

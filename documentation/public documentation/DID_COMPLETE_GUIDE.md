@@ -11,6 +11,7 @@ This implementation provides:
 - **Production API**: RESTful endpoints for DID operations
 - **Frontend UI**: React components for DID management
 - **Auto-Creation**: Automatic DID creation on first connection
+- **Network**: **Sepolia Testnet** (Chain ID: 11155111) for live beta; mainnet pending external audit
 
 ## Architecture
 
@@ -49,7 +50,7 @@ This implementation provides:
 #### POST /api/did/check
 Check if authenticated wallet has a DID.
 
-**Authentication**: Required (JWT token)
+**Authentication**: Required (httpOnly cookie session)
 
 **Response**:
 ```json
@@ -67,7 +68,7 @@ Check if authenticated wallet has a DID.
 #### POST /api/did/create
 Create a DID for authenticated wallet.
 
-**Authentication**: Required (JWT token)
+**Authentication**: Required (httpOnly cookie session)
 
 **Response**:
 ```json
@@ -159,8 +160,8 @@ useEffect(() => {
 - Frontend shows an error if the wallet is not on Sepolia
 
 ### 2. Authentication Required
-- All DID endpoints require valid JWT session
-- Wallet address extracted from authenticated session
+- All DID endpoints require a valid wallet session (**httpOnly `walletSession` cookie** on web via `apiFetch`; **Bearer JWT** on mobile)
+- Wallet address extracted from the authenticated session (not from unauthenticated body fields)
 - No arbitrary address minting allowed
 
 ### 3. Ownership Validation
@@ -251,15 +252,15 @@ console.log("DIDIdentityToken deployed to:", didToken.address);
 ### 3. Test Endpoints
 
 ```bash
-# Check DID (requires auth)
+# Check DID (requires auth) — web: use cookie jar after wallet verify; mobile: Bearer token
 curl -X POST http://localhost:3001/api/did/check \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json"
+  -H "Content-Type: application/json" \
+  --cookie "walletSession=<cookie-from-verify>"
 
 # Create DID (requires auth)
 curl -X POST http://localhost:3001/api/did/create \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json"
+  -H "Content-Type: application/json" \
+  --cookie "walletSession=<cookie-from-verify>"
 ```
 
 ## Usage Examples
@@ -784,10 +785,12 @@ authState.didInfo = { hasDid: false, ... };
 
 ### Step 4: User Creates DID
 ```typescript
-// User clicks "Create my Safe ID Token"
-await fetch('/api/did/create', {
+// User clicks "Create my Safe ID Token" (DIDManager uses apiFetch — cookie session on web)
+import { apiFetch } from '../config/api';
+
+await apiFetch('/did/create', {
   method: 'POST',
-  headers: { 'Authorization': `Bearer ${token}` }
+  headers: { 'Content-Type': 'application/json' },
 });
 ```
 
@@ -1643,9 +1646,9 @@ All requested features have been implemented for the DID Identity Token smart co
    - Automatic chat saving and DID contract updates
    - Location: `apps/web/src/components/ChatWidget.tsx`
 
-2. **Environment Variables Set** (example addresses from a past deployment; replace with your Sepolia deployment)
-   - Backend: `DID_IDENTITY_TOKEN_ADDRESS=0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8`
-   - Frontend: `VITE_DID_IDENTITY_TOKEN_ADDRESS=0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8`
+2. **Environment Variables Set** (align with `apps/api/deployments/sepolia-latest.json` → `DIDIdentityTokenV2.address`)
+   - Backend: `DID_IDENTITY_TOKEN_ADDRESS=0x103eAd096f898132E138ad228E35296db983A053` (example: current Sepolia latest)
+   - Frontend: `VITE_DID_IDENTITY_TOKEN_ADDRESS=0x103eAd096f898132E138ad228E35296db983A053`
    - Crypto Payment Recipient: `CRYPTO_PAYMENT_CONTRACT_ADDRESS=0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
    - **Live beta target:** **Sepolia** — chain ID **11155111** (`SUPPORTED_CHAIN_ID` in the API)
 
@@ -1703,10 +1706,11 @@ All requested features have been implemented for the DID Identity Token smart co
 - **Copy to Clipboard**: Easy address copying
 
 ### ChatWidget Integration
-- **Automatic Encryption**: Uses `useChatEncryption` hook for wallet-based encryption
-- **DID Contract Updates**: Automatically updates DID contract with chat references
-- **Encrypted Storage**: All messages encrypted before storage
-- **Seamless UX**: Transparent encryption/decryption for users
+- **Automatic Encryption**: `useChatEncryption` loads the wallet-wrapped DEK from on-chain **`encryptedKeyMetadata`** (`getEncryptedKeyMetadata`); legacy `localStorage` `encryptedKey_*` is migrated once then cleared
+- **Key persistence**: New or migrated keys are written with **`updateEncryptedKeyMetadata`**; each chat save can pass key bytes via **`updateChatReference`** (`keyMetadataBytesForDidUpdate` in `ChatWidget`)
+- **DID Contract Updates**: Updates `chatDataReference` when `/api/chat/save` returns `requiresDidUpdate`
+- **Encrypted Storage**: Ciphertext in the API; keys on Sepolia identity token metadata
+- **Network**: **Sepolia only** (chain ID **11155111**)
 
 ### Premium Plan (current implementation)
 - **Price**: $20 USD (single tier; target model has $19/month and $69/month Gold — see [TOKENOMICS.md](TOKENOMICS.md))

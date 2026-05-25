@@ -102,6 +102,32 @@ We support deletion of your **off-chain** data (e.g. chat history, encrypted blo
 
 Retention is described in our Privacy Policy and related docs. We do not retain chat content in plaintext; encrypted data may be kept for the periods stated there. Audit and security logs (with redacted identifiers) may be kept longer for security and compliance.
 
+### 20. Can I export or delete my chat history?
+
+Yes. You can **export** your encrypted chat history at any time from your DID Profile page. The export is a JSON file containing your encrypted chat blob, metadata, and decryption instructions. You will need your wallet to decrypt it later.
+
+You can also **delete** your chat history permanently. This removes the encrypted data from our servers. Note: on-chain DID metadata (hashes pointing to your chat) remains on the blockchain but will point to deleted data. This is a trade-off of our hybrid architecture: off-chain storage with on-chain verification.
+
+### 21. How do I export my chat history?
+
+1. Go to your **DID Profile** page (requires wallet verification)
+2. Scroll to the **Chat Data Management** section
+3. Click **Export Chat**
+4. A JSON file will download: `safepsy-chat-0x....json`
+5. Store this file securely—you will need your wallet and the `decryptChat()` function to read it
+
+We recommend exporting before deleting, or periodically backing up if you use SafePsy long-term.
+
+### 22. What happens when I delete my chat?
+
+When you confirm deletion:
+1. Your encrypted chat blob is permanently deleted from our database
+2. We log the deletion event (with redacted identifier) for security auditing
+3. On-chain DID metadata (hash) remains but points to deleted data
+4. You cannot recover the deleted chat—export first if you want a backup
+
+Deletion is immediate and irreversible. Rate limits apply (5 export/delete requests per hour) to prevent accidental or malicious data loss.
+
 ---
 
 ## Liability and guarantees

@@ -41,7 +41,8 @@
     "security:audit": "npm audit --workspaces --audit-level=moderate",
     "security:fix": "npm audit fix --workspaces",
     "security:update": "npm update --workspaces",
-    "verify:flow": "cd apps/api && npx tsx ../../scripts/verify-mock-flow.ts"
+    "verify:flow": "cd apps/api && npx tsx ../../scripts/verify-mock-flow.ts",
+    "deploy:local": "./deployment/deploy-local-app.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

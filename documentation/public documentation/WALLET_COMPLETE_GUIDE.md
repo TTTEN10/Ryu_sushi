@@ -8,9 +8,10 @@ This implementation provides:
 - **Wallet connection** (MetaMask/WalletConnect)
 - **Signature verification** and session management
 - **DID status checking** for authenticated users
-- **Protected API routes** with JWT-based authentication
+- **Protected API routes** with httpOnly cookie sessions (JWT in cookie, not browser JS)
 - **Client-side state management** for auth and DID status
 - **Error handling** for network switches and disconnects
+- **Chat data export/delete** — users can export encrypted chat or delete it permanently
 
 ## Architecture
 
@@ -26,11 +27,14 @@ This implementation provides:
    - `optionalAuthenticateWallet` - Optional authentication
    - `getAuthenticatedWallet` - Helper to get wallet from request
 
-3. **Production endpoints** (`apps/api/src/routes/auth.ts`, `apps/api/src/routes/did.ts`)
-   - `POST /api/auth/wallet/connect` — Request verification message (JSON body)
-   - `POST /api/auth/wallet/verify` — Verify signature & create session (JSON body)
-   - `POST /api/did/check` — Check DID status (requires auth; used by the web app after verify)
-   - `POST /api/auth/logout` — Clear session
+3. **Production endpoints** (`apps/api/src/routes/auth.ts`, `apps/api/src/routes/did.ts`, `apps/api/src/routes/chat.ts`)
+   - `POST /api/auth/wallet/connect` — Request SIWE verification message (requires JSON body: `{ address, chainId }`)
+   - `POST /api/auth/wallet/verify` — Verify signature & create httpOnly cookie session (requires JSON body: `{ message, signature }`)
+   - `GET /api/auth/me` — Confirm session status (no body; returns wallet info)
+   - `POST /api/did/check` — Check DID status (requires auth; creates DID if missing)
+   - `POST /api/auth/logout` — Clear session cookie
+   - `POST /api/chat/export` — Export encrypted chat as JSON (requires auth; rate limited: 5/hour)
+   - `DELETE /api/chat` — Delete chat history permanently (requires auth; rate limited: 5/hour)
 
    **Dev-only mirror:** `apps/api/src/routes/testing.ts` registers wallet/DID-style handlers under **`/api/testing/*`** only when **`NODE_ENV !== 'production'`** (see `createApp()` in `apps/api/src/app.ts`). In production, requests to that prefix get **404**; integrations must call **`/api/auth/*`** and **`/api/did/*`** instead.
 
@@ -38,11 +42,25 @@ This implementation provides:
 
 1. **AuthContext** (`apps/web/src/contexts/AuthContext.tsx`)
    - Manages authentication state
-   - Handles wallet verification
-   - Checks DID status
-   - Provides logout functionality
+   - **`loginWithWallet()`** — orchestrates connect → SIWE via `useWalletLogin` / `auth.service`, then **`GET /api/auth/me`** to confirm the httpOnly session
+   - Checks DID status (`postDidCheck` / `checkDID`)
+   - Provides logout (`POST /api/auth/logout`, clears legacy `walletSessionToken` from localStorage if present)
 
-2. **ConnectWallet Component** (`apps/web/src/components/ConnectWallet.tsx`)
+2. **auth.service** (`apps/web/src/services/auth.service.ts`)
+   - Sole HTTP layer for **`POST /api/auth/wallet/connect`**, **`POST /api/auth/wallet/verify`**, session **`GET /api/auth/me`**, and logout
+   - Always sends JSON bodies and `credentials: 'include'` (no Bearer token in browser JS)
+   - Uses **`apiFetch()`** from `config/api.ts` for consistent base URL and cookie handling
+
+3. **useWalletLogin** (`apps/web/src/hooks/useWalletLogin.ts`)
+   - `wallet/connect` → `personal_sign` → **one** `wallet/verify` per login
+   - Does NOT call verify twice; session confirmation via `GET /api/auth/me`
+
+4. **apiFetch** (`apps/web/src/config/api.ts`)
+   - Wrapper around `fetch()` with default `credentials: 'include'`
+   - Resolves API base URL: `VITE_API_URL` or same-origin `/api`
+   - Use for all authenticated requests to ensure cookie sessions work
+
+5. **ConnectWallet Component** (`apps/web/src/components/ConnectWallet.tsx`)
    - Wallet connection UI
    - Verification status display
    - DID status badges
@@ -89,7 +107,7 @@ router.get('/user-data', authenticateWallet, async (req: AuthenticatedRequest, r
 import { useAuth } from '../contexts/AuthContext';
 
 function MyComponent() {
-  const { authState, verifyWallet, checkDID, logout } = useAuth();
+  const { authState, loginWithWallet, checkDID, logout } = useAuth();
 
   // Check authentication status
   if (!authState.isVerified) {
@@ -121,17 +139,9 @@ import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 
 function VerifyButton() {
-  const { wallet, connectWallet } = useWallet();
-  const { verifyWallet } = useAuth();
+  const { loginWithWallet } = useAuth();
 
-  const handleVerify = async () => {
-    if (!wallet) {
-      await connectWallet();
-    }
-    await verifyWallet();
-  };
-
-  return <button onClick={handleVerify}>Verify Wallet</button>;
+  return <button onClick={() => loginWithWallet()}>Verify Wallet</button>;
 }
 ```
 
@@ -165,8 +175,8 @@ Request verification message for wallet signature.
 Verify wallet signature and create session.
 
 **Body (JSON):**
-- `address`, `message`, `signature` (required)
-- `chainId` (optional in schema; should match Sepolia)
+- `message`, `signature` (required; EIP-4361 SIWE)
+- `address`, `chainId` (optional; recovered from SIWE when omitted)
 
 **Response:**
 ```json
@@ -181,16 +191,23 @@ Verify wallet signature and create session.
 }
 ```
 
-**Cookies:**
-- Sets `walletSession` HTTP-only cookie  
-- The web client also stores `walletSessionToken` in `localStorage` when returned in `data.token`.
+**Cookies (web client):**
+- Sets `walletSession` **httpOnly** cookie; the React app uses **`credentials: 'include'`** via `apiFetch` / `auth.service` and does **not** store JWTs in JavaScript.
+- Legacy `data.token` in the JSON response may still be present for **mobile** (`safepsy-mobile` SecureStore); web clears any old `walletSessionToken` from localStorage on login.
+
+### GET /api/auth/me
+
+Confirm session after verify (cookie only on web).
+
+**Authentication:** `walletSession` cookie (`credentials: 'include'`)
 
 ### POST /api/did/check
 
-Check DID status for the authenticated wallet (Bearer JWT and/or session cookie).
+Check DID status for the authenticated wallet.
 
 **Authentication:**
-- Requires valid session (`Authorization: Bearer …` and/or cookie)
+- **Web:** `walletSession` httpOnly cookie (`credentials: 'include'`)
+- **Mobile:** `Authorization: Bearer <token>` (optional on API for backward compatibility)
 
 **Response:** See `apps/api/src/routes/did.ts` — includes `hasDid`, `tokenId`, etc.
 
@@ -199,7 +216,8 @@ Check DID status for the authenticated wallet (Bearer JWT and/or session cookie)
 Clear session and logout.
 
 **Authentication:**
-- Requires valid session (Bearer token recommended)
+- **Web:** session cookie (`POST` with `credentials: 'include'`)
+- **Mobile:** Bearer token optional
 
 **Response:**
 ```json
@@ -322,7 +340,7 @@ VITE_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
 ## Next Steps
 
 1. **DID-backed chat key storage (see `programming_sprint.md` Phase D)**  
-   Reduce reliance on **localStorage** for encryption key material; align with DID metadata / contract flows.
+   Chat DEK material is stored in DID **`encryptedKeyMetadata`** on-chain (`useChatEncryption` + `updateChatReference`); legacy `localStorage` `encryptedKey_*` is migration-only.
 
 2. **Add DID Creation Flow**
    - Allow users to create DID if none exists
@@ -381,7 +399,7 @@ This document describes the wallet connection implementation with WalletConnect 
 **Key Methods:**
 - `connectWallet()` — Connect via WalletConnect QR/modal or injected provider
 - `disconnectWallet()` — Disconnect wallet and clear state
-- `signMessage()` — **Sign only** (`personal_sign`); session verification is **`AuthContext.verifyWallet`** (calls `/api/auth/wallet/connect` then `/api/auth/wallet/verify`)
+- `signMessage()` — **Sign only** (`personal_sign`); session verification is **`AuthContext.loginWithWallet`** → **`useWalletLogin`** → **`auth.service`** (`/api/auth/wallet/connect` then `/api/auth/wallet/verify`, then `GET /api/auth/me`)
 
 **Supported Networks:**
 - **Sepolia** (Chain ID: **11155111**) — **Only supported network** for this product path
@@ -424,8 +442,10 @@ The ConnectWallet component is integrated into the Header component and appears 
 Create a `.env` file in `apps/web/`:
 
 ```env
-# API Configuration
-VITE_API_URL=http://localhost:3001
+# API Configuration (optional)
+# Unset = same-origin /api (Vite proxy in dev). Or full API base or origin:
+# VITE_API_URL=https://polinapsycho.com/api
+# VITE_API_URL=http://localhost:3001
 
 # WalletConnect Configuration
 # Get your Project ID from https://cloud.walletconnect.com
@@ -451,7 +471,7 @@ VITE_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
 3. **User selects/approves wallet connection**
 4. **Wallet connects** and address is displayed
 5. User clicks **Verify** — app requests a message from **`POST /api/auth/wallet/connect`**, user signs with **`personal_sign`**, then **`POST /api/auth/wallet/verify`** establishes the session
-6. **Verified** — green checkmark when JWT/session is valid
+6. **Verified** — green checkmark when the httpOnly session cookie is valid (`GET /api/auth/me`)
 
 ### Programmatic Usage
 
@@ -545,20 +565,22 @@ interface WalletInfo {
 3. **Check Message**: Verify message format is correct
 4. **Retry**: Click "Verify" button to retry
 
-### Wallet Not Persisting
+### Session Not Persisting After Verify
 
-1. **Check localStorage**: Wallet state is stored in localStorage
-2. **Check Browser**: Some browsers block localStorage
-3. **Clear Cache**: Try clearing browser cache
+1. **Cookies**: Ensure third-party cookie blocking is off for your app origin; web auth uses httpOnly `walletSession` only.
+2. **Same-origin / CORS**: If SPA and API are on different hosts, set `VITE_API_URL` to the API base and configure CORS + `credentials` on the API.
+3. **Network**: Wallet must stay on **Sepolia** (11155111).
 
 ## 📝 API Integration
 
-Production routes (`apps/web` uses same-origin `/api` or `VITE_API_URL`):
+Production routes (`apps/web` uses `apiUrl()` / `apiFetch()` from `apps/web/src/config/api.ts` — same-origin `/api` when `VITE_API_URL` is unset):
 
-- `POST /api/auth/wallet/connect` — JSON `{ "address", "chainId" }`
-- `POST /api/auth/wallet/verify` — JSON `{ "address", "message", "signature", "chainId" }` with `credentials: 'include'` for cookies
+- `POST /api/auth/wallet/connect` — JSON `{ "address", "chainId" }`, `credentials: 'include'`
+- `POST /api/auth/wallet/verify` — JSON `{ "message", "signature", "address?", "chainId?" }`, `credentials: 'include'`
+- `GET /api/auth/me` — confirm session after verify
+- `POST /api/auth/logout` — clear session
 
-Legacy header-only requests are still accepted server-side; prefer JSON bodies for new clients.
+HTTP for connect/verify is centralized in **`auth.service.ts`** (used by **`useWalletLogin`** and **`SafePsyWeb3Client`**). Legacy `x-wallet-*` headers are still accepted server-side; prefer JSON bodies for new clients.
 
 ## 🔮 Future Enhancements
 
