@@ -164,7 +164,7 @@ Covers: encryption (E2E?, who can read?, key loss), compliance (HIPAA, GDPR, ISO
 
 **SSH + hosts** (optional): `SSH_KEY`, `APP_HOST`, `CHATBOT_HOST`, `APP_DOMAIN`, `CADDY_SITE_NAMES` — see `deployment/deploy.sh` defaults (`polinapsycho.com`, app/chatbot IPs).
 
-**Full deploy:** `./deployment/deploy.sh` from repo root. **App-only:** `DEPLOY_LEGACY=1 ./deployment/deploy.sh`.
+**Full deploy:** `./deployment/deploy.sh` from repo root. **Scaleway direct (no chatbot VM):** `USE_SCALEWAY_DIRECT=1 SCALEWAY_API_KEY=... ./deployment/deploy.sh`. **App-only:** `DEPLOY_LEGACY=1 ./deployment/deploy.sh`. (`deploy-safepsy.sh` is a thin alias.)
 
 ### vLLM model (Dolphin Mistral 24B)
 

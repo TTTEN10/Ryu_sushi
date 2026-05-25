@@ -2,7 +2,7 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPappv2**).
 
-> **Last updated:** 2026-05-14 — `apps/web/scripts/verify-sepolia-staging-checklist.mjs`; `apps/web/src/utils/did-key-metadata.ts`; `POST /api/metrics/funnel` unchanged.
+> **Last updated:** 2026-05-17 — removed `apps/ai-chatbot`, `deploy/chatbot`, `deployment/chatbot`; prod LLM via Scaleway direct (`documentation/chatbot-migration.md`).
 
 ---
 
@@ -157,7 +157,12 @@ apps/api/
 │   │   ├── ai-gateway.service.ts    # AI gateway (LLM/completions) — TypeScript
 │   │   ├── chat-rag-context.ts      # RAG enhancement for chat completions — TypeScript
 │   │   ├── dr-safe-system-prompt.ts # Dr.Safe system prompt (response rules, soft exit, turn 2–3 retention, guest append) — TypeScript
-│   │   ├── llm-upstream-health.ts   # Periodic /health probes for self-hosted LLM bases — TypeScript
+│   │   ├── crisis-detection.ts      # EN/FR/RU crisis keyword scan (Scaleway direct path) — TypeScript
+│   │   ├── llm-routing.ts           # USE_SCALEWAY_DIRECT vs legacy self-hosted — TypeScript
+│   │   ├── response-cache.ts        # Redis cache for non-stream Scaleway completions — TypeScript
+│   │   ├── scaleway-metrics.ts      # Token usage / cost estimates — TypeScript
+│   │   ├── redis-shared.ts          # Shared Redis client for cache — TypeScript
+│   │   ├── llm-upstream-health.ts   # Periodic /health probes for legacy self-hosted LLM — TypeScript
 │   │   ├── api-helpers.ts           # Shared API helpers — TypeScript
 │   │   ├── config.ts                # Config & secret manager init — TypeScript
 │   │   ├── constants.ts             # App constants — TypeScript
@@ -413,22 +418,6 @@ apps/safepsy-mobile/
 
 ---
 
-## apps/ai-chatbot
-
-```
-apps/ai-chatbot/
-├── main.py              # FastAPI app: vLLM-based OpenAI-compatible API, chat completions, streaming, health — Python
-├── prompt_builder.py    # Canonical chat prompts via HF tokenizer — Python
-├── session_redis.py     # Optional Redis session metadata (TTL) — Python
-├── requirements.txt     # Python deps (FastAPI, vLLM, etc.) — Text
-├── requirements-lite.txt # Minimal deps for local mock chatbot (FastAPI/uvicorn only) — Text
-├── Dockerfile           # Container build for AI service — Dockerfile
-├── .dockerignore        # Image build context ignore — Text
-└── entrypoint.sh        # Container entrypoint — Shell
-```
-
----
-
 ## backend
 
 ```
@@ -489,14 +478,12 @@ frontend/
 
 ```
 deploy/
-├── app/
-│   ├── .env.example         # App stack env template — Text
-│   └── .env                   # Local overrides (often gitignored) — Text
-└── chatbot/
-    └── .env.example           # Chatbot stack env template — Text
+└── app/
+    ├── .env.example         # App stack env template — Text
+    └── .env                   # Local overrides (often gitignored) — Text
 ```
 
-*(Compose files, Caddyfile, and chatbot `Dockerfile` may live on servers or in other branches; this repo currently holds env templates under `deploy/`.)*
+*(Compose files and Caddyfile are generated on the server by `deployment/deploy-app.sh`; env templates live under `deploy/app/`.)*
 
 ---
 
@@ -504,17 +491,19 @@ deploy/
 
 ```
 deployment/
-├── deploy.sh                          # Terraform + chatbot compose (dedicated host, or colocated on app if SSH to chatbot fails) + deploy-app.sh — Shell
-├── deploy-app.sh                      # Application deploy (Caddy + SPA + Python proxy) — Shell
-├── deploy-instance-aware-roadmap.sh   # Legacy instance-aware deploy (restored; replaced by deploy.sh in commit 08de24c6e) — Shell
+├── DEPLOY-RUNBOOK.md                  # Validated prod path (scw-last-app, Scaleway direct) — Markdown
+├── deploy.sh                          # Canonical entrypoint: Terraform + deploy-app.sh (Scaleway direct) — Shell
+├── deploy-app.sh                      # App stack only (called by deploy.sh; Caddy + SPA + Python/Scaleway proxy) — Shell
+├── deploy-safepsy.sh                  # Thin wrapper → deploy.sh (CI compatibility) — Shell
+├── deploy-live-app.sh                 # Prod preset → deploy.sh (151.115.151.231, Scaleway direct) — Shell
+├── deploy-local-app.sh                # Local Docker stack (Caddy + SPA + Python proxy); writes .local-app-stack/ — Shell
+├── deploy-instance-aware-roadmap.sh   # Deprecated wrapper → deploy.sh — Shell
+├── local-app/
+│   └── backend/                       # Shared Python API proxy (main.py) for deploy-app + local stack — Python
 ├── deploy-issue.md                    # Known deploy blockers + Scaleway / SSH checklist — Markdown
-├── bootstrap-chatbot-host.sh          # SSH: verify host, sync chatbot slice, compose up — Shell
-├── chatbot/
-│   └── docker-compose.yml             # Chatbot API + Redis — YAML
 ├── install-app-monitor-remote.sh      # Remote install for app monitor — Shell
 ├── on-app-server-recover.sh           # On-server recovery steps — Shell
 ├── verify-production.sh               # Production verification — Shell
-├── test-llm-route-from-app.sh         # SSH to app host; curl vLLM /v1/models — Shell
 ├── logrotate-app-monitor.example      # Logrotate sample for monitor — Text
 ├── app-server-monitor/
 │   └── monitor.sh                     # Host monitor script — Shell
@@ -648,7 +637,8 @@ documentation/
     ├── LAUNCH.md
     ├── MOBILE_LAUNCH_STRESS_TEST.md  # Pre-ship device checklist (WC, DID, deep links, compliance) — Markdown
     ├── PRODUCTION_ENV_LOCK.md        # API + Universal Link + AASA same-domain matrix; EAS secrets — Markdown
-    ├── CHATBOT_TECHNICAL.md   # How chatbot + API gateway + vLLM compose work (internal)
+    ├── chatbot.md               # Chatbot + API gateway + Scaleway direct (internal)
+    ├── ../chatbot-migration.md  # FastAPI VM removed; Scaleway direct (repo root documentation/)
     ├── CONTRACTS_SCRIPTS_TSC.md  # Why tsc reports errors under apps/api/src/contracts/scripts — Markdown
     ├── TYPESCRIPT_ISSUES_REPORT.md  # Snapshot of remaining TS diagnostics (esp. apps/web) — Markdown
     ├── GUEST_MODE.md           # Guest vs wallet chat flow (internal)
@@ -665,7 +655,6 @@ documentation/
     ├── WAF_CONFIGURATION.md
     ├── programming_sprint.md   # Restored from pre-consolidation `COMPLETE_IMPLEMENTATION_SUMMARY.md` (implementation status + follow-ups; updated 2026-05-10 — `app.ts`, prod `/api/testing` gate)
     ├── safepsy-web3-client.md
-    ├── ai-chatbot/              # AI service deploy & GPU notes
     ├── api/contracts/           # Hardhat / deployment quick starts
     ├── api/deployments/         # DID, RAG, SSE, wallet RPC, email setup
     ├── infra/                   # Terraform & observability write-ups
@@ -686,7 +675,7 @@ Some guides exist in both **public** and **private** trees (e.g. `LAUNCH.md`, on
 | TSX         | React components and pages |
 | Solidity    | DID & governance smart contracts |
 | JavaScript  | Configs, Hardhat, deploy/script ESM/CJS, some tests |
-| Python      | AI chatbot (FastAPI + vLLM) |
+| Python      | App-stack API proxy (`deployment/local-app/backend`), deploy helpers |
 | Prisma      | Database schema |
 | JSON        | Package/config, deployments, Grafana dashboards |
 | YAML        | CI/CD, Docker Compose, Prometheus/Grafana |
@@ -695,16 +684,15 @@ Some guides exist in both **public** and **private** trees (e.g. `LAUNCH.md`, on
 | HTML        | SPA entry (index.html) |
 | Markdown    | Documentation |
 | MDC         | Cursor rules (`.cursor/rules/**/*.mdc`) |
-| Dockerfile  | Container builds (e.g. `apps/ai-chatbot`) |
+| Dockerfile  | App stack images (frontend/backend via deploy-app.sh) |
 | Caddyfile   | Reverse proxy config (when present in deploy trees) |
 
 ---
 
 ## App flow (high level)
 
-- **Web (`apps/web`)**: React SPA → WalletContext/AuthContext (`userMode`: guest vs authenticated) → DID, chat (guest: in-memory + `mode: guest` API; verified: encrypted save/load), payment, legal, FAQ, support/feedback, and landing (`Landing.tsx`: `/`, primary CTAs to `/register`; `/about-us` redirects to `/explore`; routes such as `/explore`, `/register`, `/contact-us`, `/faq`, `/beta/chat`). Uses `apps/api` for API and (optionally) the AI service for chat.
-- **API (`apps/api`)**: Express server (`index.ts` → `createApp()` in **`app.ts`**) → auth, did, chat, payment, subscribe, contact, rag routes; **`/api/testing`** mounted only outside production; middleware for auth, quota, safety, metrics; Prisma + PostgreSQL; DID contracts on-chain.
-- **AI chatbot (`apps/ai-chatbot`)**: FastAPI + vLLM, OpenAI-compatible chat; used by API chat routes for completions/streaming.
+- **Web (`apps/web`)**: React SPA → WalletContext/AuthContext (`userMode`: guest vs authenticated) → DID, chat (guest: in-memory + `mode: guest` API; verified: encrypted save/load), payment, legal, FAQ, support/feedback, and landing (`Landing.tsx`: `/`, primary CTAs to `/register`; `/about-us` redirects to `/explore`; routes such as `/explore`, `/register`, `/contact-us`, `/faq`, `/beta/chat`). Production chat hits the app Python proxy (Scaleway direct) or `apps/api` when Node API is deployed.
+- **API (`apps/api`)**: Express server (`index.ts` → `createApp()` in **`app.ts`**) → auth, did, chat, payment, subscribe, contact, rag routes; **`/api/testing`** mounted only outside production; middleware for auth, quota, safety, metrics; Prisma + PostgreSQL; DID contracts on-chain; `AIGatewayService` → Scaleway Generative API.
 - **Backend / `frontend/`**: Legacy or parallel apps (contact, subscribe, simpler UI); **not** in npm `workspaces` (root workspaces are `apps/*` only).
 - **Deploy**: `deployment/` scripts (deploy, verify, monitor), `deploy/*.env.example` templates; `infra/observability` for Prometheus/Grafana; Terraform docs under `documentation/private documentation/infra/terraform/`.
 - **Docs**: `documentation/public documentation/` for outward-facing guides; `documentation/private documentation/` for runbooks, CI/CD, and ops.

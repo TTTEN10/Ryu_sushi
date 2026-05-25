@@ -1,10 +1,10 @@
 # Programming sprint & implementation roadmap
 
-> Restored from `COMPLETE_IMPLEMENTATION_SUMMARY.md` (last revision before deletion in commit `a45b56c14`). The **MVP launch** section is the live operator view. **Part 1 / Part 2** below were reconciled with `apps/web`, `apps/api`, and `apps/ai-chatbot` on **2026-04-12** (see **Repository verification**).
+> Restored from `COMPLETE_IMPLEMENTATION_SUMMARY.md` (last revision before deletion in commit `a45b56c14`). The **MVP launch** section is the live operator view. **Part 1 / Part 2** below were reconciled with `apps/web` and `apps/api` on **2026-04-12** (see **Repository verification**); FastAPI `apps/ai-chatbot` removed **2026-05** (Scaleway direct). Production deploy path: **`deployment/DEPLOY-RUNBOOK.md`** + **`documentation/chatbot-migration.md`**.
 > 
-> **Last updated:** 2026-05-14 — Phase D (web): chat DEK loads from DID `encryptedKeyMetadata` on-chain; `updateChatReference` sends UTF-8 key bytes; contract writes retry with backoff; legacy `localStorage` read-only migration. Retention / TTL / delete policy remains a product decision before schema work. Key rotation: design = re-wrap or regenerate DEK, re-encrypt all ciphertext, new `updateChatReference`; not automated yet.
+> **Last updated:** 2026-05-24 — **LLM (Node API):** `llm-routing.ts` (`USE_SCALEWAY_DIRECT`), crisis detection ported to `crisis-detection.ts`, Redis response cache (`response-cache.ts` + `redis-shared.ts`), Scaleway usage logging (`scaleway-metrics.ts`); **`AIGatewayService`** direct Scaleway path is production default. **Web:** `apiFetch()` cookie sessions; `getWalletErrorMessage()` for wallet UX; encryption hook persists DEK via `updateEncryptedKeyMetadata` (localStorage migration-only). **Docs:** `API_ENDPOINTS.md`; activation in **`LAUNCH.md`** / **`BETA_QUICKSTART_AND_OFFBOARDING.md`** (standalone `BETA_QUICKSTART.md` removed).
 >
-> **Wallet verification (2026-05-10):** `AuthContext` POSTs JSON to **`/api/auth/wallet/connect`** and **`/api/auth/wallet/verify`**; `WalletContext` signs via EIP-1193 **`personal_sign`** (MetaMask + WalletConnect). API **`wallet-*` middleware** reads validated **`req.body`** first (legacy headers optional). See **`WALLET_COMPLETE_GUIDE.md`**.
+> **Wallet verification (2026-05-10):** `useWalletLogin` → **`auth.service`** (`connect` → sign → **one** `verify`); `WalletContext` signs via EIP-1193 **`personal_sign`** only. API **`wallet-*` middleware** reads validated **`req.body`** first (legacy headers optional). See **`WALLET_COMPLETE_GUIDE.md`**.
 
 ---
 
@@ -14,15 +14,17 @@
 
 ### Canonical activation (what “launched” means)
 
-Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user reaches value when **(1) DID exists** and **(2) at least one real exchange with Dr. Safe** has happened. Funnel metrics: visits → wallet connect attempts → successful session → DID mint → first chat completion → support/feedback.
+Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKSTART_AND_OFFBOARDING.md`**: user reaches value when **(1) DID exists** and **(2) at least one real exchange with Dr. Safe** has happened. Funnel metrics: visits → wallet connect attempts → successful session → DID mint → first chat completion → support/feedback.
 
-### ✅ Repository verification (2026-04-12, updated 2026-05-10)
+### ✅ Repository verification (2026-04-12, updated 2026-05-24)
 
 - ✅ **`npm run lint`** (root: web + api): passing  
-- ✅ **Unit tests:** root **`npm test`** runs `vitest run` for web then API (exits cleanly for CI); per-app `cd apps/web && npm test` / `cd apps/api && npm test` are equivalent. All passing; API includes **`src/__tests__/subscribe.test.ts`**; `Status.test.tsx` uses `act()` around timer-driven updates so the suite stays warning-free.  
+- ✅ **Unit tests:** root **`npm test`** runs `vitest run` for web then API (exits cleanly for CI); per-app `cd apps/web && npm test` / `cd apps/api && npm test` are equivalent. API adds **`crisis-detection`**, **`response-cache`**, **`scaleway-metrics`**; web adds **`api-fetch`**, **`wallet-error-messages`**, **`wallet-auth-contract`**.  
 - ✅ **`npm run build`** (web + api): passing after pinning Tailwind to **`apps/web/tailwind.config.ts`** in **`apps/web/postcss.config.cjs`** so `vite build --config apps/web/vite.config.ts` from the monorepo root loads theme/content correctly  
-- ✅ **Production fixes applied** (2026-05-08): DID update flow fixed in `ChatWidget.tsx`, `.env.production.example` created, `scripts/verify-production-setup.js` created, `PRODUCTION_FIXES_2026_05_08.md` documents all changes  
+- ✅ **Production fixes applied** (2026-05-08): DID update flow in `ChatWidget.tsx`, `.env.production.example`, **`scripts/verify-production-setup.js`** for env/RPC/Scaleway checks  
 - ✅ **API layout (2026-05-10):** Express factory **`apps/api/src/app.ts`** (`createApp()`); **`/api/testing`** disabled in production via stub route in `app.ts`  
+- ✅ **Chat / LLM (2026-05):** No in-repo FastAPI chatbot; prod **`USE_SCALEWAY_DIRECT=1`** on app host Python proxy (`deploy-live-app.sh`). Dev: Node **`AIGatewayService`** with **`shouldUseScalewayDirect()`**, crisis prepend, optional Redis cache (`REDIS_URL`, `AI_RESPONSE_CACHE_TTL`). See **`documentation/chatbot-migration.md`**, **`documentation/private documentation/chatbot.md`**.  
+- ✅ **API reference:** **`documentation/public documentation/API_ENDPOINTS.md`** (health, auth, DID, chat, metrics)  
 
 ### Operator checklist — ship and learn
 
@@ -37,9 +39,12 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
    - Optional: `npm run verify:flow` for the mocked DID/auth path used in automation.
 
 3. **Production deploy (this repository)**
-   - Main path: **`deployment/deploy.sh`** — Terraform (`infra/terraform/envs/prod`) → chatbot stack on chatbot host → app deploy via **`deployment/deploy-app.sh`**. Requires Scaleway (or equivalent) credentials, Terraform variables, and SSH access; see script comments. Override **`APP_DOMAIN`**, **`APP_HOST`**, **`CHATBOT_HOST`**, **`SSH_KEY`** as needed; never commit secrets.
-   - Legacy one-liner: `DEPLOY_LEGACY=1 ./deployment/deploy.sh` runs app deploy only.
-   - Post-deploy: **`deployment/verify-production.sh`** (and any manual HTTPS/API checks you rely on).
+   - **Runbook (validated May 2026):** **`deployment/DEPLOY-RUNBOOK.md`** — scw-last-app **`151.115.151.231`**, polinapsycho.com, Scaleway direct (no legacy chatbot VM).
+   - **Default prod command:** **`./deployment/deploy-live-app.sh`** (loads repo `.env`, sets `USE_SCALEWAY_DIRECT=1`, deploys Caddy + Vite SPA + Python proxy). Requires **`SCALEWAY_API_KEY`** in `.env`.
+   - **Full pipeline:** **`./deployment/deploy.sh`** when Terraform apply is needed; use **`USE_SCALEWAY_DIRECT=1`**, **`APP_HOST=151.115.151.231`**, **`CHATBOT_HOST=151.115.151.231`**, **`DEPLOY_SKIP_TERRAFORM=1`** on resume.
+   - **Local parity:** **`npm run deploy:local`** → **`deployment/deploy-local-app.sh`** (http://localhost:9080).
+   - **Failures:** **`deployment/deploy-issue.md`**. Post-deploy: **`CHECK_LLM=1 USE_SCALEWAY_DIRECT=1 ./deployment/verify-production.sh`**.
+   - **`deploy-app.sh`** is the app-stack implementation; prefer wrappers above, not a forked pipeline.
 
 4. **MVP learning tactics (pick 1–2 first week)**
    - **Beta access :** Use primary CTA—waitlist email and marketing via beta lmaunch website as well as social media.
@@ -58,18 +63,28 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 
 ---
 
-## Integration status (wallet + docs, 2026-05-10)
+## Integration status (wallet + chat + docs)
 
-- **SIWE (EIP-4361) + nonce replay protection (2026-05-10):** **`POST /api/auth/wallet/connect`** returns a **`SiweMessage.prepareMessage()`** challenge (domain **`SIWE_DOMAIN`** / **`safepsy.com`** default); **`wallet-nonce.service`** registers the nonce (TTL **5 min**); **`POST /api/auth/wallet/verify`** requires SIWE format, **`consumeWalletNonce`**, then JWT + **`walletSession`** cookie (**`sameSite: 'lax'`**). Verify accepts **`{ message, signature }`** only (address recovered from SIWE). Replace in-memory nonce store with **Redis** when running multiple API replicas.
-- **Cookie-first web:** **`walletSessionToken`** removed from **`localStorage`**; authenticated fetches use **`credentials: 'include'`**; **`useWalletLogin`** orchestrates connect → SIWE → verify; **`AuthContext`** confirms session via **`GET /api/auth/me`**.
+### Wallet & session (2026-05-10, verified 2026-05-24)
 
-- **P0 resolved:** Aligned **JSON bodies** + SIWE; **`WalletContext`** only signs; session is **httpOnly cookie** + optional JWT in verify response (web no longer stores JWT). **`checkDID({ skipVerifiedCheck: true })`** and **`fetchWalletSession()`** on refresh.
-- **DID base URL:** **`DIDManager.tsx`** uses **`apiUrl()`** from **`apps/web/src/config/api.ts`** (same-origin **`/api`** when `VITE_API_URL` unset).
-- **Docs:** **`WALLET_COMPLETE_GUIDE.md`** / **`TESTING_COMPLETE_GUIDE.md`** / **`SECURITY_COMPLETE_GUIDE.md`** describe **`/api/auth/*`** and **`/api/did/*`** as production paths; **`/api/testing/*`** is dev-only.
+- **SIWE (EIP-4361) + nonce replay protection:** **`POST /api/auth/wallet/connect`** returns a **`SiweMessage.prepareMessage()`** challenge (domain **`SIWE_DOMAIN`** / **`safepsy.com`** default); **`wallet-nonce.service`** registers the nonce (TTL **5 min**); **`POST /api/auth/wallet/verify`** requires SIWE format, **`consumeWalletNonce`**, then JWT + **`walletSession`** cookie (**`sameSite: 'lax'`**). Verify accepts **`{ message, signature }`** (address recovered from SIWE). Replace in-memory nonce store with **Redis** when running multiple API replicas.
+- **Cookie-first web:** **`walletSessionToken`** removed from **`localStorage`**; authenticated fetches use **`apiFetch()`** (`credentials: 'include'` by default) or **`auth.service`**; **`useWalletLogin`** orchestrates connect → SIWE → **one** verify; **`AuthContext`** confirms via **`GET /api/auth/me`**. **Mobile** (`safepsy-mobile`): Bearer JWT in SecureStore.
+- **P0 done:** JSON bodies + SIWE aligned; **`WalletContext`** only signs; **`wallet-auth` middleware** prefers **`req.body`** over legacy **`x-wallet-*`** headers.
+- **Wallet UX:** **`getWalletErrorMessage()`** in **`errorMessages.ts`** maps rejections and verbose RPC errors to short copy (tests in **`wallet-error-messages.test.ts`**).
+- **DID / API base:** Components use **`apiFetch()`** / **`apiUrl()`** from **`apps/web/src/config/api.ts`** (same-origin **`/api`** when `VITE_API_URL` unset).
+- **Docs:** **`WALLET_COMPLETE_GUIDE.md`**, **`ENCRYPTION_COMPLETE_GUIDE.md`**, **`CHAT_COMPLETE_GUIDE.md`**, **`API_ENDPOINTS.md`**; **`/api/testing/*`** dev-only.
 
-### Phase D — Encryption keys (web, 2026-05-14)
+### Chat & LLM (2026-05-24)
 
-**Shipped (web):** **`useChatEncryption`** reads wallet-wrapped DEK from **`getEncryptedKeyMetadata`** (identity token). **`saveKeyToDID`** calls **`updateEncryptedKeyMetadata`**. **`ChatWidget`** passes key bytes into **`updateChatReference`** (via **`keyMetadataBytesForDidUpdate`**) so saves no longer clear on-chain metadata. **`localStorage`** `encryptedKey_*` is **migration-only** when chain metadata is still empty.
+- **Routing:** **`apps/api/src/lib/llm-routing.ts`** — `USE_SCALEWAY_DIRECT=1` forces Scaleway Generative API; unset defaults to direct when no **`AI_GPU_BASE_URL`** / **`CHATBOT_BASE_URL`**.
+- **Crisis signals:** **`crisis-detection.ts`** (EN/FR/RU keywords) prepends supportive copy on the direct Scaleway stream/non-stream path (ported from removed FastAPI service).
+- **Caching:** **`response-cache.ts`** — SHA-256 keyed Redis cache for non-streaming Scaleway completions (`AI_RESPONSE_CACHE` ≠ `0`, **`REDIS_URL`** required for hits).
+- **Observability:** **`scaleway-metrics.ts`** logs token usage and cost estimates; **`GET /api/chat/health`** reports `routing: scaleway-direct` vs self-hosted upstream snapshot.
+- **Prod vs dev:** **`npm run dev`** → full Node stack (SSE, guest mode, encryption, RAG hooks, crisis). **`deploy-live-app.sh`** → Caddy + Python proxy + Scaleway on **151.115.151.231** (see runbook).
+
+### Phase D — Encryption keys (web, 2026-05-14, stable 2026-05-24)
+
+**Shipped (web):** **`useChatEncryption`** loads DEK from **`getEncryptedKeyMetadata`**; **`saveKeyToDID`** → **`updateEncryptedKeyMetadata`**. **`ChatWidget`** passes key bytes into **`updateChatReference`** so saves do not clear on-chain metadata. **`localStorage`** `encryptedKey_*` is **migration-only** when chain metadata is empty.
 
 ### Data retention & encryption
 
@@ -99,8 +114,6 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
 - ✅ **Frontend consolidation**: a shared `WaitlistForm` component is used in `Hero`, `Landing`, and `EmailSignup` to ensure payload consistency and aligned validation/copy.
 
 ## Production readiness (2026-05-08)
-
-**Status:** Sepolia beta ready — pending Scaleway API key configuration and secrets generation.
 
 ### Critical fixes applied
 
@@ -142,7 +155,7 @@ Align with **`documentation/public documentation/BETA_QUICKSTART.md`**: user rea
    node scripts/verify-production-setup.js
    ```
 
-See full details in **`documentation/public documentation/PRODUCTION_FIXES_2026_05_08.md`**.
+Post-deploy: **`CHECK_LLM=1 USE_SCALEWAY_DIRECT=1 ./deployment/verify-production.sh`**. Env validation: **`node scripts/verify-production-setup.js`**.
 
 ## ✅ Part 1: Client-side encryption for storage (ChatWidget)
 
@@ -164,7 +177,7 @@ See full details in **`documentation/public documentation/PRODUCTION_FIXES_2026_
 #### Frontend
 1. **Encryption Hook** (`apps/web/src/hooks/useChatEncryption.ts`)
    - ✅ Key management and chat load/save with encryption (verified-wallet path)
-   - ⚠️ **Refinement:** symmetric key still falls back to **localStorage** when loading from DID metadata is incomplete; `saveKeyToDID` does not yet submit on-chain metadata (comments reference legacy `setDidData` wording — V2 flow uses **`updateChatReference`** from the widget)
+   - ✅ On-chain DEK via **`updateEncryptedKeyMetadata`**; **localStorage** only for one-time migration when chain metadata is empty
 
 2. **ChatWidget Integration** (`apps/web/src/components/ChatWidget.tsx`)
    - ✅ Uses `useChatEncryption` for verified sessions; guest mode stays in-memory with capped prompts
@@ -175,7 +188,7 @@ See full details in **`documentation/public documentation/PRODUCTION_FIXES_2026_
 **Key Material:**
 - **Symmetric Key**: 32-byte AES-256-GCM key (generated client-side)
 - **Encrypted Key**: Symmetric key encrypted with wallet signature
-- **Storage**: Encrypted key in DID's `encryptedData` field (target); interim localStorage path remains in hook
+- **Storage**: Encrypted key in DID identity token metadata (`updateEncryptedKeyMetadata`); localStorage migration fallback only
 
 **Data Flow:**
 1. Generate symmetric key (client-side)
@@ -231,20 +244,26 @@ Handlers remain in **`testing.ts`** for local/dev use. **`apps/api/src/app.ts`**
 - [x] ✅ DID-aware chat persistence path (widget + contract `updateChatReference` when required)
 - [x] ✅ ChatWidget integration with `useChatEncryption`
 - [x] ✅ Production **`/api/auth/*`** endpoints
+- [x] ✅ **Chat export/delete** — `POST /api/chat/export`, `DELETE /api/chat`, DID Profile UI, audit logging
+- [x] ✅ **Scaleway direct LLM path** — `llm-routing`, crisis detection, response cache, usage metrics in Node API
+- [x] ✅ **Deploy runbook** — `DEPLOY-RUNBOOK.md`, `deploy-live-app.sh`, `deploy-local-app.sh`, `chatbot-migration.md`
+- [x] ✅ **Wallet error UX** — `getWalletErrorMessage()` + unit tests
 
 ### ⚠️ Backlog / refinements
 
-- [ ] **P0 — Align wallet auth HTTP client with API validation** — Update `WalletContext.tsx` and `AuthContext.tsx` so `POST /api/auth/wallet/connect` and `POST /api/auth/wallet/verify` include the same **JSON bodies** as `SafePsyWeb3Client` (plus existing headers). Optionally dedupe by routing connect/verify through one shared helper to avoid drift.
-- [ ] **P0 — Re-test MVP funnel manually** — After the fix: connect wallet → verify signature → `GET/POST /api/did/check` → create DID if needed → encrypted chat save/load on Sepolia.
-- [ ] **P1 — Cookies vs Bearer** — Standardize `credentials: 'include'` and/or rely on JWT header only; avoid double `/wallet/verify` if redundant once unified.
-- [ ] **P1 — Unify API base URL** — Align `DIDManager` (and any other stragglers) with `VITE_API_URL || ''` same-origin pattern from `config/api.ts` / `AuthContext`.
-- [ ] **P1 — Docs pass** — Refresh `WALLET_COMPLETE_GUIDE.md` (`/api/auth/*`) and Sepolia wording in `DID_COMPLETE_GUIDE.md`.
-- [ ] **Persist encrypted symmetric key** via DID/contract metadata (reduce reliance on localStorage in `useChatEncryption`)
+- [x] **P0 — Align wallet auth HTTP client with API validation** — `useWalletLogin` / `auth.service` + SIWE JSON bodies; `wallet-auth` reads `req.body` first.
+- [ ] **P0 — Re-test MVP funnel manually** — Staging checklist: **`npm run verify:sepolia-staging`** from `apps/web`; then connect → verify → DID → encrypted chat save/load on Sepolia.
+- [x] **P1 — Cookies vs Bearer** — Web: `apiFetch()` + `auth.service` cookie-only (no Bearer in JS); exactly one `POST /wallet/verify` per login (`useWalletLogin`); `GET /auth/me` confirms session. Mobile: Bearer in SecureStore unchanged.
+- [x] **P1 — Unify API base URL** — Aligned `DIDManager`, `DIDProfile`, and other components with `apiFetch()` from `config/api.ts` (same-origin pattern).
+- [ ] **P1 — Docs pass** — Ongoing: `API_ENDPOINTS.md` added; reconcile Sepolia/mainnet wording in `DID_COMPLETE_GUIDE.md`; keep `WALLET_COMPLETE_GUIDE.md` in sync with cookie-only web.
+- [x] **Persist encrypted symmetric key** — `updateEncryptedKeyMetadata` + migration-only localStorage in `useChatEncryption`
+- [ ] **Redis nonce store** — Replace in-memory wallet nonces when API runs multi-replica
+- [ ] **Node API on production host** — Prod proxy is Python today; optional future: route `/api/chat/completions` to Node for parity with dev (crisis, cache, guest mode on same host)
 - [x] **Gate `/api/testing` in production** — implemented in `apps/api/src/app.ts` (`NODE_ENV === 'production'` → stub `404`)
 - [ ] **Key rotation mechanism** (security checklist)
 - [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)
 - [ ] **Continuous end-to-end testing** beyond unit tests (wallet + chain smoke in staging)
-- [ ] **Optional policy:** **retention / deletion** for `EncryptedChat` (product decision + migration), if compliance requires TTL or user-initiated wipe beyond current flows
+- [x] **Retention/deletion policy** — Implemented `POST /api/chat/export` and `DELETE /api/chat` with rate limiting, audit logging, and frontend UI in DID Profile. Export downloads encrypted JSON; delete removes off-chain data (on-chain hashes remain).
 
 ### ~~Remaining Tasks~~ (historical — superseded by verification above)
 
@@ -288,15 +307,15 @@ curl -s -X POST http://localhost:3001/api/auth/wallet/connect \
 # Wallet verify — body must include address, message, signature (see validationSchemas.walletSignature)
 # curl -X POST http://localhost:3001/api/auth/wallet/verify ...
 
-# Save encrypted chat
+# Save encrypted chat (after wallet verify: session cookie from browser, or Cookie header in curl)
 curl -X POST http://localhost:3001/api/chat/save \
-  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
+  -b "walletSession=<cookie-from-verify>" \
   -d '{"encryptedChatBlob": "...", "didTokenId": "123"}'
 
 # Load encrypted chat
 curl -X GET http://localhost:3001/api/chat/load \
-  -H "Authorization: Bearer <token>"
+  -b "walletSession=<cookie-from-verify>"
 ```
 
 ## Code Examples
@@ -355,6 +374,7 @@ router.post('/save', authenticateWallet, async (req, res) => {
 
 ## Notes
 
-- V2 DID contract uses **`updateChatReference`** / **`updateChatDataReference`** (`did-contract.ts`); older `setDidData` wording in hook comments is misleading — prefer aligning comments with the live ABI.
-- Key rotation requires re-encrypting all chat history
-- Network failures: chat saved locally, DID update retried later
+- V2 DID contract uses **`updateChatReference`** / **`updateEncryptedKeyMetadata`** (`did-contract.ts`); avoid legacy `setDidData` naming in new code.
+- **LLM env (Node dev):** `USE_SCALEWAY_DIRECT`, `SCALEWAY_API_KEY`, optional `REDIS_URL` + `AI_RESPONSE_CACHE_TTL` — see **`apps/api/.env.example`** and **`deploy/app/.env.example`**.
+- Key rotation requires re-encrypting all chat history.
+- Network failures: chat saved off-chain; DID update retried when possible (non-blocking in widget).
