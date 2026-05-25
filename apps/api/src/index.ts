@@ -4,6 +4,7 @@ import logger from "./lib/logger";
 import { initializeConfig } from "./lib/config";
 import { cryptoPaymentService } from "./lib/crypto-payment.service";
 import { startLlmUpstreamHealthPoller } from "./lib/llm-upstream-health";
+import { shouldRunLlmUpstreamHealthPoller, shouldUseScalewayDirect } from "./lib/llm-routing";
 import { createApp } from "./app";
 
 // Load environment variables from monorepo root (single .env; avoids Prisma vs apps/api duplicate)
@@ -47,7 +48,14 @@ try {
   server = app.listen(PORT, () => {
     try {
       logger.info(`SafePsy API listening on :${PORT}`);
-      startLlmUpstreamHealthPoller();
+      if (shouldUseScalewayDirect()) {
+        logger.info('LLM routing: Scaleway Generative API (direct)');
+      }
+      if (shouldRunLlmUpstreamHealthPoller()) {
+        startLlmUpstreamHealthPoller();
+      } else {
+        logger.info('LLM upstream health poller skipped (direct Scaleway or no self-hosted URL)');
+      }
       
       // Validate IP_SALT on startup if hashing is enabled
       if (process.env.IP_HASHING_ENABLED === 'true') {

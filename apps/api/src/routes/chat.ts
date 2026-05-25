@@ -19,7 +19,9 @@ import { prisma } from '../lib/prisma';
 import { DR_SAFE_SYSTEM_PROMPT } from '../lib/dr-safe-system-prompt';
 import { mountChatCompletions } from './chat-completions';
 import { getUpstreamHealthSnapshot } from '../lib/llm-upstream-health';
+import { shouldUseScalewayDirect } from '../lib/llm-routing';
 import { requireUpstreamStatusAuth } from '../middleware/upstream-status-auth';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
 
@@ -509,8 +511,9 @@ router.get(
 router.get('/upstream-status', requireUpstreamStatusAuth, (_req, res) => {
   res.json({
     success: true,
+    routing: shouldUseScalewayDirect() ? 'scaleway-direct' : 'self-hosted',
     skipHealthCheck: process.env.AI_SKIP_UPSTREAM_HEALTH_CHECK === '1',
-    upstreams: getUpstreamHealthSnapshot(),
+    upstreams: shouldUseScalewayDirect() ? {} : getUpstreamHealthSnapshot(),
   });
 });
 
@@ -648,5 +651,198 @@ router.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+/**
+ * Rate limiting for export/delete endpoints (stricter to prevent abuse)
+ * 5 requests per hour per wallet
+ */
+const exportDeleteRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many export/delete requests. Please wait before trying again.',
+    error: 'RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const walletAddress = req.headers['x-wallet-address'] as string;
+    return walletAddress ? `wallet:${walletAddress.toLowerCase()}` : req.ip || 'unknown';
+  },
+});
+
+/**
+ * POST /api/chat/export
+ * Export encrypted chat data for user backup
+ *
+ * Auth: Required (wallet session)
+ *
+ * Flow:
+ * 1. Validate authenticated wallet session
+ * 2. Load encrypted chat from database
+ * 3. Return encrypted blob + metadata as downloadable JSON
+ * 4. Log audit event
+ */
+router.post(
+  '/export',
+  authenticateWallet,
+  exportDeleteRateLimit,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const walletAddress = req.wallet.walletAddress.toLowerCase();
+
+      // Load encrypted chat from database
+      const encryptedChat = await prisma.encryptedChat.findUnique({
+        where: { walletAddress },
+      });
+
+      if (!encryptedChat) {
+        return res.status(404).json({
+          success: false,
+          message: 'No chat history found to export',
+          error: 'CHAT_NOT_FOUND',
+        });
+      }
+
+      // Log audit event (redacted actor)
+      const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+      logger.info(`Chat export requested for wallet ${hashedWallet}...`);
+
+      await prisma.securityAuditLog.create({
+        data: {
+          eventType: 'CHAT_EXPORTED',
+          actor: `${walletAddress.substring(0, 10)}...`,
+          resource: `/api/chat/export`,
+          success: true,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          details: JSON.stringify({
+            hasDid: !!encryptedChat.didTokenId,
+            hasSummary: !!encryptedChat.encryptedSummaryRef,
+          }),
+        },
+      });
+
+      // Return export package
+      res.json({
+        success: true,
+        message: 'Chat exported successfully',
+        data: {
+          walletAddress,
+          exportedAt: new Date().toISOString(),
+          chat: {
+            encryptedBlob: encryptedChat.encryptedBlob,
+            encryptedBlobHash: encryptedChat.encryptedBlobHash,
+            encryptedKey: encryptedChat.encryptedKey,
+            encryptedSummaryRef: encryptedChat.encryptedSummaryRef,
+            didTokenId: encryptedChat.didTokenId,
+            createdAt: encryptedChat.createdAt.toISOString(),
+            updatedAt: encryptedChat.updatedAt.toISOString(),
+          },
+          decryptionInstructions: {
+            note: 'This export contains encrypted chat data. To decrypt, you need your wallet-derived encryption key. Use the decryptChat() function from did-encryption.ts with your wallet signature.',
+            format: 'AES-256-GCM encrypted JSON',
+          },
+        },
+      });
+    } catch (error: any) {
+      logger.error('Chat export error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to export chat',
+      });
+    }
+  }
+);
+
+/**
+ * DELETE /api/chat
+ * Delete encrypted chat history (user-initiated)
+ *
+ * Auth: Required (wallet session)
+ *
+ * Flow:
+ * 1. Validate authenticated wallet session
+ * 2. Delete encrypted chat from database
+ * 3. Log audit event
+ * 4. Note: On-chain DID metadata (hashes) remain immutable
+ */
+router.delete(
+  '/',
+  authenticateWallet,
+  exportDeleteRateLimit,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const walletAddress = req.wallet.walletAddress.toLowerCase();
+
+      // Check if chat exists before deleting
+      const encryptedChat = await prisma.encryptedChat.findUnique({
+        where: { walletAddress },
+      });
+
+      if (!encryptedChat) {
+        return res.status(404).json({
+          success: false,
+          message: 'No chat history found to delete',
+          error: 'CHAT_NOT_FOUND',
+        });
+      }
+
+      // Delete chat from database
+      await prisma.encryptedChat.delete({
+        where: { walletAddress },
+      });
+
+      // Log audit event (redacted actor)
+      const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+      logger.info(`Chat deleted for wallet ${hashedWallet}...`);
+
+      await prisma.securityAuditLog.create({
+        data: {
+          eventType: 'CHAT_DELETED',
+          actor: `${walletAddress.substring(0, 10)}...`,
+          resource: `/api/chat`,
+          success: true,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          details: JSON.stringify({
+            hadDid: !!encryptedChat.didTokenId,
+            hadSummary: !!encryptedChat.encryptedSummaryRef,
+            blobHash: encryptedChat.encryptedBlobHash.substring(0, 16) + '...',
+          }),
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Chat history deleted successfully. Note: On-chain DID metadata (hashes) remain immutable but point to deleted data.',
+        data: {
+          deletedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error: any) {
+      logger.error('Chat deletion error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to delete chat',
+      });
+    }
+  }
+);
 
 export default router;

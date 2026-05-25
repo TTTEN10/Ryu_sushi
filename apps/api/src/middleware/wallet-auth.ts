@@ -59,9 +59,11 @@ export function generateSIWEMessage(
     options?.expirationTime ?? new Date(Date.now() + 5 * 60 * 1000); // align with nonce TTL (5 min default)
 
   const chainId = SUPPORTED_CHAIN_ID;
+  // SiweMessage requires EIP-55 checksummed address (wallet middleware stores lowercase).
+  const checksummedAddress = ethers.getAddress(address);
   const siweMessage = new SiweMessage({
     domain,
-    address,
+    address: checksummedAddress,
     statement: 'Sign in to SafePsy',
     uri,
     version: '1',
