@@ -50,12 +50,12 @@ variable "ai_service_container_image" {
 
 variable "chatbot_instance_id" {
   type        = string
-  description = "Existing Scaleway Instance ID for chatbot (scw-new-psy, DEV1-M PAR2)"
-  default     = "60a5e86a-07a8-4e17-aa3b-862ae586d030"
+  description = "Existing Scaleway Instance ID for chatbot (colocated on scw-last-app when same as app)"
+  default     = "471a791b-573e-45f3-b0c6-bf630476fc6c"
 }
 
 variable "app_instance_id" {
   type        = string
-  description = "Existing Scaleway Instance ID for app (scw-happy-app)"
-  default     = "51c98b35-29cf-4650-9acd-927bf0bbb2cf"
+  description = "Existing Scaleway Instance ID for app + Caddy stack (scw-last-app, DEV1-M PAR2)"
+  default     = "471a791b-573e-45f3-b0c6-bf630476fc6c"
 }

@@ -5,6 +5,8 @@ scaleway_access_key  = "SCWXXXXXXXXXXXXXXXXX"
 scaleway_secret_key    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 scaleway_project_id    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Optional overrides (defaults in variables.tf: app scw-happy-app, chatbot scw-new-psy)
-# chatbot_instance_id = "60a5e86a-07a8-4e17-aa3b-862ae586d030"
-# app_instance_id     = "51c98b35-29cf-4650-9acd-927bf0bbb2cf"
+# Deploy after apply: ./deployment/deploy-live-app.sh (see deployment/DEPLOY-RUNBOOK.md)
+# Optional overrides (defaults: scw-last-app 471a791b… @ 151.115.151.231; app + chatbot same instance)
+# app_instance_id     = "471a791b-573e-45f3-b0c6-bf630476fc6c"
+# chatbot_instance_id = "471a791b-573e-45f3-b0c6-bf630476fc6c"
+# Previous prod:      app_instance_id = "60a5e86a-07a8-4e17-aa3b-862ae586d030"  # scw-new-app @ 62.210.238.160

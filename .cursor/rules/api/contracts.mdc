@@ -1,6 +1,6 @@
 ---
 description: API contract and chatbot service rules
-globs: "{api/**/*.ts,apps/api/**/*.ts,apps/ai-chatbot/**/*.ts}"
+globs: "{api/**/*.ts,apps/api/**/*.ts}"
 alwaysApply: false
 ---
 
