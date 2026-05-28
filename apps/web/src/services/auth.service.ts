@@ -57,7 +57,8 @@ function walletAuthLegacyHeaders(fields: {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (fields.address) headers['x-wallet-address'] = fields.address;
   if (fields.chainId !== undefined) headers['x-chain-id'] = String(fields.chainId);
-  if (fields.message) headers['x-wallet-message'] = fields.message;
+  // Skip message in header - SIWE messages contain newlines which are invalid in HTTP headers
+  // The message is sent in the JSON body, which handles newlines correctly
   if (fields.signature) headers['x-wallet-signature'] = fields.signature;
   return headers;
 }
@@ -109,7 +110,14 @@ export async function requestWalletMessage(
   });
 
   if (!response.ok) {
-    throw new Error('Failed to request verification message');
+    let msg = `Failed to request verification message (${response.status})`;
+    try {
+      const err = (await response.json()) as { message?: string };
+      if (err.message) msg = err.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
   }
 
   const json = (await response.json()) as WalletConnectResponse;

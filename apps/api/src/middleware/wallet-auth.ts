@@ -53,8 +53,8 @@ export function generateSIWEMessage(
     expirationTime?: Date;
   }
 ): string {
-  const domain = options?.domain || process.env.SIWE_DOMAIN || 'safepsy.com';
-  const uri = options?.uri || process.env.SIWE_URI || 'https://safepsy.com';
+  const domain = options?.domain || process.env.SIWE_DOMAIN || 'polinapsycho.com';
+  const uri = options?.uri || process.env.SIWE_URI || `https://${domain}`;
   const expirationTime =
     options?.expirationTime ?? new Date(Date.now() + 5 * 60 * 1000); // align with nonce TTL (5 min default)
 

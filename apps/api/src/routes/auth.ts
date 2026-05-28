@@ -5,10 +5,9 @@ import { walletAuthMiddleware, walletConnectionMiddleware, WalletAuthRequest } f
 import { validateWalletConnect, validateWalletSignature } from '../middleware/validation';
 import { generateWalletToken, extractTokenFromRequest, verifyWalletToken } from '../lib/session';
 import { authenticateWallet, AuthenticatedRequest } from '../middleware/auth';
-import { 
-  strictAuthRateLimitMiddleware, 
+import {
   walletAuthRateLimitMiddleware,
-  testingRateLimitMiddleware 
+  walletConnectChallengeRateLimitMiddleware,
 } from '../lib/ratelimit';
 import { SUPPORTED_CHAIN_ID } from '../lib/constants';
 import { generateSIWEMessage, isSIWEMessage } from '../middleware/wallet-auth';
@@ -19,9 +18,6 @@ import {
 } from '../lib/wallet-nonce.service';
 
 const router = Router();
-
-// Apply strict rate limiting to all auth routes
-router.use(strictAuthRateLimitMiddleware);
 
 /**
  * POST /api/auth/wallet/connect
@@ -34,6 +30,7 @@ router.use(strictAuthRateLimitMiddleware);
  */
 router.post(
   '/wallet/connect',
+  walletConnectChallengeRateLimitMiddleware,
   validateWalletConnect,
   walletConnectionMiddleware,
   async (req: WalletAuthRequest, res: Response) => {
@@ -55,8 +52,25 @@ router.post(
       }
 
       const nonce = ethers.hexlify(ethers.randomBytes(32));
-      registerWalletNonce(nonce, req.wallet.address, req.wallet.chainId);
+      await registerWalletNonce(nonce, req.wallet.address, req.wallet.chainId);
+
+      // Extract domain from Origin header for SIWE message (EIP-4361 requires domain to match requesting origin)
+      const originHeader = req.headers.origin;
+      let domain: string | undefined;
+      let uri: string | undefined;
+      if (originHeader) {
+        try {
+          const url = new URL(originHeader);
+          domain = url.host;
+          uri = originHeader;
+        } catch {
+          // Invalid origin header, fallback to env/default
+        }
+      }
+
       const message = generateSIWEMessage(req.wallet.address, nonce, {
+        domain,
+        uri,
         expirationTime: new Date(Date.now() + 5 * 60 * 1000),
       });
 
@@ -114,7 +128,7 @@ router.post(
       }
 
       const nonce = extractNonceFromSiweMessage(req.wallet.message);
-      if (!nonce || !consumeWalletNonce(nonce, req.wallet.address)) {
+      if (!nonce || !(await consumeWalletNonce(nonce, req.wallet.address))) {
         logger.warn(`Wallet verify nonce replay or invalid for ${req.wallet.address}`);
         return res.status(401).json({
           success: false,
