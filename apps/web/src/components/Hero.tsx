@@ -77,7 +77,7 @@ const Hero: React.FC = () => {
                 </div>
                 <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">Secure</h3>
                 <p className="text-body">
-                  You own your data — chat and summary data are encrypted at rest using AES-256-GCM (only ciphertext is stored), with keys derived from your wallet and not stored on our servers. To provide AI responses, content is decrypted temporarily in server memory during the request (not strict end-to-end encryption).
+                  You own your data — chat is encrypted at rest (AES-256-GCM, ciphertext only), with keys derived from your wallet and not stored on our servers. For each AI reply, your browser sends message text over HTTPS (not strict end-to-end encryption).
                 </p>
               </div>
               

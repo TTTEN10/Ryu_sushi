@@ -14,6 +14,7 @@ import { apiFetch, apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
+import DIDManager from './DIDManager';
 
 interface Message {
   id: string;
@@ -180,7 +181,7 @@ export default function ChatWidget() {
       const chatRef = saveResult.chatReference ?? saveResult.blobHash;
       try {
         if (showToasts) {
-          showToast('info', 'Updating DID contract...');
+          showToast('info', 'Securing your chat to your wallet…');
         }
         const metaBytes = keyMetadataBytesForDidUpdate(
           encryptedKey,
@@ -188,7 +189,7 @@ export default function ChatWidget() {
         );
         const receipt = await updateChatReference(signer, chatRef, metaBytes);
         if (showToasts) {
-          showToast('success', 'DID updated! Chat reference stored on-chain');
+          showToast('success', 'Chat history linked to your wallet');
           console.log(
             'DID updated successfully:',
             (receipt as { hash?: string }).hash ||
@@ -200,7 +201,7 @@ export default function ChatWidget() {
         if (showToasts) {
           showToast(
             'warning',
-            'Chat saved. DID update failed - you can update later from DID settings.',
+            'Chat saved. Wallet link failed — you can retry from your profile.',
           );
         }
       }
@@ -745,6 +746,8 @@ export default function ChatWidget() {
 
   const guestAtLimit = isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT;
   const guestOneLeft = isGuest && guestPromptCount === GUEST_PROMPT_LIMIT - 1;
+  const needsChatUnlock =
+    !isGuest && authState.isVerified && authState.didStatus === 'none';
 
   return (
     <>
@@ -786,13 +789,16 @@ export default function ChatWidget() {
             className="text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-center"
             role="status"
           >
-            Guest mode: this chat lives in this tab only — refresh clears it. When you&apos;re ready, save it securely
-            by connecting a wallet.
+            Guest mode: this chat lives in this tab only — refresh clears it. Connect a wallet, then unlock
+            private persistent chat to save encrypted history across sessions.
           </p>
+        ) : needsChatUnlock ? (
+          <div className="text-left">
+            <DIDManager />
+          </div>
         ) : (
           <p className="text-xs text-body opacity-60 text-center">
-            All the exchanged data will be encrypted and stored in your personal wallet. Nobody except you
-            will have access to it
+            Private persistent chat is on. Messages are encrypted; only your wallet can unlock them.
           </p>
         )}
       </div>

@@ -15,6 +15,8 @@ import auth from "./routes/auth";
 import payment from "./routes/payment";
 import rag from "./routes/rag";
 import metricsRoutes from "./routes/metrics";
+import analyticsRoutes from "./routes/analytics";
+import analyticsDashboardRoutes from "./routes/analytics-dashboard";
 
 import logger from "./lib/logger";
 import { errorHandlerMiddleware } from "./middleware/error-handler";
@@ -40,7 +42,13 @@ export function createApp() {
     const raw = (process.env.FRONTEND_URL || "").trim();
     const defaults = isProd
       ? ["https://polinapsycho.com", "https://www.polinapsycho.com"]
-      : ["http://localhost:3000", "http://localhost:3001"];
+      : [
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://localhost:5173",
+          "http://127.0.0.1:3000",
+          "http://127.0.0.1:5173",
+        ];
 
     const origins = raw
       ? raw
@@ -82,7 +90,7 @@ export function createApp() {
         }
 
         logger.warn(`CORS blocked origin: ${origin}`);
-        return callback(new Error("Not allowed by CORS"));
+        return callback(null, false);
       },
       credentials: true,
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -184,6 +192,8 @@ export function createApp() {
   app.use("/api/payment", payment);
   app.use("/api/rag", rag);
   app.use("/api/metrics", metricsRoutes);
+  app.use("/api/analytics", analyticsRoutes);
+  app.use("/api/analytics/dashboard", analyticsDashboardRoutes);
 
   // serve built web app
   const dist = path.join(__dirname, "../../web/dist");

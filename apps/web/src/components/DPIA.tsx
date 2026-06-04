@@ -619,12 +619,12 @@ const DPIA: React.FC = () => {
                     <div>
                       <h3 className="text-xl text-heading mb-3">Overview</h3>
                       <p className="text-body">
-                        SafePsy uses client-side encryption for storage and comprehensive encryption at rest. Chat and
-                        summary data are encrypted at rest using AES-256-GCM and only ciphertext is stored. Data is
-                        transmitted over TLS. To provide AI replies, message content is decrypted temporarily in server
-                        memory during the request and sent to the AI provider to generate a response — so this is not
-                        strict end-to-end encryption in the sense that servers never see plaintext. Plaintext is not
-                        written to disk, logs, or the database.
+                        SafePsy uses client-side encryption for storage and encryption at rest. Chat blobs are
+                        encrypted with AES-256-GCM; only ciphertext is stored in our database. Data is transmitted over
+                        TLS. To provide AI replies, your browser sends message text on each request; our API and LLM
+                        provider process that content in memory. We do not decrypt saved ciphertext blobs for inference.
+                        This is not strict end-to-end encryption. Plaintext chat is not written to the chat database;
+                        logs redact message bodies where configured.
                       </p>
                     </div>
                   </div>
@@ -704,13 +704,13 @@ const DPIA: React.FC = () => {
                       </ul>
                     </div>
                     <div>
-                      <strong className="text-heading">4. Server-Side Temporary Decryption (AI Processing):</strong>
+                      <strong className="text-heading">4. AI Chat Requests (Plaintext Over TLS):</strong>
                       <ul className="mt-2 ml-6 list-disc space-y-1">
-                        <li><strong>Functional Requirement:</strong> Server MUST decrypt messages temporarily in memory for AI processing (Scaleway AI chat completions). This is a functional requirement for AI functionality.</li>
-                        <li><strong>Plaintext Handling:</strong> Plaintext exists transiently in server memory only during request processing. Plaintext lifetime: Request duration only (typically seconds to minutes).</li>
-                        <li><strong>Security Controls:</strong> Plaintext is NEVER written to disk, logs, or database. Plaintext cleared from memory after request completion. No persistent plaintext storage.</li>
-                        <li><strong>AI Service Data Sharing:</strong> Decrypted plaintext sent to Scaleway AI for chat completions. Scaleway receives message content (plaintext) but NOT user identifiers (wallet, DID, email, IP).</li>
-                        <li><strong>Privacy Disclosure:</strong> Users informed that Scaleway processes chat message content in plaintext for AI responses. This is necessary for AI functionality.</li>
+                        <li><strong>Client path:</strong> The browser decrypts saved history locally for display, then POSTs plaintext <code>messages</code> to <code>/api/chat/completions</code>. The server does not decrypt <code>encryptedBlob</code> from the database for inference.</li>
+                        <li><strong>Plaintext handling:</strong> Message content exists in server memory for the duration of the request while it is forwarded to the LLM upstream (Scaleway or self-hosted, per deployment).</li>
+                        <li><strong>Security controls:</strong> Plaintext is not stored in the chat database. Log redaction applies to message bodies where configured. Optional Redis AI response cache may store reply text keyed by message hash.</li>
+                        <li><strong>AI service data sharing:</strong> LLM upstream receives message content (plaintext) but not wallet or DID in the sanitized payload. Network-level metadata may still apply.</li>
+                        <li><strong>Privacy disclosure:</strong> Users are informed this is not strict end-to-end encryption to the model provider.</li>
                       </ul>
                     </div>
                     <div>
@@ -752,7 +752,7 @@ const DPIA: React.FC = () => {
                     <div>
                       <strong className="text-heading">Key Storage Architecture:</strong>
                       <ul className="mt-2 ml-6 list-disc space-y-1">
-                        <li><strong>Encrypted DEK Storage:</strong> Stored in DID document on blockchain (on-chain). Format: {'{signature}:{iv}:{encryptedKey}'}. Encrypted using wallet-based KEK (AES-256-GCM).</li>
+                        <li><strong>Encrypted DEK Storage:</strong> Stored in DID profile field <code>encryptedKeyMetadata</code> on-chain (UTF-8 bytes). Wire format: {'{signature}:{ivHex}:{ciphertextHex}'}. Encrypted using wallet-based KEK (AES-256-GCM).</li>
                         <li><strong>Server-Side Key Policy:</strong> Server NEVER stores raw keys (DEK/KEK) in any form. Server stores ciphertext blobs only (encrypted chat data). Server cannot decrypt without user's wallet.</li>
                         <li><strong>Client-Side Key Storage:</strong> Keys exist in browser memory only during active session. Keys cleared on logout or session expiration. No persistent key storage on client device.</li>
                         <li><strong>Key Transmission:</strong> Keys NEVER transmitted to server. Only encrypted blobs (ciphertext) sent to server. Key derivation happens client-side only.</li>

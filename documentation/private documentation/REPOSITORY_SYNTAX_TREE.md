@@ -2,7 +2,7 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPappv2**).
 
-> **Last updated:** 2026-05-24 — SIWE cookie-first auth; Scaleway direct LLM (`llm-routing`, crisis/cache/metrics); prod/local deploy via `deploy-live-app.sh` / `deploy-local-app.sh` (`documentation/chatbot-migration.md`, `deployment/DEPLOY-RUNBOOK.md`).
+> **Last updated:** 2026-05-25 — SIWE cookie-first auth; prod/local Caddy splits wallet/DID/chat to **node-api**; Scaleway direct LLM on Python proxy (`deployment/DEPLOY-RUNBOOK.md`).
 
 ---
 
@@ -184,7 +184,7 @@ apps/api/
 │   │   ├── secret-manager.ts        # Secret manager (e.g. Scaleway) — TypeScript
 │   │   ├── security-audit.ts         # Security audit helpers — TypeScript
 │   │   ├── session.ts               # Session management — TypeScript
-│   │   ├── wallet-nonce.service.ts  # SIWE nonce register/consume (replay protection; in-memory — Redis for multi-instance) — TypeScript
+│   │   ├── wallet-nonce.service.ts  # SIWE nonce register/consume (replay protection; Redis via REDIS_URL + in-memory fallback) — TypeScript
 │   │   ├── storage.service.ts       # Storage (S3-compatible) — TypeScript
 │   │   ├── subscription.service.ts  # Subscription logic — TypeScript
 │   │   └── DIDIdentityToken.abi.json # DID token ABI — JSON
@@ -279,6 +279,9 @@ apps/web/
 │   ├── data/
 │   │   ├── faq.ts            # Shared FAQ items (landing + FAQ page; landing-safe subset) — TypeScript
 │   │   └── supportIssues.ts  # Support / issue taxonomy for Support page — TypeScript
+│   │
+│   ├── copy/
+│   │   └── did-onboarding.ts # Outcome-first user copy for DID / private chat unlock — TypeScript
 │   │
 │   ├── contexts/
 │   │   ├── AuthContext.tsx   # Session/JWT/DID bootstrap; sole owner of wallet login API flow — TypeScript (TSX)
@@ -502,13 +505,15 @@ deploy/
 deployment/
 ├── DEPLOY-RUNBOOK.md                  # Validated prod path (scw-last-app, Scaleway direct) — Markdown
 ├── deploy.sh                          # Canonical entrypoint: Terraform + deploy-app.sh (Scaleway direct) — Shell
-├── deploy-app.sh                      # App stack only (called by deploy.sh; Caddy + SPA + Python/Scaleway proxy) — Shell
+├── deploy-app.sh                      # App stack (Caddy + SPA + node-api + Python/Scaleway proxy) — Shell
 ├── deploy-safepsy.sh                  # Thin wrapper → deploy.sh (CI compatibility) — Shell
 ├── deploy-live-app.sh                 # Prod preset → deploy.sh (151.115.151.231, Scaleway direct) — Shell
-├── deploy-local-app.sh                # Local Docker stack (Caddy + SPA + Python proxy); writes .local-app-stack/ — Shell
+├── deploy-local-app.sh                # Local Docker stack (Caddy + SPA + node-api + Python proxy); writes .local-app-stack/ — Shell
 ├── deploy-instance-aware-roadmap.sh   # Deprecated wrapper → deploy.sh — Shell
 ├── local-app/
-│   └── backend/                       # Shared Python API proxy (main.py) for deploy-app + local stack — Python
+│   ├── backend/                       # Python LLM API proxy (main.py) for deploy-app + local stack — Python
+│   └── node-api/
+│       └── Dockerfile                 # Node apps/api runtime image (wallet auth, DID, encrypted chat) — Dockerfile
 ├── deploy-issue.md                    # Known deploy blockers + Scaleway / SSH checklist — Markdown
 ├── install-app-monitor-remote.sh      # Remote install for app monitor — Shell
 ├── on-app-server-recover.sh           # On-server recovery steps — Shell

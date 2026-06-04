@@ -103,7 +103,9 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 
 ### P2 — Doc reconciliation
 
-- **`DID_COMPLETE_GUIDE.md`**: reconcile any lingering **mainnet** wording with **Sepolia-first** runtime (`did.service.ts`, auth routes).
+- [x] **`DID_COMPLETE_GUIDE.md`** — Sepolia-only runtime; mainnet wording removed.
+- [x] **`WALLET_COMPLETE_GUIDE.md`** — cookie-only web session documented.
+- [x] **`API_ENDPOINTS.md`** — `walletSession` cookie name and production Node routing.
 
 ---
 
@@ -255,10 +257,10 @@ Handlers remain in **`testing.ts`** for local/dev use. **`apps/api/src/app.ts`**
 - [ ] **P0 — Re-test MVP funnel manually** — Staging checklist: **`npm run verify:sepolia-staging`** from `apps/web`; then connect → verify → DID → encrypted chat save/load on Sepolia.
 - [x] **P1 — Cookies vs Bearer** — Web: `apiFetch()` + `auth.service` cookie-only (no Bearer in JS); exactly one `POST /wallet/verify` per login (`useWalletLogin`); `GET /auth/me` confirms session. Mobile: Bearer in SecureStore unchanged.
 - [x] **P1 — Unify API base URL** — Aligned `DIDManager`, `DIDProfile`, and other components with `apiFetch()` from `config/api.ts` (same-origin pattern).
-- [ ] **P1 — Docs pass** — Ongoing: `API_ENDPOINTS.md` added; reconcile Sepolia/mainnet wording in `DID_COMPLETE_GUIDE.md`; keep `WALLET_COMPLETE_GUIDE.md` in sync with cookie-only web.
+- [x] **P1 — Docs pass** — `API_ENDPOINTS.md`, `DID_COMPLETE_GUIDE.md`, `WALLET_COMPLETE_GUIDE.md`, `DEPLOY-RUNBOOK.md` aligned with Sepolia + cookie auth + node-api Caddy routes.
 - [x] **Persist encrypted symmetric key** — `updateEncryptedKeyMetadata` + migration-only localStorage in `useChatEncryption`
 - [ ] **Redis nonce store** — Replace in-memory wallet nonces when API runs multi-replica
-- [ ] **Node API on production host** — Prod proxy is Python today; optional future: route `/api/chat/completions` to Node for parity with dev (crisis, cache, guest mode on same host)
+- [x] **Node API on production host** — Caddy routes `/api/auth/*`, `/api/did/*`, and encrypted `/api/chat/*` to **node-api** (`deployment/deploy-app.sh`, `deployment/local-app/node-api/Dockerfile`); Python proxy remains for LLM `/api/chat/completions` and other catch-all `/api/*`
 - [x] **Gate `/api/testing` in production** — implemented in `apps/api/src/app.ts` (`NODE_ENV === 'production'` → stub `404`)
 - [ ] **Key rotation mechanism** (security checklist)
 - [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)

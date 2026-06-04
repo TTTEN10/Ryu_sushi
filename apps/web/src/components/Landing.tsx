@@ -72,7 +72,7 @@ export default function Landing() {
               </div>
             </div>
             <p className="max-w-4xl mx-auto text-center text-body mt-6 text-xs sm:text-sm opacity-90">
-              Important: SafePsy uses client-side encryption for storage, but it is not strict end-to-end encryption because the server must decrypt temporarily in memory to request AI responses.
+              Important: SafePsy encrypts saved chat at rest, but it is not strict end-to-end encryption: your browser sends message text over HTTPS on each AI request.
             </p>
           </section>
 

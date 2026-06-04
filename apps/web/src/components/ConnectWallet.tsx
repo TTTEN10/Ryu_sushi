@@ -2,13 +2,14 @@
  * Wallet connect + signature verification. Optional for browsing; required for encrypted persistence,
  * DID flows, and unlimited chat. Guests use ChatWidget without verifying (session-only, capped prompts).
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../config/supportedChain';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage, getWalletErrorMessage } from '../utils/errorMessages';
+import { WALLET_IDLE_LOGOUT_FLAG, clearWalletActivityTracking } from '../lib/wallet-inactivity';
 
 type ConnectWalletVariant = 'default' | 'header';
 
@@ -22,6 +23,18 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   const [showVerificationInfo, setShowVerificationInfo] = useState(false);
   const [verificationStep, setVerificationStep] = useState<'idle' | 'requesting' | 'signing' | 'verifying' | 'complete'>('idle');
   const [autoVerifyRequested, setAutoVerifyRequested] = useState(false);
+  const verifyInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    if (sessionStorage.getItem(WALLET_IDLE_LOGOUT_FLAG) !== '1') return;
+    sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
+    showToast(
+      'info',
+      'Your session ended after 1 hour of inactivity. Reconnect and verify your wallet to resume chat.',
+      8000,
+    );
+  }, [showToast]);
 
   // Check DID when wallet is verified
   useEffect(() => {
@@ -45,23 +58,27 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   };
 
   const handleVerify = useCallback(async () => {
+    if (verifyInFlightRef.current || authState.isVerified) {
+      return;
+    }
+    verifyInFlightRef.current = true;
     try {
       setIsVerifying(true);
       setVerificationStep('requesting');
       setVerificationError(null);
-      
-      // Simulate steps for better UX feedback
-      await new Promise(resolve => setTimeout(resolve, 300));
+      clearAuthError();
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
       setVerificationStep('signing');
-      
+
       await loginWithWallet();
-      
+
       setVerificationStep('verifying');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       setVerificationStep('complete');
-      
+
       showToast('success', 'This space now belongs to you — wallet verified.', 3000);
-      
+
       setTimeout(() => {
         setVerificationStep('idle');
       }, 2000);
@@ -74,8 +91,9 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       setVerificationStep('idle');
     } finally {
       setIsVerifying(false);
+      verifyInFlightRef.current = false;
     }
-  }, [loginWithWallet, showToast]);
+  }, [loginWithWallet, showToast, authState.isVerified, clearAuthError]);
 
   // If user just connected, trigger verification once wallet state is available.
   // (connectWallet updates context state asynchronously; relying on wallet immediately after await can fail.)
@@ -97,6 +115,10 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
 
   const handleDisconnect = async () => {
     try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
+      }
+      clearWalletActivityTracking();
       await logout();
     } catch (err) {
       console.error('Logout error:', err);
@@ -115,20 +137,26 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   // Show network error if on wrong network
   const isWrongNetwork = wallet && wallet.chainId !== SUPPORTED_CHAIN_ID;
 
-  const getVerificationStepText = () => {
-    switch (verificationStep) {
-      case 'requesting':
-        return 'Requesting verification...';
-      case 'signing':
-        return 'Sign in your wallet — confirms identity; no funds are used';
-      case 'verifying':
-        return 'Verifying signature...';
-      case 'complete':
-        return 'Verified!';
-      default:
-        return 'Verifying...';
+  const getVerificationStatusBanner = () => {
+    if (!isVerifying || verificationStep === 'idle' || verificationStep === 'complete') {
+      return null;
     }
+    const title =
+      verificationStep === 'signing'
+        ? 'Sign in your wallet'
+        : verificationStep === 'verifying'
+          ? 'Verifying signature'
+          : 'Preparing sign-in';
+    const detail =
+      verificationStep === 'signing'
+        ? 'Confirms identity'
+        : verificationStep === 'verifying'
+          ? 'Checking your signature with SafePsy'
+          : 'Requesting a sign-in message';
+    return { title, detail };
   };
+
+  const verificationStatusBanner = getVerificationStatusBanner();
 
   const isHeader = variant === 'header';
 
@@ -218,19 +246,19 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
               {authState.didStatus === 'exists' ? (
                 <>
                   <Shield className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                  <span className="text-blue-700 dark:text-blue-300">DID Active</span>
+                  <span className="text-blue-700 dark:text-blue-300">Chat saved</span>
                 </>
               ) : authState.didStatus === 'checking' ? (
                 <span className="text-blue-700 dark:text-blue-300">Checking...</span>
               ) : authState.didStatus === 'error' ? (
                 <>
                   <AlertCircle className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
-                  <span className="text-yellow-700 dark:text-yellow-300">DID Error</span>
+                  <span className="text-yellow-700 dark:text-yellow-300" title="Backend configuration missing — check RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL">Setup issue</span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300">No DID</span>
+                  <span className="text-gray-700 dark:text-gray-300">Unlock chat save</span>
                 </>
               )}
             </div>
@@ -241,7 +269,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
             <button
               onClick={handleVerify}
               className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-4 focus:ring-primary-200 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
-              title="Confirm identity in your wallet — no funds used"
+              title="Sign in your wallet — confirms identity"
               aria-label={isHeader ? 'Authorize in your wallet' : 'Verify wallet'}
             >
               <CheckCircle className="w-4 h-4 text-white" />
@@ -251,10 +279,10 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
             </button>
           )}
 
-          {isVerifying && (
+          {isVerifying && !verificationStatusBanner && (
             <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2 min-h-[44px]">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>{getVerificationStepText()}</span>
+              <span>Verifying...</span>
             </div>
           )}
 
@@ -267,6 +295,22 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
           >
             <LogOut className="w-4 h-4" />
           </button>
+
+          {verificationStatusBanner && (
+            <div
+              className="absolute top-full right-0 mt-2 z-50 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-xs text-green-800 dark:text-green-300 max-w-xs space-y-1 shadow-lg"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-2">
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-green-600 dark:text-green-400 mt-0.5" />
+                <div className="min-w-0 space-y-0.5">
+                  <p className="font-semibold">{verificationStatusBanner.title}</p>
+                  <p>{verificationStatusBanner.detail}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Messages - dropdown overlay, does not affect header size */}
           {(verificationError || authState.error) && (

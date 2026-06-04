@@ -363,7 +363,7 @@ export default function DIDProfile() {
       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
         <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
           <AlertTriangle className="w-5 h-5" />
-          <p className="text-sm font-medium">No DID found. Please create your DID identity first.</p>
+          <p className="text-sm font-medium">Private chat is not unlocked yet. Unlock private persistent chat from your profile to save encrypted conversations.</p>
         </div>
       </div>
     );
@@ -380,7 +380,7 @@ export default function DIDProfile() {
               <Shield className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">DID Profile</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Private chat profile</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">Decentralized Identity</p>
             </div>
           </div>

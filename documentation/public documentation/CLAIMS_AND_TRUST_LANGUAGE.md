@@ -13,7 +13,7 @@ This document lists every trust claim SafePsy might make, with **approved wordin
 | **Encryption at rest** | "Chat and summary data are encrypted at rest using AES-256-GCM. Only ciphertext is stored in the database." | [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md) (encryption flow, trust boundaries); [PRIVACY-BY-DESIGN.md](./PRIVACY-BY-DESIGN.md); client-side encryption before storage | "End-to-end encryption" (without caveat); "Nobody can ever read your data" |
 | **Key control** | "Encryption keys are derived from your wallet and are not stored on SafePsy servers. You control your keys." | [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md) (wallet as key, DEK in DID); wallet-based key derivation; key material never transmitted to server | "SafePsy never has access to … unencrypted data" (server has transient plaintext for AI) |
 | **Transit** | "Data is transmitted over TLS 1.3. Sensitive content is encrypted client-side before sending." | [SECURITY_COMPLETE_GUIDE.md](./SECURITY_COMPLETE_GUIDE.md); TLS 1.3; client-side AES before upload | "Fully end-to-end encrypted" (implies server never sees plaintext) |
-| **AI processing** | "To provide AI responses, message content is decrypted temporarily in server memory only during the request. Plaintext is not written to disk, logs, or database." | [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md) (trust boundaries, server-side temporary decryption); no-content-logging policy; AI gateway implementation | "Your messages are never seen by our servers"; "Complete privacy" (without stating AI provider sees content) |
+| **AI processing** | "To provide AI responses, your browser sends message content over HTTPS on each request; our API and LLM provider process that text in memory. Saved chat remains ciphertext in our database; we do not decrypt stored blobs for inference. Plaintext is not written to the chat database; logs redact message bodies where configured." | [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md) §3 (trust boundaries); `ChatWidget.tsx`, `chat-completions.ts`, `ai-gateway.service.ts` | "Your messages are never seen by our servers"; "Server decrypts your saved chat for AI"; "Complete privacy" (without stating LLM sees content) |
 
 ---
 
@@ -149,11 +149,11 @@ This document lists every trust claim SafePsy might make, with **approved wordin
 
 ## Quick reference: terms to avoid
 
-- "End-to-end encryption" without stating that the server decrypts for AI.
+- "End-to-end encryption" without stating that the client sends plaintext for each AI request (not strict E2E).
 - "HIPAA compliant" or "HIPAA certified" (use "measures supporting HIPAA-style safeguards" and state no certification).
 - "GDPR certified" or "fully GDPR compliant" without legal sign-off.
 - "ISO 27001 certified" (use "aligned with" or "measures aligned with ISO 27001").
-- "SafePsy never has access to unencrypted data" (transient server-side decryption for AI).
+- "SafePsy never has access to unencrypted data" (completions path is plaintext over TLS; at-rest blob is ciphertext only).
 - "Ethereum Mainnet" when the app is on Sepolia.
 - "Audited" without specifying internal vs external and network (Sepolia vs mainnet).
 - "AI therapist" or that the AI provides clinical treatment or diagnosis.

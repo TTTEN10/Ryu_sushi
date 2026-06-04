@@ -22,10 +22,26 @@ export const subscriptionRateLimitMiddleware = rateLimit({
   legacyHeaders: false,
 })
 
-// Rate limiting for wallet authentication endpoints (strict for security)
+// SIWE challenge issuance (POST /auth/wallet/connect) — allow retries during sign-in UX
+export const walletConnectChallengeRateLimitMiddleware = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: {
+    success: false,
+    message: 'Too many wallet sign-in attempts. Please wait before trying again.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const walletAddress = req.headers['x-wallet-address'] as string;
+    return walletAddress ? walletAddress.toLowerCase() : req.ip || 'unknown';
+  },
+})
+
+// Rate limiting for wallet signature verification (POST /auth/wallet/verify)
 export const walletAuthRateLimitMiddleware = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Reduced to 10 requests per 15 minutes for better security
+  max: 20,
   message: {
     success: false,
     message: 'Too many wallet authentication attempts. Please try again later.',
@@ -132,6 +148,18 @@ export const funnelRateLimitMiddleware = rateLimit({
   message: {
     success: false,
     message: 'Too many funnel submissions. Please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+/** Analytics event ingestion (POST /api/analytics/event): generous limit for batch events */
+export const analyticsEventRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // limit each IP to 100 events per minute (supports batch sending)
+  message: {
+    success: false,
+    message: 'Too many analytics events. Please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,

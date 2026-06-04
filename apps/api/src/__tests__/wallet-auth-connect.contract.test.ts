@@ -13,7 +13,7 @@ vi.mock("../lib/ratelimit", async () => {
   const actual: Record<string, unknown> = await vi.importActual("../lib/ratelimit");
   return {
     ...actual,
-    strictAuthRateLimitMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+    walletConnectChallengeRateLimitMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
     walletAuthRateLimitMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
   };
 });

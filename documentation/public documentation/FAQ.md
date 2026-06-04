@@ -1,18 +1,44 @@
 # FAQ 
 
+## Getting started (outcomes, not jargon)
+
+### What does "unlock private persistent chat" mean?
+
+It is a **one-time setup** after you connect your wallet. You do not need to understand blockchain terminology to use SafePsy.
+
+**What you unlock:**
+
+- Encrypted chat history that comes back when you return  
+- Conversations tied to your wallet, not a platform account  
+- Keys derived from your wallet (not stored on SafePsy servers)
+
+**What happens behind the scenes:** SafePsy mints a soulbound on-chain identity record (a **DID**, also called a **Safe ID Token**) linked to your wallet. That record anchors your encrypted data. The product surfaces the **outcome** ("unlock private persistent chat") because that is what matters; "create your DID" is the technical step underneath.
+
+### What is a DID (Decentralized Identity)?
+
+A **DID** is the technical name for that on-chain identity record. It proves your wallet owns your persistence anchor. You control it with your wallet keys. For wallet loss, on-chain visibility, and revocation, see the sections below.
+
+---
+
 ## Encryption and privacy
+
+> Full detail: [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md)
 
 ### 1. Is my chat really end-to-end encrypted?
 
-We use **client-side encryption**: you encrypt your messages before they leave your device, and we store only ciphertext. So your data is encrypted in transit and at rest. However, to provide AI replies, our server must temporarily decrypt your messages in memory and send the text to the AI provider. That means it is **not** end-to-end encryption in the strict sense (where only you and the recipient can ever see plaintext). We do not write decrypted content to disk, logs, or the database, and we do not use your chats to train models.
+**No, not in the strict sense.** We use **client-side encryption at rest**: your browser encrypts the conversation before it is saved, and we store only ciphertext in our database. When you chat with Dr. Safe, your **browser sends readable message text** to our API over HTTPS so the model can reply; we do **not** decrypt your saved database blob on the server for that step. After you get a reply, the client encrypts the updated thread again before saving. We do not use your chats to train models. See the encryption guide for guest mode, summaries, and caching.
 
 ### 2. Can SafePsy read my messages?
 
-During each AI request, the server holds your message in plaintext in memory only for the time needed to call the AI service (typically seconds). We do not store plaintext, and we do not log chat content. So we *can* technically read content only while processing a request; we do not retain or routinely access it. Our design and policies are built to avoid storing or logging the content of your conversations.
+**During each AI request, yes in principle:** your device sends plaintext in the completions request, and our API processes it in memory to forward to the LLM. We do **not** persist plaintext chat in the database, and we redact message bodies in application logs where the redaction middleware applies. We do not use your chats to train models. Optional deployments may cache AI **replies** in Redis for performance (`AI_RESPONSE_CACHE`); that is separate from your encrypted chat blob.
 
 ### 3. Who else can see my chat content?
 
-Your messages are sent to the AI provider (e.g. Scaleway or our own GPU service) in plaintext so they can generate responses. We do not send your name, DID, or other identifiers with the content. You should rely on that provider’s privacy and data-handling policies for what they do with the content they process.
+Your messages are sent to the **LLM provider** (e.g. Scaleway Generative API or a self-hosted GPU service, depending on configuration) in plaintext so they can generate responses. We do not attach your wallet address or DID to the message payload sent to the model. You should review that provider’s privacy policy. Network-level metadata may still apply.
+
+### 3a. What about guest mode?
+
+Without a verified wallet session, chat stays **in your browser only** (limited prompts). It is **not** saved to encrypted storage. Refreshing the page clears that session.
 
 ### 4. If you don’t store my keys, what happens if I lose my wallet?
 
@@ -88,7 +114,7 @@ Sensitive operations and upgrades are governed by a **Timelock** and **multisig 
 
 ### 17. Can you revoke or delete my DID?
 
-Depending on design and roles, certain actions (e.g. revocation in case of abuse) may be possible by the system (e.g. via governance or authorized roles). The exact conditions are in the contracts and documentation. We do not arbitrarily revoke DIDs; any such capability is for safety and abuse prevention.
+You can initiate **on-chain revocation** of your DID (permanent for that identity record). Revocation does **not** erase ciphertext already stored off-chain or bytes already on-chain; use **export/delete chat** if you want off-chain chat removed. Today, encrypted chat save/load uses **wallet session auth** and may not block revoked DIDs automatically; treat revocation as identity lifecycle, not a cryptographic wipe of all stored chats. Governance may revoke in abuse cases per contract rules.
 
 ---
 

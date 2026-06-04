@@ -2,24 +2,59 @@ function trimTrailingSlash(s: string): string {
   return s.replace(/\/$/, '')
 }
 
+function configuredApiOrigin(raw: string): string | null {
+  try {
+    const withScheme = raw.startsWith('http') ? raw : `https://${raw.replace(/^\/\//, '')}`
+    return new URL(withScheme).origin
+  } catch {
+    return null
+  }
+}
+
+function normalizeConfiguredApiBase(raw: string): string {
+  const normalized = trimTrailingSlash(raw)
+  if (normalized.endsWith('/api')) return normalized
+  return `${normalized}/api`
+}
+
+/**
+ * Resolve API base for a page origin. When the configured API host differs from the page
+ * (e.g. build has apex URL but user is on www, or VITE_API_URL points at :3001 while Vite
+ * serves :5173), use same-origin `/api` so Caddy/Vite proxy handles routing.
+ */
+export function resolveApiBaseUrlForOrigin(
+  viteApiUrl: string | undefined,
+  pageOrigin: string | undefined,
+): string {
+  const raw = viteApiUrl?.trim()
+  if (!raw) return '/api'
+
+  if (pageOrigin) {
+    const configuredOrigin = configuredApiOrigin(raw)
+    if (!configuredOrigin || configuredOrigin !== pageOrigin) {
+      return '/api'
+    }
+  }
+
+  return normalizeConfiguredApiBase(raw)
+}
+
 /**
  * Returns the base URL for API calls.
  *
  * Preferred setup:
- * - Use same-origin `/api` and rely on the dev proxy in Vite.
+ * - Use same-origin `/api` and rely on the dev proxy in Vite (or Caddy in production).
  *
  * Override options:
  * - `VITE_API_URL` can be either:
  *   - a full API base including `/api` (e.g. `https://polinapsycho.com/api`)
  *   - a server origin (e.g. `http://localhost:3001`) in which case `/api` is appended
+ * - In the browser, if `VITE_API_URL` host does not match `window.location.origin`, `/api` is used instead.
  */
 export function getApiBaseUrl(): string {
-  const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
-  if (!raw) return '/api'
-
-  const normalized = trimTrailingSlash(raw)
-  if (normalized.endsWith('/api')) return normalized
-  return `${normalized}/api`
+  const raw = import.meta.env.VITE_API_URL as string | undefined
+  const pageOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+  return resolveApiBaseUrlForOrigin(raw, pageOrigin)
 }
 
 export function apiUrl(path: string): string {
@@ -53,7 +88,16 @@ export async function apiFetch(pathOrUrl: string, init: RequestInit = {}): Promi
 export function apiServerUrl(path: string): string {
   const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
   const p = path.startsWith('/') ? path : `/${path}`
+  const pageOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+
   if (!raw) return p
+
+  if (pageOrigin) {
+    const configuredOrigin = configuredApiOrigin(raw)
+    if (!configuredOrigin || configuredOrigin !== pageOrigin) {
+      return p
+    }
+  }
 
   const normalized = trimTrailingSlash(raw)
   const origin = normalized.endsWith('/api') ? trimTrailingSlash(normalized.slice(0, -4)) : normalized

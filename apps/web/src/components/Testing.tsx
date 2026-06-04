@@ -37,7 +37,7 @@ export default function Testing() {
                 </div>
                 <div className="p-4 rounded-2xl border border-accent-300 dark:border-accent-700 bg-accent-50/70 dark:bg-accent-900/20">
                   <p className="text-heading font-semibold">Step 3</p>
-                  <p className="text-body">Keep sessions securely</p>
+                  <p className="text-body">Unlock private persistent chat</p>
                 </div>
               </div>
             </div>

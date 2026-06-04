@@ -7,6 +7,8 @@ import { decryptChatHistory } from '../utils/did-encryption';
 import { useChatEncryption } from '../hooks/useChatEncryption';
 import { toEthersReadProvider } from '../utils/ethers-helpers';
 import { apiFetch } from '../config/api';
+import { DID_ONBOARDING } from '../copy/did-onboarding';
+import DIDManager from './DIDManager';
 
 interface DIDTokenVisualizationProps {
   className?: string;
@@ -89,15 +91,17 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
   };
 
   if (!authState.didInfo?.hasDid) {
-    const message = !wallet?.address
-      ? 'Connect Wallet to start'
-      : 'No DID token found. Create your identity to get started.';
+    const message = !wallet?.address ? DID_ONBOARDING.noWallet : DID_ONBOARDING.unlockSubtitle;
     return (
-      <div className={`p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 ${className}`}>
-        <div className="text-center py-8">
-          <Shield className="w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-          <p className="text-gray-600 dark:text-gray-400">{message}</p>
+      <div className={`space-y-4 ${className}`}>
+        <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+          <div className="text-center py-4">
+            <Shield className="w-12 h-12 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
+            <p className="text-sm font-medium text-heading">{DID_ONBOARDING.unlockTitle}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 max-w-md mx-auto">{message}</p>
+          </div>
         </div>
+        {authState.isVerified && <DIDManager />}
       </div>
     );
   }
@@ -121,7 +125,7 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">SafePsy DID Token</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{DID_ONBOARDING.unlockTitle}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Token ID: #{displayTokenId}</p>
               </div>
             </div>

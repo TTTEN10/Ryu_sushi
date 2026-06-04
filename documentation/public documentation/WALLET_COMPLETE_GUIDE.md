@@ -8,10 +8,28 @@ This implementation provides:
 - **Wallet connection** (MetaMask/WalletConnect)
 - **Signature verification** and session management
 - **DID status checking** for authenticated users
-- **Protected API routes** with httpOnly cookie sessions (JWT in cookie, not browser JS)
+- **Protected API routes** with httpOnly `walletSession` cookies (JWT never exposed to browser JS on web)
 - **Client-side state management** for auth and DID status
 - **Error handling** for network switches and disconnects
 - **Chat data export/delete** — users can export encrypted chat or delete it permanently
+
+## Web session (cookie-only)
+
+The React web app does **not** store session JWTs in `localStorage`, `sessionStorage`, or React state.
+
+| Step | What happens |
+|------|----------------|
+| Login | `useWalletLogin` → `auth.service`: one `POST /api/auth/wallet/verify`; API sets httpOnly `walletSession` |
+| Confirm | `GET /api/auth/me` via `fetchWalletSession()` (`credentials: 'include'`) |
+| Authenticated API | `apiFetch()` / `auth.service` / `postDidCheck()` — all use `API_SESSION_CREDENTIALS` (`'include'`) from `apps/web/src/config/api.ts` |
+| Logout | `POST /api/auth/logout` clears the cookie; `AuthContext` removes legacy `walletSessionToken` from localStorage if present |
+| `useAuth().token` | Always **`null`** — session lives in the cookie only |
+
+**Verify response:** `POST /api/auth/wallet/verify` may include `data.token` in JSON for **mobile** (`safepsy-mobile` SecureStore). The web client **ignores** that field and relies on the cookie.
+
+**Cross-origin:** If the SPA and API are on different hosts, set `VITE_API_URL` to the API origin and configure API CORS with `credentials: true`. Same-origin dev uses Vite proxy to `/api`.
+
+**Mobile (out of scope for web):** `Authorization: Bearer <token>` remains supported on the API for the native app.
 
 ## Architecture
 
@@ -41,10 +59,11 @@ This implementation provides:
 ### Frontend Components
 
 1. **AuthContext** (`apps/web/src/contexts/AuthContext.tsx`)
-   - Manages authentication state
-   - **`loginWithWallet()`** — orchestrates connect → SIWE via `useWalletLogin` / `auth.service`, then **`GET /api/auth/me`** to confirm the httpOnly session
-   - Checks DID status (`postDidCheck` / `checkDID`)
-   - Provides logout (`POST /api/auth/logout`, clears legacy `walletSessionToken` from localStorage if present)
+   - Manages authentication state; exposes **`token: null`** (JWT only in httpOnly cookie)
+   - **`loginWithWallet()`** — `executeLogin()` (one verify), then **`fetchWalletSession()`** (`GET /api/auth/me`); does not call verify twice
+   - On wallet connect, **`refreshAuth()`** re-validates the cookie session and re-runs DID check when verified
+   - Checks DID status (`postDidCheck` / `checkDID`) with cookie credentials only
+   - **`logout()`** — `logoutWalletSession()`, clears legacy `walletSessionToken`, disconnects wallet
 
 2. **auth.service** (`apps/web/src/services/auth.service.ts`)
    - Sole HTTP layer for **`POST /api/auth/wallet/connect`**, **`POST /api/auth/wallet/verify`**, session **`GET /api/auth/me`**, and logout
@@ -147,7 +166,7 @@ function VerifyButton() {
 
 ## API Endpoints (production)
 
-SafePsy wallet auth is **Sepolia-only** at runtime (`chainId` **11155111**). Request bodies use **`Content-Type: application/json`**. The API middleware still accepts **legacy header-based** calls for backward compatibility.
+SafePsy wallet auth is **Sepolia-only** at runtime (`chainId` **11155111**, `SUPPORTED_CHAIN_ID` in `apps/api/src/lib/constants.ts`). Request bodies use **`Content-Type: application/json`**. The API still accepts legacy **`x-wallet-*`** headers for older clients; the web app sends JSON bodies only.
 
 ### POST /api/auth/wallet/connect
 
@@ -185,15 +204,16 @@ Verify wallet signature and create session.
   "data": {
     "address": "0x...",
     "chainId": 11155111,
-    "verified": true,
-    "token": "jwt-token-here"
+    "verified": true
   }
 }
 ```
 
+(`data.token` may appear for **mobile** clients; web ignores it.)
+
 **Cookies (web client):**
-- Sets `walletSession` **httpOnly** cookie; the React app uses **`credentials: 'include'`** via `apiFetch` / `auth.service` and does **not** store JWTs in JavaScript.
-- Legacy `data.token` in the JSON response may still be present for **mobile** (`safepsy-mobile` SecureStore); web clears any old `walletSessionToken` from localStorage on login.
+- API sets **`walletSession`** (httpOnly, `Secure` in production). Browser sends it automatically on same-site or configured cross-origin requests with `credentials: 'include'`.
+- Web never reads or persists the JWT; **`AuthContext.loginWithWallet`** clears legacy **`walletSessionToken`** from localStorage before verify.
 
 ### GET /api/auth/me
 
@@ -273,19 +293,19 @@ If DID check fails:
 
 ### Session Expiration
 
-If JWT token expires:
-- Frontend detects on next API call
-- Automatically clears session
-- User must re-verify wallet
+When the `walletSession` cookie expires or is invalid:
+- `GET /api/auth/me` returns **401**; `fetchWalletSession()` returns `null`
+- `refreshAuth()` clears verified state; user must sign in again via **`loginWithWallet()`**
+- Legacy `walletSessionToken` in localStorage is removed on failed DID/session checks
 
 ## Security Features
 
-1. **JWT Tokens**: Secure, signed tokens with expiration
-2. **HTTP-Only Cookies**: Prevents XSS attacks
-3. **Signature Verification**: Cryptographic proof of wallet ownership
-4. **Chain ID Validation**: SafePsy wallet auth enforces **Sepolia** (**11155111**) at runtime
-5. **Rate Limiting**: Applied to all auth endpoints
-6. **Session Expiration**: Tokens expire after 7 days (configurable)
+1. **HTTP-Only `walletSession` cookie (web)**: JWT is not accessible to page JavaScript (XSS mitigation)
+2. **Signature verification**: EIP-4361 SIWE / wallet message proof of ownership
+3. **Chain ID validation**: **Sepolia** (**11155111**) enforced at connect, verify, and middleware
+4. **Rate limiting**: Applied to auth endpoints
+5. **Session expiration**: Cookie/JWT lifetime from `JWT_EXPIRES_IN` (default **7d**)
+6. **Bearer JWT (mobile only)**: Native app may use `Authorization`; not used by `apps/web`
 
 ## Environment Variables
 
@@ -368,7 +388,10 @@ VITE_WALLETCONNECT_PROJECT_ID=your-walletconnect-project-id
 - `apps/api/src/app.ts` - `createApp()`, cookie parsing, route mounts
 
 ### Frontend
-- `apps/web/src/contexts/AuthContext.tsx` - Auth context
+- `apps/web/src/contexts/AuthContext.tsx` - Auth context (cookie session, `token: null`)
+- `apps/web/src/services/auth.service.ts` - Wallet connect/verify/me/logout/did-check HTTP
+- `apps/web/src/hooks/useWalletLogin.ts` - Single-verify login orchestration
+- `apps/web/src/config/api.ts` - `apiFetch`, `API_SESSION_CREDENTIALS`
 - `apps/web/src/components/ConnectWallet.tsx` - Updated component
 - `apps/web/src/App.tsx` - Added AuthProvider
 
@@ -393,13 +416,13 @@ This document describes the wallet connection implementation with WalletConnect 
 **Features:**
 - Global wallet state management
 - WalletConnect (`@walletconnect/ethereum-provider`) when `VITE_WALLETCONNECT_PROJECT_ID` is set; otherwise injected wallets (e.g. MetaMask)
-- **`personal_sign`** via EIP-1193 for both paths — compatible with MetaMask and WalletConnect-backed wallets
+- **`signMessage()`** uses ethers `signer.signMessage()` (MetaMask and injected wallets); WalletConnect falls back to raw EIP-1193 `personal_sign` via `walletConnectProviderRef` when needed
 - Chain and account change handling (Sepolia enforced for SafePsy)
 
 **Key Methods:**
 - `connectWallet()` — Connect via WalletConnect QR/modal or injected provider
 - `disconnectWallet()` — Disconnect wallet and clear state
-- `signMessage()` — **Sign only** (`personal_sign`); session verification is **`AuthContext.loginWithWallet`** → **`useWalletLogin`** → **`auth.service`** (`/api/auth/wallet/connect` then `/api/auth/wallet/verify`, then `GET /api/auth/me`)
+- `signMessage()` — **Sign only** (ethers or WC `personal_sign`); session verification is **`AuthContext.loginWithWallet`** → **`useWalletLogin`** → **`auth.service`** (`/api/auth/wallet/connect` then `/api/auth/wallet/verify`, then `GET /api/auth/me`)
 
 **Supported Networks:**
 - **Sepolia** (Chain ID: **11155111**) — **Only supported network** for this product path
@@ -501,7 +524,7 @@ function MyComponent() {
 
 1. **Signature Verification**: All signatures are verified server-side
 2. **Nonce-based Messages**: Each verification uses a unique nonce
-3. **Session Management**: Wallet state persists across page reloads
+3. **Session persistence**: httpOnly `walletSession` survives reloads; `refreshAuth()` restores verified state via `GET /api/auth/me`
 4. **Error Handling**: Comprehensive error handling and user feedback
 5. **Privacy**: Wallet addresses are truncated in UI
 

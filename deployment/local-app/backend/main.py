@@ -37,6 +37,14 @@ def _load_dr_safe_system_prompt(mode: str | None) -> str:
             guest = ""
         if guest:
             return f"{base}\n\n{guest}"
+    if mode == "authenticated":
+        auth_path = _PROMPT_DIR / "dr_safe_authenticated_append.txt"
+        try:
+            auth = auth_path.read_text(encoding="utf-8").strip() if auth_path.is_file() else ""
+        except OSError:
+            auth = ""
+        if auth:
+            return f"{base}\n\n{auth}"
     return base
 
 

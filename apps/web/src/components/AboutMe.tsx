@@ -355,7 +355,7 @@ export default function AboutMe() {
                   <AlertCircle className="w-6 h-6" />
                   <div>
                     <h3 className="text-lg font-semibold mb-1">Wallet Not Verified</h3>
-                    <p className="text-sm">Please connect and verify your wallet to view your DID profile.</p>
+                    <p className="text-sm">Please connect and verify your wallet to manage your private chat profile.</p>
                   </div>
                 </div>
               </div>
@@ -379,11 +379,11 @@ export default function AboutMe() {
             <div className="text-center mb-12 sm:mb-16 px-4 fade-in">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-heading leading-tight mb-4 sm:mb-6">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent text-[1.2em] font-bold stagger-item">
-                  My DID Profile
+                  My private chat profile
                 </span>
               </h1>
               <p className="text-base sm:text-lg lg:text-xl text-body leading-relaxed max-w-3xl mx-auto">
-                View your decentralized identity information and profile details
+                See what your wallet unlocks: saved encrypted chats, session history, and your on-chain identity record
               </p>
             </div>
 
@@ -437,10 +437,10 @@ export default function AboutMe() {
               ) : !didInfo?.hasDid ? (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
                   <div className="flex items-center gap-3 text-yellow-800 dark:text-yellow-200">
-                    <AlertCircle className="w-6 h-6" />
+                    <AlertCircle className="w-6 h-6 shrink-0" />
                     <div>
-                      <h3 className="text-lg font-semibold mb-1">No DID Found</h3>
-                      <p className="text-sm">You don't have a DID identity yet. Create one to get started.</p>
+                      <h3 className="text-lg font-semibold mb-1">Profile details appear after unlock</h3>
+                      <p className="text-sm">Use the unlock section above to enable private persistent chat. Your wallet, session dates, and chat history will show here once setup completes.</p>
                     </div>
                   </div>
                 </div>

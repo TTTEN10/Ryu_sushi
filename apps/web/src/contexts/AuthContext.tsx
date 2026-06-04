@@ -10,6 +10,12 @@ import { useWallet } from './WalletContext';
 import { useWalletLogin } from '../hooks/useWalletLogin';
 import { recordDidSuccess, recordSessionSuccess } from '../utils/conversionMetrics';
 import { fetchWalletSession, logoutWalletSession, postDidCheck } from '../services/auth.service';
+import { useWalletInactivityTimeout } from '../hooks/useWalletInactivityTimeout';
+import {
+  WALLET_IDLE_LOGOUT_FLAG,
+  clearWalletActivityTracking,
+  touchWalletActivity,
+} from '../lib/wallet-inactivity';
 
 export type UserMode = 'guest' | 'authenticated';
 
@@ -133,7 +139,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           didInfo,
         }));
       } catch (err: unknown) {
-        console.error('DID check error:', err);
+        const isBackendConfigError = err instanceof Error && (err as any).isBackendConfigError;
+        if (isBackendConfigError) {
+          // Backend missing env vars (RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL)
+          console.error('DID check failed: backend configuration missing');
+        } else {
+          console.error('DID check error:', err);
+        }
         setAuthState((prev) => ({
           ...prev,
           didStatus: 'error',
@@ -166,6 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: null,
       }));
 
+      touchWalletActivity();
       await checkDID({ skipVerifiedCheck: true });
     } catch (err: unknown) {
       const messageText = err instanceof Error ? err.message : 'Login failed';
@@ -186,6 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Logout error:', err);
     } finally {
       clearLegacyWalletToken();
+      clearWalletActivityTracking();
       setAuthState({
         walletAddress: null,
         network: null,
@@ -198,6 +212,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       disconnectWallet();
     }
   }, [disconnectWallet]);
+
+  const handleInactivityTimeout = useCallback(async () => {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(WALLET_IDLE_LOGOUT_FLAG, '1');
+    }
+    await logout();
+  }, [logout]);
+
+  useWalletInactivityTimeout(authState.isVerified, handleInactivityTimeout);
 
   const clearAuthError = useCallback(() => {
     setAuthState((prev) => ({ ...prev, error: null }));
@@ -232,6 +255,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
       await checkDID({ skipVerifiedCheck: true });
+      touchWalletActivity();
       setAuthState((prev) => ({
         ...prev,
         walletAddress: session.walletAddress,

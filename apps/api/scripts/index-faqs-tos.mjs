@@ -42,12 +42,16 @@ const FAQs = [
     answer: "SafePsy uses decentralized identity (DID) technology, encryption, and blockchain-based access control. Your data is encrypted before storage (ciphertext only in our database), and encryption keys are derived from your wallet and are not stored on our servers. To provide AI responses, message content is processed temporarily in server memory and sent to the AI provider; we do not log chat content or store plaintext."
   },
   {
+    question: "What does unlocking private persistent chat mean?",
+    answer: "It is a one-time setup after you connect your wallet. You get encrypted chat history that returns when you come back, tied to your wallet instead of a corporate account. Behind the scenes, SafePsy creates an on-chain identity record (a DID / Safe ID Token) linked to your wallet; you do not need to learn blockchain jargon to use the product."
+  },
+  {
     question: "What is a Decentralized Identity (DID)?",
-    answer: "A Decentralized Identity (DID) is a blockchain-based identity that you own and control. It's cryptographically linked to your wallet address and stored on the Ethereum blockchain. Only you can modify or revoke your DID using your wallet's private keys."
+    answer: "A DID is the technical name for the on-chain identity record SafePsy creates when you unlock private persistent chat. It is cryptographically linked to your wallet, stored on Ethereum (currently Sepolia testnet), and controlled only by your wallet keys. Think of it as the anchor that lets your encrypted chats persist securely across sessions."
   },
   {
     question: "Do I need a crypto wallet to use SafePsy?",
-    answer: "Yes, SafePsy requires a Web3 wallet (like MetaMask) to create and manage your DID. This ensures you have complete control over your identity and data. Your wallet's private keys never leave your device."
+    answer: "You can try a limited guest chat without a wallet. To unlock private persistent chat (save encrypted history across sessions), you need a Web3 wallet (like MetaMask). Your private keys never leave your device."
   },
   {
     question: "What happens if I lose my wallet or private keys?",

@@ -72,6 +72,7 @@ SKIP_CHATBOT_DEPLOY="${SKIP_CHATBOT_DEPLOY:-0}"
 USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT:-}"
 if [[ "${USE_SCALEWAY_DIRECT}" == "1" ]]; then
   SKIP_CHATBOT_DEPLOY=1
+  SKIP_VLLM_DEPLOY=1
 fi
 SCALEWAY_API_KEY="${SCALEWAY_API_KEY:-}"
 SCALEWAY_PROJECT_ID="${SCALEWAY_PROJECT_ID:-5dad0cb7-c16a-4447-9a25-e89bd3448e8a}"
@@ -102,7 +103,81 @@ API_BASE_DIR="/home/${APP_USER}/llm-api"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WEB_SRC_DIR="${WEB_SRC_DIR:-${REPO_ROOT}/apps/web}"
+NODE_API_DOCKERFILE="${SCRIPT_DIR}/local-app/node-api/Dockerfile"
 SCRIPT_VERSION="2026-04-07.1"
+
+# Node API (wallet SIWE, DID, encrypted chat) — required for /api/auth/* on production (Python proxy is LLM-only).
+if [[ -f "${REPO_ROOT}/.env" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "${REPO_ROOT}/.env"
+  set +a
+fi
+JWT_SECRET="${JWT_SECRET:-}"
+if [[ "${APP_DOMAIN}" == www.* ]]; then
+  NODE_API_FRONTEND_URL="https://${APP_DOMAIN}"
+else
+  NODE_API_FRONTEND_URL="https://${APP_DOMAIN},https://www.${APP_DOMAIN}"
+fi
+SIWE_DOMAIN="${SIWE_DOMAIN:-${APP_DOMAIN}}"
+SIWE_URI="${SIWE_URI:-https://${APP_DOMAIN}}"
+
+# Node API: Sepolia DID reads + Prisma encrypted chat (wallet funnel after SIWE).
+NODE_API_RPC_URL="${RPC_URL:-${ETH_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}}"
+NODE_API_DID_REGISTRY="${DID_REGISTRY_ADDRESS:-0x8e5F41f2B8B3E28a8966e37181B257f9E2725bA5}"
+NODE_API_DID_IDENTITY="${DID_IDENTITY_TOKEN_ADDRESS:-0x103eAd096f898132E138ad228E35296db983A053}"
+WEB_VITE_DID="${VITE_DID_IDENTITY_TOKEN_ADDRESS:-${NODE_API_DID_IDENTITY}}"
+WEB_VITE_RPC="${VITE_RPC_URL:-${NODE_API_RPC_URL}}"
+NODE_API_DATABASE_URL="${DATABASE_URL:-}"
+APP_ENABLE_POSTGRES=0
+APP_PG_USER="safepsy_user"
+APP_PG_PASS=""
+APP_PG_DB="safepsy"
+if [[ -n "${NODE_API_DATABASE_URL}" ]]; then
+  eval "$(
+    DATABASE_URL="${NODE_API_DATABASE_URL}" node <<'NODE'
+const u = new URL(process.env.DATABASE_URL);
+const host = u.hostname;
+const needsPostgres = host === 'localhost' || host === '127.0.0.1';
+const composeUrl = needsPostgres
+  ? process.env.DATABASE_URL.replace(host, 'postgres')
+  : process.env.DATABASE_URL;
+const esc = (s) => JSON.stringify(s);
+console.log(`export NODE_API_DATABASE_URL=${esc(composeUrl)}`);
+console.log(`export APP_ENABLE_POSTGRES=${needsPostgres ? '1' : '0'}`);
+console.log(`export APP_PG_USER=${esc(u.username || 'safepsy_user')}`);
+console.log(`export APP_PG_PASS=${esc(u.password || '')}`);
+console.log(`export APP_PG_DB=${esc((u.pathname || '/safepsy').replace(/^\//, '') || 'safepsy')}`);
+NODE
+  )"
+else
+  log "WARN: DATABASE_URL unset — encrypted chat save/load will fail until Postgres is configured"
+fi
+
+NODE_API_DEPENDS_BLOCK=""
+APP_POSTGRES_SERVICE_BLOCK=""
+if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then
+  NODE_API_DEPENDS_BLOCK="
+    depends_on:
+      postgres:
+        condition: service_healthy"
+  APP_POSTGRES_SERVICE_BLOCK="
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${APP_PG_USER}
+      POSTGRES_PASSWORD: ${APP_PG_PASS}
+      POSTGRES_DB: ${APP_PG_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [\"CMD-SHELL\", \"pg_isready -U ${APP_PG_USER} -d ${APP_PG_DB}\"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+"
+fi
 
 # Where vLLM / chatbot runs and how the app backend reaches it (set MODEL_API_URL_FOR_COMPOSE before this script to override).
 if [[ "${SINGLE_HOST}" == "1" ]]; then
@@ -369,6 +444,16 @@ else
   run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/backend && rm -rf ${APP_BASE_DIR}/backend/*'"
   COPYFILE_DISABLE=1 tar -C "${BACKEND_SRC}" -cf - . | run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/backend -xf -'"
 
+  [[ -f "${NODE_API_DOCKERFILE}" ]] || die "Missing ${NODE_API_DOCKERFILE}"
+  [[ -n "${JWT_SECRET}" ]] || die "JWT_SECRET must be set in repo .env for Node API (wallet auth on production)"
+  log "STEP 5a-node: Sync monorepo node-api build context -> ${APP_IP}:${APP_BASE_DIR}/node-api-src"
+  run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/node-api-src && rm -rf ${APP_BASE_DIR}/node-api-src/*'"
+  COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - \
+    package.json package-lock.json apps/api apps/web/package.json | \
+    run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/node-api-src -xf -'"
+  COPYFILE_DISABLE=1 tar -C "${SCRIPT_DIR}/local-app/node-api" -cf - Dockerfile | \
+    run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/node-api-src -xf -'"
+
   run_ssh "${APP_IP}" "bash -lc '
   set -euo pipefail
   export DEPLOY_FRESH=${DEPLOY_FRESH_CONTAINERS:-0}
@@ -380,8 +465,10 @@ FROM node:20-alpine
 WORKDIR /app
 COPY . .
   # apps/web currently has strict TS errors in some files; build production bundle via Vite.
-ENV VITE_API_URL=https://${APP_DOMAIN}
+  # API base: unset — browser uses same-origin /api (Caddy → node-api). Avoids www vs apex CORS.
 ENV VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID}
+ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID}
+ENV VITE_RPC_URL=${WEB_VITE_RPC}
 RUN npm install --legacy-peer-deps && npx vite build
 RUN npm install -g serve
 CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"]
@@ -397,6 +484,26 @@ services:
         limits:
           memory: 1G
 
+  node-api:
+    build: ./node-api-src
+    restart: unless-stopped${NODE_API_DEPENDS_BLOCK}
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${NODE_API_FRONTEND_URL}
+      - SIWE_DOMAIN=${SIWE_DOMAIN}
+      - SIWE_URI=${SIWE_URI}
+      - RPC_URL=${NODE_API_RPC_URL}
+      - ETH_RPC_URL=${NODE_API_RPC_URL}
+      - DID_REGISTRY_ADDRESS=${NODE_API_DID_REGISTRY}
+      - DID_IDENTITY_TOKEN_ADDRESS=${NODE_API_DID_IDENTITY}
+      - DATABASE_URL=${NODE_API_DATABASE_URL}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+${APP_POSTGRES_SERVICE_BLOCK}
   backend:
     build: ./backend
     extra_hosts:
@@ -433,11 +540,33 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:
 EOF
 
   cat > Caddyfile <<\"EOF\"
 ${CADDY_SITE_NAMES} {
   encode gzip
+  handle /api/auth/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/did/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/save {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/load* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/summary {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/export {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/concurrency {
+    reverse_proxy node-api:3001
+  }
   handle_path /api/* {
     reverse_proxy backend:5000
   }
@@ -447,6 +576,27 @@ ${CADDY_SITE_NAMES} {
 # Plain HTTP for direct-IP access only (no public cert for raw IPs — avoids breaking :443 for real domains)
 http://${APP_IP} {
   encode gzip
+  handle /api/auth/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/did/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/save {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/load* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/summary {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/export {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/concurrency {
+    reverse_proxy node-api:3001
+  }
   handle_path /api/* {
     reverse_proxy backend:5000
   }
@@ -461,6 +611,15 @@ EOF
     docker compose up -d --force-recreate
   else
     docker compose up -d --build --force-recreate
+  fi
+  if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
+    echo \"[deploy-app] Applying Prisma schema to Postgres (encrypted chat tables)\"
+    for _p in \$(seq 1 30); do
+      if docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate 2>/dev/null; then
+        break
+      fi
+      sleep 2
+    done
   fi
   docker compose ps
   curl -fsS http://localhost >/dev/null

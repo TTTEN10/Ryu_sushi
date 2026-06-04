@@ -6,7 +6,11 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'What can I do immediately?',
-    a: 'Immediately after connecting:\n• create your AI identity\n• start chatting\n• build a persistent profile\n• experience memory/context continuity\n• explore identity-native interactions\n\nThe key is that value appears in under 30 seconds.\n\nConnect wallet → create identity → start chatting instantly.',
+    a: 'Immediately after connecting your wallet:\n• start chatting with Dr. Safe\n• unlock private persistent chat (one-time setup)\n• save encrypted conversations across sessions\n• pick up where you left off with continuity\n\nThe key is that value appears in under 30 seconds.\n\nConnect wallet → unlock private chat → keep chatting with memory that belongs to you.',
+  },
+  {
+    q: 'What does "unlock private persistent chat" mean?',
+    a: 'It is a one-time setup after you connect your wallet. You do not need to understand blockchain jargon.\n\nWhat you get:\n• encrypted chat history that comes back when you return\n• conversations tied to your wallet, not a corporate account\n• keys derived from your wallet (not stored on SafePsy servers)\n\nWhat happens behind the scenes: SafePsy creates a soulbound on-chain identity record (a DID / Safe ID Token) linked to your wallet. That record anchors your encrypted data. The button says "Unlock private persistent chat" because that is the outcome you care about.',
   },
   {
     q: 'Why should I care?',
@@ -14,11 +18,11 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'Why is it different?',
-    a: 'SafePsy is different because identity is native to the experience, not an add-on.\n\nMost AI apps:\n• reset context\n• depend on centralized accounts\n• treat users as sessions\n\nSafePsy treats users as persistent entities.\n\nKey differentiators:\n• wallet-native identity\n• portable DID layer\n• persistent interactions\n• user-owned identity graph\n• AI experiences tied to identity, not accounts',
+    a: 'SafePsy is different because your conversations can persist with you, not with a platform account.\n\nMost AI apps:\n• reset context when you leave\n• depend on centralized logins\n• treat you as a temporary session\n\nSafePsy ties continuity to your wallet:\n• private persistent chat after a one-time unlock\n• encrypted history you control\n• an on-chain identity record (DID) only where it adds trust, not as the headline',
   },
   {
     q: 'Can I try SafePsy without connecting a wallet?',
-    a: 'Yes. You can chat instantly as a guest for a limited, session-style experience. Connecting a wallet unlocks decentralized identity flows and encrypted persistence tied to your keys.',
+    a: 'Yes. You can chat instantly as a guest for a limited, session-style experience. Connecting a wallet lets you unlock private persistent chat: encrypted history tied to your keys, saved across sessions.',
   },
   {
     q: 'How is my data protected?',

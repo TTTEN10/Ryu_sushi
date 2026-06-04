@@ -69,9 +69,9 @@ export function getActionableErrorMessage(error: unknown, context: ErrorContext 
   const endpoint = (context.endpoint || '').toLowerCase();
   const original = (originalMessage || '').toLowerCase();
 
-  // Network/Connection errors
+  // Network/CORS errors (browser reports as TypeError on fetch)
   if (error instanceof TypeError && error.message.includes('fetch')) {
-    return 'Connection failed. Please check your internet connection and try again.';
+    return 'Cannot reach the SafePsy API. Check your connection and try again.';
   }
 
   // HTTP Status-based messages

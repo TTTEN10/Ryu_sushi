@@ -92,7 +92,7 @@ const Explore: React.FC = () => {
                 </span>
               </h2>
               <p className="text-base sm:text-lg text-body leading-relaxed text-center max-w-4xl mx-auto mb-8 sm:mb-12 px-4">
-                SafePsy integrates AI, blockchain, and secure digital identity to support mental wellness and therapy-adjacent use cases worldwide. Users control their data through decentralized identity and wallet-derived encryption keys. To generate AI responses, message content is processed by a third-party AI provider and decrypted temporarily in server memory during the request; plaintext is not written to disk, logs, or the database.
+                SafePsy integrates AI, blockchain, and secure digital identity to support mental wellness and therapy-adjacent use cases worldwide. Users control their data through decentralized identity and wallet-derived encryption keys. Saved chat is ciphertext in our database; each AI request sends message content over HTTPS to our API and LLM provider (not strict end-to-end encryption).
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">

@@ -6,6 +6,7 @@ import {
 } from '../config/supportedChain';
 import { recordWalletClick, recordWalletSuccess } from '../utils/conversionMetrics';
 import { getWalletErrorMessage } from '../utils/errorMessages';
+import { trackEvent } from '../lib/analytics';
 
 type WalletConnectProvider = {
   accounts: string[];
@@ -72,10 +73,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   /** Updated synchronously in `connectWallet` / disconnect so `signMessage` works in the same tick as `await connectWallet()` (Auth login flow). */
   const walletSessionRef = useRef<{ address: string; chainId: number } | null>(null);
   const providerRef = useRef<ethers.BrowserProvider | null>(null);
+  /** Raw WalletConnect EIP-1193 provider (ethers wraps it; `.provider.request` is not always available). */
+  const walletConnectProviderRef = useRef<WalletConnectProvider | null>(null);
 
   const clearWalletState = useCallback(() => {
     walletSessionRef.current = null;
     providerRef.current = null;
+    walletConnectProviderRef.current = null;
     setWallet(null);
     setProvider(null);
     setSigner(null);
@@ -91,14 +95,16 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   }, [wallet, provider]);
 
-  // Initialize WalletConnect provider (lazy initialization - will be created on connect if needed)
-  // This effect only sets up the provider if it's already connected from a previous session
+  // Restore WalletConnect sessions only when no injected extension (avoid WC modal competing with MetaMask/Rabby)
   useEffect(() => {
     const initWalletConnect = async () => {
       if (!WALLETCONNECT_PROJECT_ID) {
         console.warn(
           'WalletConnect disabled: set VITE_WALLETCONNECT_PROJECT_ID in apps/web/.env (see apps/web/env.example). Injected extension wallets still work.',
         );
+        return;
+      }
+      if (typeof window.ethereum !== 'undefined') {
         return;
       }
 
@@ -110,7 +116,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           projectId: WALLETCONNECT_PROJECT_ID,
           chains: [SUPPORTED_CHAIN_ID], // Sepolia Testnet
           optionalChains: [],
-          showQrModal: true,
+          showQrModal: false,
           metadata: {
             name: 'SafePsy',
             description: 'Safe Online-Therapy Platform',
@@ -119,7 +125,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           },
         });
 
-        // Set up event listeners
         provider.on('display_uri', (uri: string) => {
           console.log('WalletConnect URI:', uri);
         });
@@ -163,7 +168,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           }
         });
 
-        setWalletConnectProvider(provider as unknown as WalletConnectProvider);
+        const wc = provider as unknown as WalletConnectProvider;
+        walletConnectProviderRef.current = wc;
+        setWalletConnectProvider(wc);
       } catch (err) {
         console.error('WalletConnect initialization error:', err);
       }
@@ -242,8 +249,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   useEffect(() => {
     if (wallet?.address) {
       recordWalletSuccess();
+
+      // Track wallet success in analytics
+      trackEvent('wallet_success', {
+        wallet_provider: getWalletProvider(),
+        chain_id: wallet.chainId,
+      }).catch(console.error);
     }
-  }, [wallet?.address]);
+  }, [wallet?.address, wallet?.chainId]);
 
   // Listen for MetaMask chain changes
   useEffect(() => {
@@ -284,9 +297,49 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     };
   }, [walletConnectProvider]);
 
+  /**
+   * Detect wallet provider from user agent or wallet object.
+   */
+  const getWalletProvider = (): string => {
+    if (typeof window === 'undefined') {
+      return 'unknown';
+    }
+
+    const ua = navigator.userAgent;
+
+    // Detect MetaMask
+    if (ua.includes('MetaMask')) {
+      return 'metamask';
+    }
+
+    // Detect WalletConnect
+    if (ua.includes('WalletConnect')) {
+      return 'walletconnect';
+    }
+
+    // Detect Rabby
+    if (ua.includes('Rabby')) {
+      return 'rabby';
+    }
+
+    // Detect Coinbase Wallet
+    if (ua.includes('Coinbase')) {
+      return 'coinbase';
+    }
+
+    // Default
+    return 'injected';
+  };
+
   const connectWallet = useCallback(async () => {
     try {
       recordWalletClick();
+
+      // Track wallet click in analytics (before popup opens)
+      trackEvent('wallet_click', {
+        wallet_provider: getWalletProvider(),
+      }).catch(console.error);
+
       setIsLoading(true);
       setError(null);
 
@@ -299,7 +352,74 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         return { address: wallet.address, chainId: wallet.chainId };
       }
 
-      // Prioritize WalletConnect if Project ID is configured
+      const connectInjectedWallet = async (): Promise<ConnectedWallet | null> => {
+        if (typeof window.ethereum === 'undefined') {
+          return null;
+        }
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send('eth_requestAccounts', []);
+        const network = await provider.getNetwork();
+        let chainId = Number(network.chainId);
+
+        if (chainId !== SUPPORTED_CHAIN_ID) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: SUPPORTED_CHAIN_ID_HEX }],
+            });
+            const updatedNetwork = await provider.getNetwork();
+            chainId = Number(updatedNetwork.chainId);
+            if (chainId !== SUPPORTED_CHAIN_ID) {
+              throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
+            }
+          } catch (switchError: any) {
+            if (switchError.code === 4902) {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [SEPOLIA_CHAIN_PARAMS],
+              });
+              const updatedNetwork = await provider.getNetwork();
+              chainId = Number(updatedNetwork.chainId);
+              if (chainId !== SUPPORTED_CHAIN_ID) {
+                throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
+              }
+            } else {
+              throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
+            }
+          }
+        }
+
+        const signer = await provider.getSigner();
+        const addr = ethers.getAddress(accounts[0]);
+        const net = await provider.getNetwork();
+        const resolvedChainId = Number(net.chainId);
+
+        walletSessionRef.current = { address: addr, chainId: resolvedChainId };
+        providerRef.current = provider;
+
+        setProvider(provider);
+        setSigner(signer);
+        setWallet({
+          address: addr,
+          chainId: resolvedChainId,
+          isConnected: true,
+        });
+
+        return { address: addr, chainId: resolvedChainId };
+      };
+
+      // Browser extension first (MetaMask, Rabby, etc.) — avoids WalletConnect modal when an injector is present
+      try {
+        const injected = await connectInjectedWallet();
+        if (injected) {
+          return injected;
+        }
+      } catch (injectedError) {
+        console.error('Injected wallet connection error:', injectedError);
+        throw injectedError;
+      }
+
+      // WalletConnect for mobile / QR when no injected wallet or extension connect failed
       if (WALLETCONNECT_PROJECT_ID) {
         const ensureWalletConnectProvider = async (): Promise<WalletConnectProvider | null> => {
           if (walletConnectProvider) return walletConnectProvider;
@@ -352,6 +472,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               }
             });
 
+            walletConnectProviderRef.current = wc;
             setWalletConnectProvider(wc);
             return wc;
           } catch (e) {
@@ -366,6 +487,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         if (!providerToUse) {
           // Fall through to MetaMask
         } else {
+          walletConnectProviderRef.current = providerToUse;
           // Provider already initialized, try to connect
           try {
             await providerToUse.connect();
@@ -395,74 +517,16 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               return { address: addr, chainId };
             }
           } catch (wcError: any) {
-            // If user cancels WalletConnect, try MetaMask
             if (wcError.message?.includes('User rejected') || wcError.code === 5001 || wcError.code === 'USER_REJECTED') {
-              console.log('WalletConnect cancelled, trying MetaMask...');
+              console.log('WalletConnect cancelled by user');
             } else {
               console.error('WalletConnect error:', wcError);
-              // Continue to MetaMask fallback
             }
           }
         }
       }
 
-      // Fallback to MetaMask or injected provider
-      if (typeof window.ethereum !== 'undefined') {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.send('eth_requestAccounts', []);
-        const network = await provider.getNetwork();
-        const chainId = Number(network.chainId);
-
-        // Validate chain ID - only Sepolia Testnet is supported
-        if (chainId !== SUPPORTED_CHAIN_ID) {
-          // Try to switch to Sepolia
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: SUPPORTED_CHAIN_ID_HEX }],
-            });
-            // Re-fetch network after switch
-            const updatedNetwork = await provider.getNetwork();
-            const updatedChainId = Number(updatedNetwork.chainId);
-            if (updatedChainId !== SUPPORTED_CHAIN_ID) {
-              throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
-            }
-          } catch (switchError: any) {
-            // If switch fails (4902 = chain not added), add Sepolia then switch
-            if (switchError.code === 4902) {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [SEPOLIA_CHAIN_PARAMS],
-              });
-              const updatedNetwork = await provider.getNetwork();
-              const updatedChainId = Number(updatedNetwork.chainId);
-              if (updatedChainId !== SUPPORTED_CHAIN_ID) {
-                throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
-              }
-            } else {
-              throw new Error('Please switch to Sepolia Testnet to use SafePsy.');
-            }
-          }
-        }
-
-        const signer = await provider.getSigner();
-        const addr = ethers.getAddress(accounts[0]);
-        const net = await provider.getNetwork();
-        const resolvedChainId = Number(net.chainId);
-
-        walletSessionRef.current = { address: addr, chainId: resolvedChainId };
-        providerRef.current = provider;
-
-        setProvider(provider);
-        setSigner(signer);
-        setWallet({
-          address: addr,
-          chainId: resolvedChainId,
-          isConnected: true,
-        });
-
-        return { address: addr, chainId: resolvedChainId };
-      } else if (!WALLETCONNECT_PROJECT_ID) {
+      if (!WALLETCONNECT_PROJECT_ID) {
         throw new Error('No Ethereum wallet found. Please install MetaMask or configure WalletConnect Project ID.');
       } else {
         throw new Error('No Ethereum wallet found. Please install MetaMask or use WalletConnect.');
@@ -486,10 +550,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, [walletConnectProvider, clearWalletState]);
 
   /**
-   * EIP-1193 `personal_sign` — works for:
-   * - **MetaMask** (injected `window.ethereum`)
-   * - **WalletConnect** and other mobile wallets (wrapped by `ethers.BrowserProvider` from `@walletconnect/ethereum-provider`)
-   * Same message bytes must be sent to `/api/auth/wallet/verify` via `useWalletLogin` / `auth.service` only (never from here).
+   * Sign SIWE via ethers (`signMessage`) — MetaMask, WalletConnect, and injected wallets.
+   * Same message bytes must be sent to `/api/auth/wallet/verify` via `useWalletLogin` / `auth.service` only.
    */
   const signMessage = useCallback(
     async (message: string): Promise<string> => {
@@ -500,18 +562,25 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       }
 
       try {
-        const eip1193 = prov.provider as unknown as {
-          request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-        };
-        const signature = (await eip1193.request({
-          method: 'personal_sign',
-          params: [message, addr],
-        })) as string;
-        return signature;
-      } catch (err: unknown) {
-        const errorMessage = getWalletErrorMessage(err);
+        const signer = await prov.getSigner();
+        return await signer.signMessage(message);
+      } catch (primaryErr: unknown) {
+        const wc = walletConnectProviderRef.current;
+        if (wc?.request) {
+          try {
+            return (await wc.request({
+              method: 'personal_sign',
+              params: [message, addr],
+            })) as string;
+          } catch (wcErr: unknown) {
+            const errorMessage = getWalletErrorMessage(wcErr);
+            setError(errorMessage);
+            throw wcErr;
+          }
+        }
+        const errorMessage = getWalletErrorMessage(primaryErr);
         setError(errorMessage);
-        throw err;
+        throw primaryErr;
       }
     },
     [provider, wallet?.address],

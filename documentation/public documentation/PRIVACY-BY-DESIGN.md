@@ -172,77 +172,65 @@ For questions about privacy implementation:
 
 ## Encryption Scope & Privacy Model
 
-> **For comprehensive details on encryption implementation, consent flows, and data protection measures, see the [Data Protection Impact Assessment (DPIA)](/dpia) in the SafePsy application.**
+> **Canonical reference:** [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md) (plain-language + technical sections). **Compliance framing:** [DPIA](/dpia) in the SafePsy application.
 
-### Encryption at Rest
+### In plain terms
 
-SafePsy implements **client-side encryption with server-side temporary decryption** for all user chat content:
+- **Saved chat:** Encrypted in your browser before it is stored. SafePsy keeps **ciphertext** in the database, not readable history.
+- **Dr. Safe replies:** Your browser sends **message text over HTTPS** on each request so the AI can answer. The server does **not** open your saved ciphertext blob to run the model.
+- **Keys:** Wrapped with your wallet and stored on your DID as **`encryptedKeyMetadata`**. Plaintext chat keys stay on your device during the session.
+- **Guests:** Without a verified wallet session, chat stays **in memory only** (not saved to encrypted storage).
+- **Not strict E2E:** The API and LLM provider see message content during chat requests by design.
 
-- **Client-Side Encryption**: All chat messages and summaries are encrypted in the user's browser using AES-256-GCM before transmission to the server. See [DPIA - Encrypted Storage section](/dpia#encrypted-storage) for detailed technical implementation.
-- **Server Storage**: The server stores only ciphertext (encrypted blobs) in the database. The server never has persistent access to encryption keys.
-- **Key Management**: Encryption keys are stored exclusively client-side (browser localStorage/IndexedDB) and are never transmitted to the server. Wallet-based key derivation using SHA-256 hash of wallet signature. See [DPIA - Key Management section](/dpia#encrypted-storage) for details.
-- **Temporary Decryption**: The server must decrypt messages temporarily in memory for AI processing (functional requirement). Plaintext exists only during request processing and is never stored.
+### Technical detail
 
-### Server-Side AI Processing
+#### Encryption at rest (authenticated users)
 
-**Important Privacy Disclosure**: To provide AI-powered chat functionality, the server must temporarily decrypt chat data in memory to process it with Scaleway AI:
+- **Client:** AES-256-GCM over chat JSON (`did-encryption.ts`); save via `POST /api/chat/save` with `encryptedChatBlob` only.
+- **Server DB:** `encrypted_chats.encryptedBlob` (ciphertext). No wallet DEK/KEK on server.
+- **On-chain:** `chatDataReference` (hash of blob); `encryptedKeyMetadata` (UTF-8 `signature:ivHex:ciphertextHex` wrapping the DEK).
+- **Legacy:** One-time migration from `localStorage` `encryptedKey_{address}` when chain metadata is empty.
 
-- **Transient Plaintext**: Plaintext exists temporarily in server memory only during AI processing operations.
-- **Lifetime**: Plaintext exists only for the duration of request processing (typically seconds to minutes).
-- **Security Controls**: 
-  - Plaintext is never written to persistent storage
-  - Plaintext is never logged
-  - Plaintext is cleared from memory after request completion
+#### AI processing (completions)
 
-### External Service Data Sharing
+1. Client decrypts history locally for display (if persisted).
+2. Client `POST /api/chat/completions` with **plaintext** `messages` (`ChatWidget.tsx`).
+3. API forwards sanitized messages to LLM upstream (Scaleway direct or self-hosted OpenAI-compatible URL per `llm-routing.ts`).
+4. Client encrypts updated thread before the next save.
 
-**Scaleway AI (Chat Completions)**:
-- **Receives**: Plaintext user message content (prompts) and conversation context for AI processing
-- **Does NOT Receive**: User identifiers (wallet addresses, DID, email), IP addresses (except unavoidable network-level), or session metadata
-- **User Awareness**: Users should be aware that Scaleway processes their chat message content in plaintext for AI responses
+The server **does not** decrypt `encryptedBlob` from PostgreSQL for inference.
 
-**OpenAI (Embeddings Only)**:
-- **Receives**: Plaintext text content from FAQs and Terms of Service (public data) for embedding generation
-- **NOT Used**: OpenAI is NOT used for chat completions, only for RAG embeddings
+**Controls:** Log redaction (`log-redaction.ts`); optional Redis AI response cache (`AI_RESPONSE_CACHE`, plaintext replies keyed by message hash).
 
-**Scaleway Object Storage**:
-- **Stores**: Encrypted chat summaries (ciphertext only)
-- **Cannot Decrypt**: Scaleway cannot decrypt the data without the user's key
+#### External services
 
-### Privacy Guarantees
+| Service | Role | Plaintext? |
+|---------|------|------------|
+| LLM upstream (Scaleway or self-hosted) | Chat completions | Message content in API body; wallet/DID not in `buildSanitizedMessages` |
+| OpenAI (if configured) | RAG embeddings for public FAQs/ToS only | Public corpus text, not user chat |
+| Object storage | Optional encrypted **summaries** | Ciphertext; summary key may be server-generated (see encryption guide §9) |
 
-1. **Content Privacy**: Chat content is encrypted at rest (ciphertext only in database). Only users with encryption keys can decrypt their data.
-2. **Metadata Minimization**: SafePsy minimizes metadata exposure by not sending user identifiers to external AI services.
-3. **Transient Processing**: Plaintext exists only transiently in server memory during AI processing (seconds to minutes).
-4. **No Persistent Plaintext**: The server never stores decrypted chat data in any persistent form (not written to disk, logs, or database).
-5. **Client-Side Key Control**: Encryption keys are never stored on server (client-side only, derived from wallet signature).
+#### Privacy guarantees and limits
 
-### End-to-End Encryption Semantics
+| Guarantee | Limit |
+|-----------|--------|
+| Ciphertext-only chat blob in DB | Plaintext in completions request body |
+| No server-side DEK storage | Optional server-generated summary keys |
+| Wallet-wrapped DEK on-chain | Sepolia today (chain ID `11155111`) |
+| Redacted logs | Not a guarantee against all processing copies |
 
-**Important Clarification**: SafePsy implements **client-side encryption**, not traditional end-to-end encryption where the server never sees plaintext.
+#### Trust model (storage vs chat)
 
-**Encryption Flow**:
-1. **Client encrypts** messages using AES-256-GCM before transmission
-2. **Server receives** ciphertext only and stores encrypted blobs
-3. **Server decrypts** temporarily in memory for AI processing (functional requirement)
-4. **Server sends** plaintext to Scaleway AI for chat completions
-5. **Server clears** plaintext from memory after request completion
-6. **Client receives** AI response and encrypts complete conversation before saving
+| Path | Content form |
+|------|----------------|
+| Save/load APIs | Ciphertext |
+| Completions API | Plaintext (TLS) |
+| LLM upstream | Plaintext messages |
+| User device | Plaintext in session memory; DEK while active |
 
-**Trust Model**:
-- ✅ **Client → Server**: Encrypted (ciphertext only)
-- ⚠️ **Server Memory**: Temporary plaintext (during AI processing only)
-- ✅ **Server Storage**: Encrypted (ciphertext only)
-- ⚠️ **Server → Scaleway**: Plaintext (necessary for AI processing)
-- ✅ **Client Storage**: Encrypted (ciphertext only)
+**Do not claim** “server decrypts stored chat for AI.” **Do claim** “encrypted at rest; client sends message content for each AI request.”
 
-**This is NOT pure E2E encryption** because the server must decrypt for AI functionality. However, it provides strong privacy guarantees:
-- Encryption at rest (ciphertext only in database)
-- Client-side key management (keys never on server)
-- Transient plaintext (only in memory during processing)
-- No persistent plaintext storage
-
-For complete details, see `documentation/private documentation/TECHNICAL_REVIEW.md` Section 2 "Encryption Scope & Trust Boundaries".
+Approved wording: [CLAIMS_AND_TRUST_LANGUAGE.md](./CLAIMS_AND_TRUST_LANGUAGE.md).
 
 ---
 
@@ -252,8 +240,8 @@ This section clarifies the distinction between content privacy (what is encrypte
 
 ### Content Privacy
 
-- **User content is encrypted before storage or transmission**: Chat messages and summaries are encrypted client-side using AES-256-GCM before transmission and storage.
-- **Encryption keys are not stored on-chain**: Keys are client-side only (never transmitted to server) or stored as encrypted DEK in DID's `encryptedData` field (on-chain).
+- **User content is encrypted before off-chain storage**: Authenticated chat history is encrypted client-side (AES-256-GCM) before `encryptedBlob` is stored. Completions use a separate plaintext-over-TLS path (see above).
+- **Key material on-chain**: The wallet-wrapped DEK lives in the DID profile field **`encryptedKeyMetadata`** (bytes). Plaintext DEK is not on-chain.
 - **On-chain references do not reveal content payloads**: Only cryptographic hashes of encrypted data are stored on-chain, not the encrypted data itself.
 
 ### On-Chain Metadata
@@ -291,7 +279,7 @@ This is a known and accepted trade-off in decentralized identity systems, where 
 
 The system prioritizes:
 
-1. **Strong content confidentiality**: User content is encrypted end-to-end and stored as ciphertext only
+1. **Strong content confidentiality at rest**: User chat blobs are client-encrypted and stored as ciphertext off-chain (not strict E2E to the LLM)
 2. **Verifiable and resolvable identity**: Public metadata enables DID resolution and authorization verification
 3. **Minimal but unavoidable metadata exposure**: Metadata exposure is minimized where possible, but some metadata (DID documents, service endpoints, events) is required for system functionality
 

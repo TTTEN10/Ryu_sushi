@@ -38,7 +38,8 @@ Documentation for users, contributors, and external audiences.
 |----------|-------------|
 | [CLAIMS_AND_TRUST_LANGUAGE.md](./CLAIMS_AND_TRUST_LANGUAGE.md) | Every trust claim: approved wording, evidence, disallowed wording (privacy, security, governance, on-chain, compliance, AI, token, etc.) |
 | [HARD_QUESTIONS_FAQ.md](./HARD_QUESTIONS_FAQ.md) | FAQ on hard questions |
-| [PRIVACY-BY-DESIGN.md](./PRIVACY-BY-DESIGN.md) | Privacy by design (IP handling) |
+| [PRIVACY-BY-DESIGN.md](./PRIVACY-BY-DESIGN.md) | Privacy by design (IP handling, encryption scope; see [ENCRYPTION_COMPLETE_GUIDE.md](./ENCRYPTION_COMPLETE_GUIDE.md)) |
+| [FAQ.md](./FAQ.md) | User-facing FAQ (encryption, DID, deletion) |
 | [ISO 27001](./ISO27001/README.md) | ISO 27001 compliance framework |
 
 ## Legal & project

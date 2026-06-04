@@ -8,7 +8,7 @@ import { shouldRunLlmUpstreamHealthPoller, shouldUseScalewayDirect } from "./lib
 import { createApp } from "./app";
 
 // Load environment variables from monorepo root (single .env; avoids Prisma vs apps/api duplicate)
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Initialize secret manager configuration (async, but don't block startup)
 initializeConfig().catch((error) => {

@@ -2,7 +2,11 @@
 
 Complete reference for all production API endpoints. Base URL: `/api` (same-origin) or `VITE_API_URL`.
 
-**Authentication:** Most endpoints require wallet authentication via httpOnly cookie (`walletSessionToken`). Set `credentials: 'include'` in fetch requests.
+**Authentication (web):** Wallet session via httpOnly cookie **`walletSession`**. Use `credentials: 'include'` (or `apiFetch()` from `apps/web/src/config/api.ts`). The web app does not send `Authorization: Bearer` or store JWTs in `localStorage`.
+
+**Authentication (mobile):** Optional `Authorization: Bearer <jwt>`; verify response may include `data.token` for SecureStore.
+
+**Production routing:** On the app host (Caddy), **`/api/auth/*`**, **`/api/did/*`**, and encrypted **`/api/chat/*`** routes hit the **Node** `apps/api` service; other **`/api/*`** paths hit the Python LLM proxy. See `deployment/DEPLOY-RUNBOOK.md`.
 
 ---
 
@@ -94,31 +98,29 @@ Content-Type: application/json
 ```json
 {
   "success": true,
+  "message": "Wallet signature verified successfully",
   "data": {
-    "walletAddress": "0xYourAddress",
+    "address": "0xYourAddress",
     "chainId": 11155111,
-    "expiresAt": "2026-05-26T10:00:00.000Z"
-  },
-  "message": "Wallet verified successfully"
+    "verified": true,
+    "token": "<jwt-for-mobile-only>"
+  }
 }
 ```
 
-**Set-Cookie:** `walletSessionToken=<jwt>; HttpOnly; SameSite=Lax; Path=/`
+**Set-Cookie:** `walletSession=<jwt>; HttpOnly; Secure (production); SameSite=Lax; Max-Age=604800; Path=/`
 
 **Notes:**
 - Consumes nonce (single-use)
-- Creates `walletSession` cookie (7-day expiry)
-- Address recovered from SIWE message (no need to send in body)
+- Web clients use the cookie only; ignore `data.token` in the browser
+- Address recovered from SIWE message when omitted from body
 
 ---
 
 ### `GET /api/auth/me`
 Get current session info.
 
-**Headers:**
-```
-Cookie: walletSessionToken=<jwt>
-```
+**Authentication:** `walletSession` cookie (`credentials: 'include'`) or `Authorization: Bearer` (mobile)
 
 **Response:** `200 OK`
 ```json
@@ -153,7 +155,7 @@ Clear session cookie.
 }
 ```
 
-**Set-Cookie:** `walletSessionToken=; Max-Age=0; Path=/`
+**Set-Cookie:** Clears `walletSession` (httpOnly)
 
 ---
 
@@ -615,6 +617,287 @@ All endpoints return errors in this format:
 | `DID_IDENTITY_TOKEN_ADDRESS` | DID contract address (Sepolia) | `0x103eAd096f898132E138ad228E35296db983A053` |
 | `SCALEWAY_API_KEY` | Scaleway storage/API key | (optional) |
 | `AI_UPSTREAM_STATUS_SECRET` | Secret for `/upstream-status` | (optional) |
+
+---
+
+---
+
+## Analytics (Privacy-First)
+
+### `POST /api/analytics/event`
+
+Ingest analytics events (single or batch).
+
+**Authentication:** Not required (public endpoint with rate limiting)
+
+**Rate Limit:** 100 events/minute per IP
+
+**Body (single event):**
+```json
+{
+  "event_name": "wallet_click",
+  "visitor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "bb56d7d7-67c3-42e2-b9b7-aec67dc5f322",
+  "wallet_hash": "a1b2c3d4...",
+  "metadata": {
+    "wallet_provider": "metamask"
+  }
+}
+```
+
+**Body (batch):**
+```json
+[
+  { "event_name": "landing_visit", ... },
+  { "event_name": "wallet_click", ... }
+]
+```
+
+**Response:** `204 No Content` (success)
+
+**Response:** `400 Bad Request`
+```json
+{
+  "success": false,
+  "message": "No valid events",
+  "errors": ["Event 0: Validation error: ..."]
+}
+```
+
+**Event Names:**
+- `landing_visit`
+- `wallet_click`
+- `wallet_success`
+- `session_success`
+- `did_success`
+- `first_message_sent`
+- `first_reply_received`
+- `return_24h`
+
+**Privacy:**
+- Raw wallet addresses NOT accepted (use SHA-256 hash)
+- Raw IP addresses NOT stored
+- Conversation content NOT tracked
+- Metadata sanitized (allowed keys only)
+
+---
+
+### `GET /api/analytics/dashboard/funnel`
+
+Get funnel metrics with conversion rates.
+
+**Authentication:** Required (admin only - TODO: implement)
+
+**Query Params:**
+- `days` (optional): Number of days (default: 30)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "metrics": {
+      "landing_visits": 1000,
+      "wallet_clicks": 500,
+      "wallet_successes": 450,
+      "session_successes": 400,
+      "did_successes": 350,
+      "first_messages": 300,
+      "first_replies": 280,
+      "returns_24h": 150
+    },
+    "conversionRates": {
+      "wallet_click_to_success": 0.90,
+      "wallet_success_to_session": 0.89,
+      "session_to_did": 0.875,
+      "did_to_first_message": 0.857,
+      "first_message_to_first_reply": 0.933,
+      "overall_landing_to_first_reply": 0.28,
+      "return_rate_24h": 0.15
+    },
+    "period": {
+      "days": 30,
+      "startDate": "2026-04-25T00:00:00.000Z",
+      "endDate": "2026-05-25T00:00:00.000Z"
+    }
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/daily`
+
+Get daily breakdown of funnel events.
+
+**Query Params:**
+- `days` (optional): Number of days (default: 30)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "metrics": [
+      {
+        "date": "2026-05-01",
+        "landing_visits": 50,
+        "wallet_clicks": 25,
+        "wallet_successes": 23,
+        "session_successes": 20,
+        "did_successes": 18,
+        "first_messages": 15,
+        "first_replies": 14
+      }
+    ],
+    "period": { "days": 30 }
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/devices`
+
+Get device type distribution.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "breakdown": {
+      "mobile": 450,
+      "tablet": 50,
+      "desktop": 480,
+      "unknown": 20
+    },
+    "period": { "days": 30 }
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/sessions`
+
+Get session analytics.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": {
+      "avgSessionsPerVisitor": 2.5,
+      "totalVisitors": 1000,
+      "totalSessions": 2500
+    },
+    "period": { "days": 30 }
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/wallet-providers`
+
+Get wallet provider breakdown.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "providers": {
+      "metamask": 300,
+      "walletconnect": 150,
+      "rabby": 40,
+      "coinbase": 10
+    },
+    "period": { "days": 30 }
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/dropoffs`
+
+Get funnel drop-off analysis.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "dropoffs": [
+      {
+        "stage": "landing_visit",
+        "count": 1000,
+        "dropOffFromPrevious": 0,
+        "dropOffRate": 0
+      },
+      {
+        "stage": "wallet_click",
+        "count": 500,
+        "dropOffFromPrevious": 500,
+        "dropOffRate": 0.5
+      }
+    ]
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/retention`
+
+Get D1/D7/D30 retention metrics for a cohort.
+
+**Query Params:**
+- `date` (required): Cohort date in ISO 8601 format (YYYY-MM-DD)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "retention": {
+      "d1Retention": 0.35,
+      "d7Retention": 0.15,
+      "d30Retention": 0.05,
+      "cohortSize": 500
+    },
+    "cohortDate": "2026-05-01T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### `GET /api/analytics/dashboard/summary`
+
+Get complete analytics summary.
+
+**Query Params:**
+- `days` (optional): Number of days (default: 30)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "funnel": { ... },
+    "daily": [...],
+    "devices": { ... },
+    "sessions": { ... },
+    "walletProviders": { ... },
+    "dropoffs": [...],
+    "period": { ... }
+  }
+}
+```
 
 ---
 

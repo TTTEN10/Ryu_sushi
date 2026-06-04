@@ -108,8 +108,10 @@ describe('wallet auth HTTP contract', () => {
     expect(body).not.toHaveProperty('address');
     expect(body).not.toHaveProperty('chainId');
     const headers = init.headers as Record<string, string>;
-    expect(headers['x-wallet-message']).toBe(message);
+    // Message is sent in JSON body only (not in header) because SIWE messages contain newlines
+    // which are invalid in HTTP headers. Signature header is still sent for backward compatibility.
     expect(headers['x-wallet-signature']).toBe(signature);
+    expect(headers['x-wallet-message']).toBeUndefined();
     expect(headers['x-wallet-address']).toBeUndefined();
     expect(headers['x-chain-id']).toBeUndefined();
   });

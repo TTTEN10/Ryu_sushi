@@ -54,7 +54,7 @@ router.post(
       }
 
       const nonce = ethers.hexlify(ethers.randomBytes(32));
-      registerWalletNonce(nonce, req.wallet.address, req.wallet.chainId);
+      await registerWalletNonce(nonce, req.wallet.address, req.wallet.chainId);
       const message = generateSIWEMessage(req.wallet.address, nonce, {
         expirationTime: new Date(Date.now() + 5 * 60 * 1000),
       });
@@ -108,7 +108,7 @@ router.post(
       }
 
       const nonce = extractNonceFromSiweMessage(req.wallet.message);
-      if (!nonce || !consumeWalletNonce(nonce, req.wallet.address)) {
+      if (!nonce || !(await consumeWalletNonce(nonce, req.wallet.address))) {
         return res.status(401).json({
           success: false,
           message: 'Invalid, expired, or reused nonce',

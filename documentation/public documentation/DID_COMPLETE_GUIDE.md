@@ -11,7 +11,7 @@ This implementation provides:
 - **Production API**: RESTful endpoints for DID operations
 - **Frontend UI**: React components for DID management
 - **Auto-Creation**: Automatic DID creation on first connection
-- **Network**: **Sepolia Testnet** (Chain ID: 11155111) for live beta; mainnet pending external audit
+- **Network**: **Sepolia Testnet** only (chain ID **11155111**), enforced via `SUPPORTED_CHAIN_ID` in `apps/api/src/lib/constants.ts`
 
 ## Architecture
 
@@ -88,7 +88,7 @@ Create a DID for authenticated wallet.
 #### GET /api/did/info
 Get all available metadata about user's DID.
 
-**Authentication**: Required (JWT token)
+**Authentication**: Required (httpOnly `walletSession` cookie on web; Bearer JWT on mobile only)
 
 **Response**:
 ```json
@@ -227,9 +227,9 @@ npx hardhat compile
 npx hardhat run scripts/deploy-did-token.js --network sepolia
 ```
 
-### Future / deployment-specific: Ethereum mainnet
+### Changing the supported chain
 
-Mainnet is **not** the default in this repo’s API wiring today. A future production cut may set **`SUPPORTED_CHAIN_ID`** (and related naming) in `apps/api/src/lib/constants.ts`, redeploy contracts on mainnet, and run `npx hardhat run ... --network mainnet` only after your own operational and security review.
+The API enforces a single chain via **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts`. To move to another network, update that constant (and `SUPPORTED_CHAIN_ID_HEX` / `SUPPORTED_NETWORK_NAME`), redeploy contracts on that chain, and refresh all RPC and contract env vars together. Do not mix Sepolia addresses with another chain ID.
 
 **Deployment Script Example**:
 ```javascript
@@ -394,7 +394,7 @@ describe('DIDService', () => {
 
 ## Next Steps
 
-1. **Deploy contract**: Deploy to **Sepolia** for the live beta (see **Future / deployment-specific: Ethereum mainnet** above for a non-default mainnet path)
+1. **Deploy contract**: Deploy to **Sepolia** (chain ID **11155111**) for the live beta
 2. **Configure Environment**: Set contract address and RPC URL
 3. **Test Integration**: Verify end-to-end flow
 4. **Add Encryption**: Implement encrypted data storage
@@ -404,7 +404,7 @@ describe('DIDService', () => {
 ## Contract Deployment Checklist
 
 - [ ] Compile contract with Solidity 0.8.20+
-- [ ] Deploy to **Sepolia** for beta (or follow your mainnet runbook if you intentionally change `SUPPORTED_CHAIN_ID`)
+- [ ] Deploy to **Sepolia** (chain ID **11155111**); keep `SUPPORTED_CHAIN_ID` aligned with deployment
 - [ ] Verify contract on **Sepolia** Etherscan (or the explorer for your deployment chain)
 - [ ] Set backend environment variables
 - [ ] Test contract functions
@@ -421,7 +421,7 @@ describe('DIDService', () => {
 - [ ] Wallet address validation
 - [ ] Rate limiting on create endpoint
 - [ ] Error messages don't leak sensitive info
-- [ ] JWT tokens expire appropriately
+- [ ] `walletSession` cookie / JWT sessions expire appropriately (`JWT_EXPIRES_IN`)
 - [ ] HTTPS in production
 - [ ] Contract audited (recommended)
 
@@ -1666,7 +1666,7 @@ All requested features have been implemented for the DID Identity Token smart co
 
 5. **Crypto Payment Configuration Updated**
    - Payment recipient: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c` (verify against your deployment)
-   - **Network for beta:** **Sepolia** (chain ID **11155111**); a **future mainnet** deployment is **deployment-specific** (update `SUPPORTED_CHAIN_ID`, contracts, and env together)
+   - **Network:** **Sepolia** only (chain ID **11155111**; `SUPPORTED_CHAIN_ID` in `apps/api/src/lib/constants.ts`)
 
 6. **Premium Plan Pricing Updated**
    - **Current implementation**: Single premium at **$20 USD for 30 days**
@@ -1717,7 +1717,7 @@ All requested features have been implemented for the DID Identity Token smart co
 - **Period**: 30 days
 - **Payment Methods**: ETH, USDT, USDC, Stripe
 - **Recipient**: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
-- **Network**: **Sepolia** (chain ID **11155111**) for the live beta; mainnet is a **future / deployment-specific** change (constants + contracts + env must move together)
+- **Network**: **Sepolia** only (chain ID **11155111**)
 
 ## Testing Checklist
 
@@ -1780,7 +1780,7 @@ All requested features have been implemented for the DID Identity Token smart co
 ## Notes
 
 - The contract address `0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8` in this section is a **historical example** from a local or test deployment log; substitute your **Sepolia** deployment output and keep **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts` aligned with that chain.
-- **Future mainnet:** only after you intentionally change **`SUPPORTED_CHAIN_ID`**, redeploy contracts, and refresh all env addresses for chain ID **1**.
+- **Chain changes:** update **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts`, redeploy contracts, and refresh RPC + contract env on the same chain only.
 - Premium pricing is set to $20 for 30 days in current implementation; target model adds $19/month, $69/month Gold with $PSY token and cashback to user wallet (see [TOKENOMICS.md](TOKENOMICS.md))
 - All encryption is handled client-side using wallet signatures
 - Chat history is stored encrypted in the database and referenced in the DID contract

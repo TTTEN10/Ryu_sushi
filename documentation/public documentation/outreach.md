@@ -224,7 +224,7 @@ Hi [First Name],
 
 We're building SafePsy to make private, structured mental wellness support more accessible—combining ethical AI, user-controlled encryption, and clear clinical boundaries.
 
-Chat and summary data are encrypted at rest (AES-256-GCM) and stored as ciphertext only; encryption keys are derived from the user’s wallet and are not stored on our servers. To generate AI responses, message content is decrypted temporarily in server memory during the request (so it is not strict end-to-end encryption). We do not use chat content to train models.
+Chat is encrypted at rest (AES-256-GCM, ciphertext only); keys are wallet-derived and not stored on our servers. For each AI reply, the client sends message text over HTTPS (not strict end-to-end encryption). We do not use chat content to train models.
 
 We’re now looking for strategic partners to help us grow. Open to a quick call?
 
@@ -299,7 +299,7 @@ Hi [First Name],
 
 At SafePsy, we’re reimagining access to mental wellness support—combining ethical AI with clear clinical boundaries to support reflection and between-session preparation.
 
-Our platform is privacy-first: encrypted at rest, user-controlled keys, no logging of chat content, and no training on user chats. Important nuance: to generate AI responses, content is decrypted temporarily in server memory during the request (not strict end-to-end encryption). The assistant is not a substitute for professional care and does not provide medical advice.
+Our platform is privacy-first: encrypted at rest, user-controlled keys, log redaction for chat bodies, and no training on user chats. Important nuance: each AI request sends message content over HTTPS to our API and LLM provider (not strict end-to-end encryption). The assistant is not a substitute for professional care and does not provide medical advice.
 
 We're now seeking mission-aligned partners to help expand our impact. Would you be open to a quick call?
 

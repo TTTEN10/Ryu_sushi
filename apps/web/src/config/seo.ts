@@ -144,7 +144,7 @@ export const seoConfig: Record<string, SEOConfig> = {
   },
   '/beta/chat': {
     title: 'AI Chat - SafePsy | Privacy-First Mental Wellness Support',
-    description: 'Secure, encrypted AI chat for reflection and between-session support. Data is encrypted at rest and in transit; message content is decrypted temporarily in server memory to generate AI responses. Not medical advice.',
+    description: 'Secure, encrypted AI chat for reflection and between-session support. Chat is encrypted at rest; each AI request sends message content over HTTPS. Not medical advice.',
     keywords: 'AI chat, mental wellness support, reflection, privacy-first, encrypted chat, between-session support',
     ogTitle: 'AI Chat - SafePsy',
     ogDescription: 'Secure, encrypted AI chat with privacy-first design. Data encrypted at rest and in transit.',

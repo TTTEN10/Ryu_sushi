@@ -213,7 +213,24 @@ export async function postDidCheck(): Promise<DidCheckResponse | 'unauthorized'>
   }
 
   if (!response.ok) {
-    throw new Error('Failed to check DID status');
+    let msg = 'Failed to check DID status';
+    let isBackendConfigError = false;
+    try {
+      const err = (await response.json()) as { message?: string; error?: string };
+      if (err.message) msg = err.message;
+      else if (response.status === 503) {
+        msg = 'DID service unavailable on server — backend configuration missing (RPC_URL, DID_REGISTRY_ADDRESS)';
+        isBackendConfigError = true;
+      }
+    } catch {
+      if (response.status === 503) {
+        msg = 'DID service unavailable on server — backend configuration missing (RPC_URL, DID_REGISTRY_ADDRESS)';
+        isBackendConfigError = true;
+      }
+    }
+    const error: Error & { isBackendConfigError?: boolean } = new Error(msg);
+    error.isBackendConfigError = isBackendConfigError;
+    throw error;
   }
 
   return (await response.json()) as DidCheckResponse;
