@@ -156,7 +156,7 @@ apps/api/
 │   ├── lib/
 │   │   ├── ai-gateway.service.ts    # AI gateway (LLM/completions) — TypeScript
 │   │   ├── chat-rag-context.ts      # RAG enhancement for chat completions — TypeScript
-│   │   ├── dr-safe-system-prompt.ts # Dr.Safe system prompt (response rules, soft exit, turn 2–3 retention, guest append) — TypeScript
+│   │   ├── dr-safe-system-prompt.ts # Dr.Safe system prompt (response rules, SafePsy/privacy/DID context, guest append) — TypeScript
 │   │   ├── crisis-detection.ts      # EN/FR/RU crisis keyword scan (Scaleway direct path) — TypeScript
 │   │   ├── llm-routing.ts           # USE_SCALEWAY_DIRECT vs legacy self-hosted — TypeScript
 │   │   ├── response-cache.ts        # Redis cache for non-stream Scaleway completions — TypeScript
@@ -279,9 +279,6 @@ apps/web/
 │   ├── data/
 │   │   ├── faq.ts            # Shared FAQ items (landing + FAQ page; landing-safe subset) — TypeScript
 │   │   └── supportIssues.ts  # Support / issue taxonomy for Support page — TypeScript
-│   │
-│   ├── copy/
-│   │   └── did-onboarding.ts # Outcome-first user copy for DID / private chat unlock — TypeScript
 │   │
 │   ├── contexts/
 │   │   ├── AuthContext.tsx   # Session/JWT/DID bootstrap; sole owner of wallet login API flow — TypeScript (TSX)
