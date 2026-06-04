@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { CheckCircle, AlertCircle, Loader2, Plus, RefreshCw, MessageSquare } from 'lucide-react';
+import { Shield, CheckCircle, AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../config/api';
-import { DID_ONBOARDING } from '../copy/did-onboarding';
 
 interface DIDInfo {
   hasDid: boolean;
@@ -50,7 +49,7 @@ export default function DIDManager() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load chat access status');
+        throw new Error('Failed to load DID information');
       }
 
       const data = await response.json();
@@ -77,12 +76,6 @@ export default function DIDManager() {
       return;
     }
 
-    // If DID status is error, show helpful message about backend config
-    if (authState.didStatus === 'error') {
-      setError('Server configuration incomplete. Contact support or check: RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL in deployment.');
-      return;
-    }
-
     try {
       setIsCreating(true);
       setError(null);
@@ -99,22 +92,22 @@ export default function DIDManager() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || DID_ONBOARDING.unlockError);
+        throw new Error(errorData.message || 'Failed to create DID');
       }
 
       const data = await response.json();
       if (data.success) {
-        setSuccess(DID_ONBOARDING.unlockSuccess);
+        setSuccess('DID created successfully!');
         // Reload DID info
         await loadDIDInfo();
         // Update auth context
         await checkDID();
       } else {
-        throw new Error(data.message || DID_ONBOARDING.unlockError);
+        throw new Error(data.message || 'Failed to create DID');
       }
     } catch (err: any) {
       console.error('Error creating DID:', err);
-      setError(err.message || DID_ONBOARDING.unlockError);
+      setError(err.message || 'Failed to create DID');
     } finally {
       setIsCreating(false);
     }
@@ -125,35 +118,7 @@ export default function DIDManager() {
       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
         <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
           <AlertCircle className="w-5 h-5" />
-          <p className="text-sm font-medium">{DID_ONBOARDING.notVerified}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show setup error banner when DID status is error
-  if (authState.didStatus === 'error') {
-    return (
-      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-        <div className="flex items-start gap-2 text-yellow-800 dark:text-yellow-200">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">Backend setup incomplete</p>
-            <p className="text-xs mt-1 opacity-80">
-              Server configuration missing. Required environment variables:
-            </p>
-            <ul className="text-xs font-mono mt-1 space-y-0.5 opacity-75">
-              <li>• RPC_URL (Sepolia RPC)</li>
-              <li>• DID_REGISTRY_ADDRESS or DID_IDENTITY_TOKEN_ADDRESS</li>
-              <li>• DATABASE_URL (PostgreSQL)</li>
-            </ul>
-            <button
-              onClick={() => loadDIDInfo()}
-              className="mt-3 text-xs underline hover:no-underline"
-            >
-              Retry connection
-            </button>
-          </div>
+          <p className="text-sm font-medium">Please verify your wallet to manage your Safe ID Token</p>
         </div>
       </div>
     );
@@ -164,7 +129,7 @@ export default function DIDManager() {
       <div className="p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <p className="text-sm">{DID_ONBOARDING.checking}</p>
+          <p className="text-sm">Loading DID information...</p>
         </div>
       </div>
     );
@@ -176,8 +141,8 @@ export default function DIDManager() {
       <div className="p-4 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            <h3 className="text-lg font-semibold text-heading">{DID_ONBOARDING.unlockTitle}</h3>
+            <Shield className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+            <h3 className="text-lg font-semibold text-heading">Safe ID Token</h3>
           </div>
           <button
             onClick={loadDIDInfo}
@@ -195,14 +160,9 @@ export default function DIDManager() {
             <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                  {DID_ONBOARDING.activeTitle}
-                </p>
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">Identity Active</p>
                 <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  {DID_ONBOARDING.activeHint}
-                </p>
-                <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-1 font-mono">
-                  {DID_ONBOARDING.advancedLabel} #{didInfo.tokenId}
+                  Token ID: {didInfo.tokenId}
                 </p>
               </div>
             </div>
@@ -236,24 +196,19 @@ export default function DIDManager() {
         ) : (
           <div className="space-y-3">
             {/* No Identity State */}
-            <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+            <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                  Private chat not unlocked yet
+                  No identity yet
                 </p>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                  {DID_ONBOARDING.unlockSubtitle}
+                  Create your Safe ID Token to get started
                 </p>
-                <ul className="mt-2 space-y-1 text-xs text-yellow-800/90 dark:text-yellow-200/90 list-disc list-inside">
-                  {DID_ONBOARDING.unlocksList.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
               </div>
             </div>
 
-            {/* Unlock Button */}
+            {/* Create Button */}
             <button
               onClick={handleCreateDID}
               disabled={isCreating}
@@ -262,12 +217,12 @@ export default function DIDManager() {
               {isCreating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{DID_ONBOARDING.unlockingButton}</span>
+                  <span>Creating Identity...</span>
                 </>
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  <span>{DID_ONBOARDING.unlockButton}</span>
+                  <span>Create my Safe ID Token</span>
                 </>
               )}
             </button>

@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Wallet, LogOut, CheckCircle, AlertCircle, Shield, AlertTriangle, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Wallet, LogOut, CheckCircle, AlertCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../config/supportedChain';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage, getWalletErrorMessage } from '../utils/errorMessages';
@@ -240,25 +240,30 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
             </div>
           )}
 
-          {/* DID Status Badge */}
+          {/* DID status — icon-only, same Wallet / CheckCircle pattern as address pill */}
           {authState.isVerified && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs">
-              {authState.didStatus === 'exists' ? (
-                <>
-                  <Shield className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                  <span className="text-blue-700 dark:text-blue-300">Chat saved</span>
-                </>
-              ) : authState.didStatus === 'checking' ? (
-                <span className="text-blue-700 dark:text-blue-300">Checking...</span>
+            <div
+              className="flex items-center gap-1.5 px-2 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+              title={
+                authState.didStatus === 'exists'
+                  ? 'Chat history can be saved to your wallet'
+                  : authState.didStatus === 'checking'
+                    ? 'Checking chat save status'
+                    : authState.didStatus === 'error'
+                      ? 'Backend configuration missing — check RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL'
+                      : 'Wallet verified — create your Safe ID Token to save chat history'
+              }
+            >
+              {authState.didStatus === 'checking' ? (
+                <Loader2 className="w-4 h-4 animate-spin text-green-600 dark:text-green-400" />
               ) : authState.didStatus === 'error' ? (
-                <>
-                  <AlertCircle className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
-                  <span className="text-yellow-700 dark:text-yellow-300" title="Backend configuration missing — check RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL">Setup issue</span>
-                </>
+                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+              ) : authState.didStatus === 'exists' ? (
+                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
               ) : (
                 <>
-                  <AlertCircle className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                  <span className="text-gray-700 dark:text-gray-300">Unlock chat save</span>
+                  <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </>
               )}
             </div>
