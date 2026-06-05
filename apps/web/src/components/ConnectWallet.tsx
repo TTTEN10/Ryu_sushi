@@ -122,7 +122,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
         sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
       }
       clearWalletActivityTracking();
-      await logout();
+      await logout({ skipIdleFlag: true });
     } catch (err) {
       console.error('Logout error:', err);
     }

@@ -54,7 +54,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loginWithWallet: () => Promise<void>;
   checkDID: (options?: { skipVerifiedCheck?: boolean }) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: { skipIdleFlag?: boolean }) => Promise<void>;
   refreshAuth: () => Promise<void>;
   clearAuthError: () => void;
 }
@@ -192,12 +192,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [executeLogin, checkDID]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options?: { skipIdleFlag?: boolean }) => {
+    const skipIdleFlag = options?.skipIdleFlag ?? false;
     try {
       await logoutWalletSession();
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch (err: any) {
+      // 401 is expected when user is already logged out - don't treat as error
+      if (err?.status !== 401) {
+        console.error('Logout error:', err);
+      }
     } finally {
+      // Only set idle flag for inactivity timeout logouts, NOT manual logouts
+      if (!skipIdleFlag && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(WALLET_IDLE_LOGOUT_FLAG, '1');
+      }
       clearLegacyWalletToken();
       clearWalletActivityTracking();
       setAuthState({

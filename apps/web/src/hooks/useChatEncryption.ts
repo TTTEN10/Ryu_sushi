@@ -132,35 +132,42 @@ export function useChatEncryption() {
         localStorageKey,
         walletAddress: wallet.address,
         hasStoredKey: !!storedEncryptedKey,
-        storedKeyPreview: storedEncryptedKey ? storedEncryptedKey.substring(0, 50) + '...' : null,
+        storedKeyPreview: storedEncryptedKey ? storedEncryptedKey.substring(0, 80) + '...' : null,
         allKeys: Object.keys(localStorage).filter(k => k.includes('encryptedKey')),
       });
       if (storedEncryptedKey) {
-        console.log('Found encrypted key in localStorage, attempting to decrypt...');
-        try {
-          const decryptedKey = await decryptSymmetricKey(
-            storedEncryptedKey,
-            wallet.address,
-            signer,
-          );
-          console.log('Successfully loaded key from localStorage');
-          setSymmetricKey(decryptedKey);
-          setEncryptedKey(storedEncryptedKey);
+        // Validate format: should be "signature:ivHex:ciphertextHex" (at least 2 colons)
+        const colonCount = (storedEncryptedKey.match(/:/g) || []).length;
+        if (colonCount < 2) {
+          console.warn('Stored key has invalid format (missing colons), clearing and regenerating');
+          localStorage.removeItem(localStorageKey);
+        } else {
+          console.log('Found encrypted key in localStorage, attempting to decrypt...');
+          try {
+            const decryptedKey = await decryptSymmetricKey(
+              storedEncryptedKey,
+              wallet.address,
+              signer,
+            );
+            console.log('Successfully loaded key from localStorage');
+            setSymmetricKey(decryptedKey);
+            setEncryptedKey(storedEncryptedKey);
 
-          // If user now has a DID, migrate to chain
-          if (authState.didInfo?.hasDid && provider && didContractConfigured) {
-            try {
-              await persistEncryptedKeyToChain(signer, storedEncryptedKey);
-              localStorage.removeItem(legacyLocalStorageKey(wallet.address));
-              console.log('Migrated key from localStorage to DID contract');
-            } catch (err) {
-              console.warn('Could not migrate encrypted key to DID contract:', err);
+            // If user now has a DID, migrate to chain
+            if (authState.didInfo?.hasDid && provider && didContractConfigured) {
+              try {
+                await persistEncryptedKeyToChain(signer, storedEncryptedKey);
+                localStorage.removeItem(legacyLocalStorageKey(wallet.address));
+                console.log('Migrated key from localStorage to DID contract');
+              } catch (err) {
+                console.warn('Could not migrate encrypted key to DID contract:', err);
+              }
             }
+            return;
+          } catch (decryptErr: any) {
+            console.warn('Failed to decrypt localStorage key (wrong wallet?):', decryptErr?.message);
+            // Continue to generate new key
           }
-          return;
-        } catch (decryptErr: any) {
-          console.warn('Failed to decrypt localStorage key (wrong wallet?):', decryptErr?.message);
-          // Continue to generate new key
         }
       }
 

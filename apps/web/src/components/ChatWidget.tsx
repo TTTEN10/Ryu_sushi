@@ -821,19 +821,12 @@ export default function ChatWidget() {
           }}
         />
       )}
-      {/* DID Creation Prompt Modal */}
+      {/* DID Creation Prompt Modal - No dismiss, must create or refresh */}
       {showDidCreatePrompt && authState.isVerified && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-neutral-200 dark:border-white/10">
             <div className="flex items-start justify-between mb-4">
               <h3 className="text-lg font-semibold text-heading">Create Your Safe ID Token</h3>
-              <button
-                onClick={() => setShowDidCreatePrompt(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
             <div className="space-y-4">
               <p className="text-sm text-body">
@@ -858,16 +851,10 @@ export default function ChatWidget() {
                   <strong>Note:</strong> Without a DID, your chat encryption key is stored only in this browser. Clearing browser data will lose access to your chats.
                 </p>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowDidCreatePrompt(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Later
-                </button>
+              <div className="pt-2">
                 <button
                   onClick={handleCreateDID}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all shadow-lg hover:shadow-xl"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-semibold rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all shadow-lg hover:shadow-xl"
                 >
                   Create Safe ID Token
                 </button>

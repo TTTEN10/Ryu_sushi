@@ -285,21 +285,30 @@ export class DIDService {
         throw new Error(`DID already exists for wallet ${walletAddress} with token ID ${tokenId}`);
       }
 
-      if (this.config.useNewRegistry) {
+      // Use legacy contract for DID creation (new registry requires MINTER_ROLE via governance)
+      // Fall back to legacy DID_IDENTITY_TOKEN_ADDRESS for createDID operations
+      const legacyContractAddress = process.env.DID_IDENTITY_TOKEN_ADDRESS;
+      if (!legacyContractAddress) {
         throw new Error(
-          'createDID via backend not supported with DIDRegistryV2: mint requires MINTER_ROLE (Timelock). Use legacy DID_IDENTITY_TOKEN_ADDRESS or governance flow.'
+          'DID_IDENTITY_TOKEN_ADDRESS not configured. Backend DID creation requires legacy contract. Set DID_IDENTITY_TOKEN_ADDRESS env var.'
         );
       }
+
+      // Create a contract instance using the legacy address for this operation only
+      const legacyAbi = DID_IDENTITY_TOKEN_ABI;
+      const legacyContract = new ethers.Contract(legacyContractAddress, legacyAbi, this.provider);
+
       let tx;
       if (this.signer) {
-        tx = await this.contract.createDid(walletAddress);
+        tx = await legacyContract.connect(this.signer).createDid(walletAddress);
       } else {
         // Public minting - user must call createMyDid() themselves
-        throw new Error('Backend signer not configured. User must create DID via wallet.');
+        throw new Error('Backend signer not configured. User must create DID via wallet using createMyDid().');
       }
 
       const receipt = await tx.wait();
-      const tokenId = await this.contract.getDidId(walletAddress);
+      // Get tokenId from legacy contract
+      const tokenId = await legacyContract.getDidId(walletAddress);
 
       logger.info(`DID created for ${walletAddress}: token ID ${tokenId}, tx ${receipt.hash}`);
 
