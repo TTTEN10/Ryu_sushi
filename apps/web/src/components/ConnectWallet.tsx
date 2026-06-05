@@ -25,7 +25,10 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   const [autoVerifyRequested, setAutoVerifyRequested] = useState(false);
   const verifyInFlightRef = useRef(false);
 
+  // Show idle-timeout message only after wallet disconnects with the idle flag set.
+  // Manual disconnect clears the flag first, so this toast does not fire on user-initiated logout.
   useEffect(() => {
+    if (wallet) return;
     if (typeof sessionStorage === 'undefined') return;
     if (sessionStorage.getItem(WALLET_IDLE_LOGOUT_FLAG) !== '1') return;
     sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
@@ -34,7 +37,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       'Your session ended after 1 hour of inactivity. Reconnect and verify your wallet to resume chat.',
       8000,
     );
-  }, [showToast]);
+  }, [wallet, showToast]);
 
   // Check DID when wallet is verified
   useEffect(() => {

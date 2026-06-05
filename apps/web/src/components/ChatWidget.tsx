@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
-import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare } from 'lucide-react';
+import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare, CheckCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -108,13 +108,20 @@ export default function ChatWidget() {
   // Track if user has sent at least one message (for concurrency polling optimization)
   const hasSentMessage = guestPromptCount > 0 || (messages.length > 0 && !isGuest);
 
+  // Track if we should show DID creation prompt
+  const [showDidCreatePrompt, setShowDidCreatePrompt] = useState(false);
+
   // Wallet verified mid-session: reset guest limit and allow persistence path (load replaces thread).
   useEffect(() => {
     if (authState.isVerified) {
       setGuestPromptCount(0);
       setShowGuestLimitModal(false);
+      // Show DID creation prompt if user doesn't have a DID yet
+      if (authState.didStatus === 'none' || (authState.didInfo && !authState.didInfo.hasDid)) {
+        setShowDidCreatePrompt(true);
+      }
     }
-  }, [authState.isVerified]);
+  }, [authState.isVerified, authState.didStatus, authState.didInfo]);
 
   // Warn guest users about data loss on refresh/close if they have an active conversation
   useEffect(() => {
@@ -164,6 +171,33 @@ export default function ChatWidget() {
     const last = messages[messages.length - 1];
     return !last || last.role !== 'assistant' || last.content.length === 0;
   }, [isSending, isStreaming, messages]);
+
+  const handleCreateDID = useCallback(async () => {
+    try {
+      const response = await apiFetch('/did/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create DID');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        showToast('success', 'Safe ID Token created! Your chats are now secured on-chain.');
+        setShowDidCreatePrompt(false);
+        // Trigger DID status refresh
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error('Error creating DID:', err);
+      showToast('error', err.message || 'Failed to create Safe ID Token');
+    }
+  }, [showToast]);
 
   const syncDidChatReferenceIfNeeded = useCallback(
     async (saveResult: SaveChatResult, options?: { showToasts?: boolean }) => {
@@ -787,6 +821,62 @@ export default function ChatWidget() {
           }}
         />
       )}
+      {/* DID Creation Prompt Modal */}
+      {showDidCreatePrompt && authState.isVerified && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-neutral-200 dark:border-white/10">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-lg font-semibold text-heading">Create Your Safe ID Token</h3>
+              <button
+                onClick={() => setShowDidCreatePrompt(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-body">
+                Your wallet is verified! Now create your <strong>Safe ID Token (DID)</strong> to:
+              </p>
+              <ul className="space-y-2 text-sm text-body">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>Save chat history permanently to your wallet</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>Access your chats from any device</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <span>Keep your data secure and private</span>
+                </li>
+              </ul>
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-xs text-blue-800 dark:text-blue-300">
+                  <strong>Note:</strong> Without a DID, your chat encryption key is stored only in this browser. Clearing browser data will lose access to your chats.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowDidCreatePrompt(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Later
+                </button>
+                <button
+                  onClick={handleCreateDID}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  Create Safe ID Token
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div ref={widgetRef} className="flex flex-col h-[600px] bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-white/10 shadow-sm">
       {/* Header */}
       <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-white/20 rounded-t-lg space-y-2">

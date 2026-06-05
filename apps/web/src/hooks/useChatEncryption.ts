@@ -126,7 +126,15 @@ export function useChatEncryption() {
 
       // Check localStorage for encrypted key (fallback when no DID or empty on-chain metadata)
       // This is critical for users without DID - the key MUST be recovered from localStorage
-      const storedEncryptedKey = localStorage.getItem(legacyLocalStorageKey(wallet.address));
+      const localStorageKey = legacyLocalStorageKey(wallet.address);
+      const storedEncryptedKey = localStorage.getItem(localStorageKey);
+      console.log('Checking localStorage for encrypted key:', {
+        localStorageKey,
+        walletAddress: wallet.address,
+        hasStoredKey: !!storedEncryptedKey,
+        storedKeyPreview: storedEncryptedKey ? storedEncryptedKey.substring(0, 50) + '...' : null,
+        allKeys: Object.keys(localStorage).filter(k => k.includes('encryptedKey')),
+      });
       if (storedEncryptedKey) {
         console.log('Found encrypted key in localStorage, attempting to decrypt...');
         try {
@@ -166,8 +174,13 @@ export function useChatEncryption() {
       console.log('New key generated and encrypted');
 
       // Persist to localStorage immediately (critical for users without DID)
-      localStorage.setItem(legacyLocalStorageKey(wallet.address), encrypted);
-      console.log('Encrypted key stored in localStorage');
+      const saveKey = legacyLocalStorageKey(wallet.address);
+      localStorage.setItem(saveKey, encrypted);
+      console.log('Encrypted key stored in localStorage:', {
+        localStorageKey: saveKey,
+        walletAddress: wallet.address,
+        encryptedKeyPreview: encrypted.substring(0, 50) + '...',
+      });
 
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
@@ -262,9 +275,16 @@ export function useChatEncryption() {
         console.warn('Chat decryption failed - clearing corrupted chat from backend. Starting fresh with new key.');
 
         // Silently delete the corrupted chat (best effort)
-        apiFetch('/chat', { method: 'DELETE' }).catch(() => {
-          console.warn('Failed to delete corrupted chat');
-        });
+        // Note: Backend endpoint is /api/chat (DELETE) but may not exist in all deployments
+        apiFetch('/chat', { method: 'DELETE' })
+          .catch((deleteErr) => {
+            // 404 is OK - endpoint might not exist, just log and continue
+            if (deleteErr?.status !== 404) {
+              console.warn('Failed to delete corrupted chat:', deleteErr);
+            } else {
+              console.log('Corrupted chat cleanup skipped (endpoint not available)');
+            }
+          });
 
         // Return empty array - user will start with fresh chat
         return [];
