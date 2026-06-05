@@ -67,12 +67,24 @@ export function useChatEncryption() {
 
   const initializeKey = useCallback(async () => {
     if (!wallet || !signer || !authState.isVerified) {
+      console.log('Skipping key initialization: wallet/signer/not verified', {
+        hasWallet: !!wallet,
+        hasSigner: !!signer,
+        isVerified: authState.isVerified,
+      });
       return;
     }
 
     const didContractConfigured = Boolean(
       (import.meta.env.VITE_DID_IDENTITY_TOKEN_ADDRESS || '').trim(),
     );
+
+    console.log('Initializing encryption key...', {
+      walletAddress: wallet.address,
+      hasDid: authState.didInfo?.hasDid,
+      didStatus: authState.didStatus,
+      didContractConfigured,
+    });
 
     try {
       setIsLoading(true);
@@ -112,13 +124,12 @@ export function useChatEncryption() {
         }
       }
 
-      if (authState.didStatus === 'exists' && authState.didInfo?.hasDid) {
-        const storedEncryptedKey = localStorage.getItem(legacyLocalStorageKey(wallet.address));
-        console.log('Checking localStorage for legacy key:', {
-          hasStoredKey: !!storedEncryptedKey,
-          didStatus: authState.didStatus,
-        });
-        if (storedEncryptedKey) {
+      // Check localStorage for encrypted key (fallback when no DID or empty on-chain metadata)
+      // This is critical for users without DID - the key MUST be recovered from localStorage
+      const storedEncryptedKey = localStorage.getItem(legacyLocalStorageKey(wallet.address));
+      if (storedEncryptedKey) {
+        console.log('Found encrypted key in localStorage, attempting to decrypt...');
+        try {
           const decryptedKey = await decryptSymmetricKey(
             storedEncryptedKey,
             wallet.address,
@@ -127,15 +138,21 @@ export function useChatEncryption() {
           console.log('Successfully loaded key from localStorage');
           setSymmetricKey(decryptedKey);
           setEncryptedKey(storedEncryptedKey);
-          if (provider && didContractConfigured) {
+
+          // If user now has a DID, migrate to chain
+          if (authState.didInfo?.hasDid && provider && didContractConfigured) {
             try {
               await persistEncryptedKeyToChain(signer, storedEncryptedKey);
               localStorage.removeItem(legacyLocalStorageKey(wallet.address));
+              console.log('Migrated key from localStorage to DID contract');
             } catch (err) {
               console.warn('Could not migrate encrypted key to DID contract:', err);
             }
           }
           return;
+        } catch (decryptErr: any) {
+          console.warn('Failed to decrypt localStorage key (wrong wallet?):', decryptErr?.message);
+          // Continue to generate new key
         }
       }
 
@@ -147,6 +164,10 @@ export function useChatEncryption() {
       setSymmetricKey(newKey);
       setEncryptedKey(encrypted);
       console.log('New key generated and encrypted');
+
+      // Persist to localStorage immediately (critical for users without DID)
+      localStorage.setItem(legacyLocalStorageKey(wallet.address), encrypted);
+      console.log('Encrypted key stored in localStorage');
 
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
@@ -229,7 +250,23 @@ export function useChatEncryption() {
           symmetricKeyReady: !!symmetricKey,
           blobPreview: data.data.encryptedChatBlob?.substring(0, 50) + '...',
         });
-        // Return empty array on decryption failure (wrong key, corrupted data, etc.)
+
+        // Decryption failure means the chat was encrypted with a different key
+        // This happens when:
+        // 1. User had a previous session with a different key (before localStorage fix)
+        // 2. User is using a different wallet
+        // 3. Corrupted data
+
+        // Clear the corrupted chat from backend to avoid repeated failures
+        // User will start fresh with the current key
+        console.warn('Chat decryption failed - clearing corrupted chat from backend. Starting fresh with new key.');
+
+        // Silently delete the corrupted chat (best effort)
+        apiFetch('/chat', { method: 'DELETE' }).catch(() => {
+          console.warn('Failed to delete corrupted chat');
+        });
+
+        // Return empty array - user will start with fresh chat
         return [];
       }
 
@@ -296,7 +333,17 @@ export function useChatEncryption() {
       console.log('Chat saved successfully:', {
         blobHash: payload.blobHash?.substring(0, 16) + '...',
         requiresDidUpdate: payload.requiresDidUpdate,
+        hasEncryptedKey: !!encryptedKey,
       });
+
+      // Ensure encrypted key is persisted to localStorage (critical for users without DID)
+      if (encryptedKey && wallet) {
+        try {
+          localStorage.setItem(legacyLocalStorageKey(wallet.address), encryptedKey);
+        } catch (lsErr: any) {
+          console.warn('Failed to persist encrypted key to localStorage:', lsErr?.message);
+        }
+      }
 
       return {
         blobHash: payload.blobHash ?? null,
@@ -315,7 +362,8 @@ export function useChatEncryption() {
       setSymmetricKey(null);
       setEncryptedKey(null);
     }
-  }, [authState.isVerified, wallet, signer, initializeKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authState.isVerified, wallet, signer]);
 
   return {
     symmetricKey,
