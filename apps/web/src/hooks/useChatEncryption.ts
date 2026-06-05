@@ -89,12 +89,23 @@ export function useChatEncryption() {
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
           const metadataHex = await getEncryptedKeyMetadata(provider, wallet.address);
+          console.log('DID encrypted key metadata:', {
+            metadataHex: metadataHex?.substring(0, 50) + '...',
+            metadataLength: metadataHex?.length,
+          });
           const fromChain = onchainMetadataToEncryptedChatKey(metadataHex);
+          console.log('Parsed from chain:', {
+            fromChain: fromChain ? fromChain.substring(0, 50) + '...' : null,
+            hasColon: fromChain?.includes(':'),
+          });
           if (fromChain && fromChain.includes(':')) {
             const decryptedKey = await decryptSymmetricKey(fromChain, wallet.address, signer);
+            console.log('Successfully loaded key from DID contract');
             setSymmetricKey(decryptedKey);
             setEncryptedKey(fromChain);
             return;
+          } else {
+            console.log('No valid key found in DID contract (empty or invalid format)');
           }
         } catch (err) {
           console.warn('Could not read encrypted key metadata from DID contract:', err);
@@ -103,12 +114,17 @@ export function useChatEncryption() {
 
       if (authState.didStatus === 'exists' && authState.didInfo?.hasDid) {
         const storedEncryptedKey = localStorage.getItem(legacyLocalStorageKey(wallet.address));
+        console.log('Checking localStorage for legacy key:', {
+          hasStoredKey: !!storedEncryptedKey,
+          didStatus: authState.didStatus,
+        });
         if (storedEncryptedKey) {
           const decryptedKey = await decryptSymmetricKey(
             storedEncryptedKey,
             wallet.address,
             signer,
           );
+          console.log('Successfully loaded key from localStorage');
           setSymmetricKey(decryptedKey);
           setEncryptedKey(storedEncryptedKey);
           if (provider && didContractConfigured) {
@@ -124,15 +140,18 @@ export function useChatEncryption() {
       }
 
       // No existing key found - generate new one
+      console.log('Generating new encryption key (no existing key found)');
       const newKey = generateSymmetricKey();
       const encrypted = await encryptSymmetricKey(newKey, wallet.address, signer);
 
       setSymmetricKey(newKey);
       setEncryptedKey(encrypted);
+      console.log('New key generated and encrypted');
 
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
           await persistEncryptedKeyToChain(signer, encrypted);
+          console.log('New key persisted to DID contract');
         } catch (err) {
           console.warn('Could not persist new encrypted key to DID contract:', err);
         }
@@ -185,11 +204,34 @@ export function useChatEncryption() {
       }
 
       const data = await response.json();
-      if (!data.success || !data.data.hasChat) {
+
+      // Debug: log the response to see what we're getting
+      console.log('Chat load response:', {
+        success: data.success,
+        hasChat: data.data?.hasChat,
+        hasBlob: !!data.data?.encryptedChatBlob,
+        blobLength: data.data?.encryptedChatBlob?.length,
+        didTokenId: data.data?.didTokenId,
+      });
+
+      if (!data.success || !data.data.hasChat || !data.data.encryptedChatBlob) {
         return [];
       }
 
-      const decryptedHistory = await decryptChatHistory(data.data.encryptedChatBlob, symmetricKey);
+      let decryptedHistory: string;
+      try {
+        decryptedHistory = await decryptChatHistory(data.data.encryptedChatBlob, symmetricKey);
+      } catch (decryptError: any) {
+        console.error('Failed to decrypt chat history:', {
+          error: decryptError?.message || String(decryptError),
+          hasBlob: !!data.data.encryptedChatBlob,
+          blobLength: data.data.encryptedChatBlob?.length,
+          symmetricKeyReady: !!symmetricKey,
+          blobPreview: data.data.encryptedChatBlob?.substring(0, 50) + '...',
+        });
+        // Return empty array on decryption failure (wrong key, corrupted data, etc.)
+        return [];
+      }
 
       const messages: ChatMessage[] = JSON.parse(decryptedHistory);
       return messages.map((msg) => ({
