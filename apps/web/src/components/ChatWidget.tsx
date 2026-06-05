@@ -436,7 +436,18 @@ export default function ChatWidget() {
   const handleSend = async (contentOverride?: string) => {
     const trimmed = (typeof contentOverride === 'string' ? contentOverride : input).trim();
     if (!trimmed || isStreaming || isSending || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
-    if (!isGuest && (!symmetricKey || encryptionLoading)) return;
+
+    // Authenticated users: require encryption to be ready
+    if (!isGuest) {
+      if (encryptionError) {
+        showToast('error', 'Encryption error. Please refresh the page.');
+        return;
+      }
+      if (!symmetricKey || encryptionLoading) {
+        console.log('Blocking send: encryption not ready', { hasSymmetricKey: !!symmetricKey, encryptionLoading });
+        return;
+      }
+    }
 
     if (isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT) {
       setShowGuestLimitModal(true);
@@ -621,9 +632,16 @@ export default function ChatWidget() {
               }))
             );
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error saving chat:', error);
-          showToast('error', 'Failed to save chat. Please try again.');
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          const isEncryptionNotInitialized = errorMsg.includes('Encryption not initialized');
+
+          if (isEncryptionNotInitialized) {
+            showToast('error', 'Encryption not ready. Please wait a moment and try again.');
+          } else {
+            showToast('error', `Failed to save chat: ${errorMsg}`);
+          }
         }
       };
 

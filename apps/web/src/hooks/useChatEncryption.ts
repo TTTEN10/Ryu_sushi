@@ -78,6 +78,14 @@ export function useChatEncryption() {
       setIsLoading(true);
       setError(null);
 
+      // If we already have a symmetric key, don't re-initialize (prevents key rotation on didStatus changes)
+      // The key is wallet-derived and deterministic, so it's safe to keep across re-renders
+      if (symmetricKey) {
+        console.log('Encryption key already initialized, skipping re-initialization');
+        setIsLoading(false);
+        return;
+      }
+
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
           const metadataHex = await getEncryptedKeyMetadata(provider, wallet.address);
@@ -115,6 +123,7 @@ export function useChatEncryption() {
         }
       }
 
+      // No existing key found - generate new one
       const newKey = generateSymmetricKey();
       const encrypted = await encryptSymmetricKey(newKey, wallet.address, signer);
 
@@ -141,6 +150,7 @@ export function useChatEncryption() {
     authState.isVerified,
     authState.didStatus,
     authState.didInfo,
+    symmetricKey,
   ]);
 
   /**
@@ -195,8 +205,20 @@ export function useChatEncryption() {
   const saveChat = useCallback(
     async (messages: ChatMessage[]): Promise<SaveChatResult> => {
       if (!symmetricKey || !authState.isVerified) {
+        console.error('saveChat failed: encryption not initialized', {
+          hasSymmetricKey: !!symmetricKey,
+          isVerified: authState.isVerified,
+          didStatus: authState.didStatus,
+          hasDidInfo: !!authState.didInfo,
+        });
         throw new Error('Encryption not initialized');
       }
+
+      console.log('Saving chat:', {
+        messageCount: messages.length,
+        didTokenId: authState.didInfo?.tokenId,
+        hasDid: authState.didInfo?.hasDid,
+      });
 
       const chatJson = JSON.stringify(messages);
       const encryptedBlob = await encryptChatHistory(chatJson, symmetricKey);
@@ -218,11 +240,21 @@ export function useChatEncryption() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('saveChat API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+        });
         throw new Error((errorData as { message?: string }).message || 'Failed to save chat');
       }
 
       const data = await response.json();
       const payload = data?.data ?? {};
+
+      console.log('Chat saved successfully:', {
+        blobHash: payload.blobHash?.substring(0, 16) + '...',
+        requiresDidUpdate: payload.requiresDidUpdate,
+      });
 
       return {
         blobHash: payload.blobHash ?? null,

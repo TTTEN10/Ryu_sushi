@@ -1,8 +1,52 @@
-# Wallet funnel: "Setup issue" after SIWE (production investigation)
+# Wallet funnel: "Setup issue" after SIWE + "Failed to save chat" fix
 
 **Date:** 2026-06-04  
 **Last Updated:** 2026-06-04  
-**Symptom:** Wallet connects and SIWE verify succeeds (green `0x…` badge), then header shows **Setup issue** (amber). Encrypted chat save/load after refresh does not work.
+**Symptoms:**
+1. Wallet connects and SIWE verify succeeds (green `0x…` badge), then header shows **Setup issue** (amber)
+2. Encrypted chat save/load after refresh does not work
+3. **"Failed to save chat. Please try again."** when sending messages after wallet verification
+
+---
+
+## Issue 2: "Failed to save chat" after wallet verification
+
+**Symptom:** User has verified wallet (signed SIWE), may have minted DID, but when sending a chat message, gets error "Failed to save chat. Please try again."
+
+**Root Cause:** The `useChatEncryption` hook's `initializeKey` callback was re-running when `authState.didStatus` changed (e.g., from `'none'` to `'exists'` after minting DID). This could cause:
+1. A new symmetric key to be generated, different from the one used to encrypt the chat
+2. Race condition where chat save is attempted before encryption is fully initialized
+
+**Fix:** Added a guard in `initializeKey` to skip re-initialization if a `symmetricKey` already exists:
+
+```javascript
+// If we already have a symmetric key, don't re-initialize
+if (symmetricKey) {
+  console.log('Encryption key already initialized, skipping re-initialization');
+  setIsLoading(false);
+  return;
+}
+```
+
+Also added better error logging and more specific error messages to help diagnose future issues.
+
+**Files Updated:**
+- `apps/web/src/hooks/useChatEncryption.ts` — Added `symmetricKey` guard and better logging
+- `apps/web/src/components/ChatWidget.tsx` — More specific error messages, block send when encryption error
+
+**Debug Steps:**
+If the issue persists, check browser console for:
+1. `"Encryption key already initialized, skipping re-initialization"` — confirms guard is working
+2. `"saveChat failed: encryption not initialized"` — indicates key wasn't generated
+3. `"saveChat API error:"` — shows backend error response
+
+**Common causes:**
+1. **Backend env vars missing** — `DATABASE_URL` not set → Prisma fails
+2. **JWT_SECRET mismatch** — Session cookie can't be verified
+3. **DID contract not configured** — `VITE_DID_IDENTITY_TOKEN_ADDRESS` missing in frontend build
+4. **Race condition** — User sends message before encryption completes (should now be blocked)
+
+---
 
 ## Quick Fix (TL;DR)
 
