@@ -300,13 +300,19 @@ export class DIDService {
 
       let tx;
       if (this.signer) {
-        tx = await legacyContract.connect(this.signer).createDid(walletAddress);
+        const mintContract = legacyContract.connect(this.signer) as ethers.Contract & {
+          createDid: (owner: string) => Promise<ethers.ContractTransactionResponse>;
+        };
+        tx = await mintContract.createDid(walletAddress);
       } else {
         // Public minting - user must call createMyDid() themselves
         throw new Error('Backend signer not configured. User must create DID via wallet using createMyDid().');
       }
 
       const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('DID creation transaction failed: no receipt');
+      }
       // Get tokenId from legacy contract
       const tokenId = await legacyContract.getDidId(walletAddress);
 
