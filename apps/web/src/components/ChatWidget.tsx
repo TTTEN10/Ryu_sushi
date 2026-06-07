@@ -14,7 +14,6 @@ import { apiFetch, apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
-import CrisisResourceBanner from './CrisisResourceBanner';
 
 interface Message {
   id: string;
@@ -998,7 +997,6 @@ export default function ChatWidget() {
 
       {/* Input */}
       <div className="border-t border-gray-200 dark:border-white/20 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
-        <CrisisResourceBanner />
         {/* Offline Indicator */}
         {isOffline && (
           <div className="mb-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">

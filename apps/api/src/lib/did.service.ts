@@ -338,19 +338,47 @@ export class DIDService {
 
       // Create a contract instance using the legacy address for this operation only
       const legacyAbi = DID_IDENTITY_TOKEN_ABI;
+      logger.info(`Loading ABI with ${legacyAbi.length} functions`);
+      logger.info(`Checking if createDid is in ABI: ${legacyAbi.some(f => f.includes('createDid'))}`);
       const legacyContract = new ethers.Contract(legacyContractAddress, legacyAbi, this.provider);
+      logger.info(`Contract instance created: ${legacyContract.address}`);
+      logger.info(`Contract has createDid function: ${typeof legacyContract.createDid === 'function'}`);
 
       let tx: ethers.ContractTransactionResponse;
       let isSponsored: boolean;
 
       if (this.signer) {
         // Backend-sponsored mint: backend pays gas via createDid(address)
+        logger.info(`Backend signer address: ${this.signer.address}`);
+        logger.info(`Legacy contract address: ${legacyContractAddress}`);
+        logger.info(`Creating DID for wallet: ${walletAddress}`);
+
         const mintContract = legacyContract.connect(this.signer) as ethers.Contract & {
           createDid: (owner: string) => Promise<ethers.ContractTransactionResponse>;
         };
-        tx = await mintContract.createDid(walletAddress);
-        isSponsored = true;
-        logger.info(`DID created for ${walletAddress}: BACKEND-SPONSORED mint (backend pays gas)`);
+
+        try {
+          // Encode the transaction data to verify it's correct
+          const data = mintContract.interface.encodeFunctionData('createDid', [walletAddress]);
+          logger.info(`Encoded transaction data: ${data}`);
+
+          // Estimate gas to catch errors early
+          const gasEstimate = await mintContract.createDid.estimateGas(walletAddress);
+          logger.info(`Estimated gas: ${gasEstimate.toString()}`);
+
+          tx = await mintContract.createDid(walletAddress);
+          logger.info(`Transaction sent: ${tx.hash}`);
+          logger.info(`Transaction data: ${tx.data}`);
+
+          isSponsored = true;
+          logger.info(`DID created for ${walletAddress}: BACKEND-SPONSORED mint (backend pays gas)`);
+        } catch (txError: any) {
+          logger.error('Transaction error:', txError);
+          logger.error('Error code:', txError.code);
+          logger.error('Error reason:', txError.reason);
+          logger.error('Error data:', txError.data);
+          throw new Error(`DID creation failed: ${txError.message || 'transaction reverted'}`);
+        }
       } else {
         // No backend signer configured - cannot sponsor
         throw new Error(

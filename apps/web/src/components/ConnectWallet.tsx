@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Wallet, LogOut, CheckCircle, AlertCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Wallet, LogOut, CheckCircle, AlertCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp, X, Copy, ExternalLink } from 'lucide-react';
 import { SUPPORTED_CHAIN_ID, SUPPORTED_NETWORK_NAME } from '../config/supportedChain';
 import { useToast } from '../hooks/useToast';
 import { getActionableErrorMessage, getWalletErrorMessage } from '../utils/errorMessages';
@@ -22,6 +22,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   const [showNetworkGuide, setShowNetworkGuide] = useState(false);
   const [verificationStep, setVerificationStep] = useState<'idle' | 'requesting' | 'signing' | 'verifying' | 'complete'>('idle');
   const [autoVerifyRequested, setAutoVerifyRequested] = useState(false);
+  const [showWalletDetails, setShowWalletDetails] = useState(false);
   const verifyInFlightRef = useRef(false);
 
   // Show idle-timeout message only after wallet disconnects with the idle flag set.
@@ -217,16 +218,82 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
               : 'relative flex items-center gap-2'
           }
         >
-          {/* Wallet Address & Verification Status */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            {authState.isVerified ? (
-              <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-            ) : (
-              <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
+          {/* Wallet Address - Clickable to show details */}
+          <div className="relative">
+            <button
+              onClick={() => setShowWalletDetails(!showWalletDetails)}
+              className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+              title="Click to view wallet details"
+              aria-label="View wallet details"
+            >
+              {authState.isVerified ? (
+                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+              ) : (
+                <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
+              )}
+              <span className="text-sm font-mono text-green-700 dark:text-green-300">
+                {formatAddress(wallet.address)}
+              </span>
+            </button>
+
+            {/* Wallet Details Popup */}
+            {showWalletDetails && (
+              <div className="absolute top-full right-0 mt-2 z-50 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[280px]">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Wallet Address</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded break-all">
+                        {wallet.address}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(wallet.address);
+                          showToast('success', 'Address copied!');
+                        }}
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        title="Copy address"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={`https://sepolia.etherscan.io/address/${wallet.address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        title="View on Etherscan"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Network</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {SUPPORTED_NETWORK_NAME}
+                      </span>
+                      <span className="text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
+                        Chain ID: {wallet.chainId}
+                      </span>
+                    </div>
+                  </div>
+                  {authState.isVerified && (
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Wallet verified</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {/* Close on outside click */}
+                <div
+                  className="fixed inset-0 -z-10"
+                  onClick={() => setShowWalletDetails(false)}
+                />
+              </div>
             )}
-            <span className="text-sm font-mono text-green-700 dark:text-green-300">
-              {formatAddress(wallet.address)}
-            </span>
           </div>
 
           {/* DID status — icon-only, same Wallet / CheckCircle pattern as address pill */}

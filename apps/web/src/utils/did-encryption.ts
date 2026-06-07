@@ -134,14 +134,24 @@ export async function decryptSymmetricKey(
   _signer: ethers.JsonRpcSigner
 ): Promise<Uint8Array> {
   try {
-    const [signature, encrypted] = encryptedKey.split(':');
+    // Format: signature:ivHex:encryptedHex (3 parts)
+    const parts = encryptedKey.split(':');
+    if (parts.length < 3) {
+      throw new Error('Invalid encrypted key format - expected signature:iv:encrypted');
+    }
+
+    // First part is signature
+    const signature = parts[0];
+    // Remaining parts are IV and encrypted data (rejoin in case encrypted had colons)
+    const encrypted = parts.slice(1).join(':');
+
     if (!signature || !encrypted) {
       throw new Error('Invalid encrypted key format');
     }
-    
+
     // Reconstruct the original message (fixed format)
     const keyMessage = `SafePsy Chat Encryption Key\nWallet: ${walletAddress.toLowerCase()}\nPurpose: Encrypt symmetric key for chat history`;
-    
+
     // Verify signature matches wallet
     try {
       const recoveredAddress = ethers.verifyMessage(keyMessage, signature);
@@ -151,22 +161,22 @@ export async function decryptSymmetricKey(
     } catch (verifyError) {
       throw new Error('Failed to verify encrypted key signature. The key may not belong to this wallet.');
     }
-    
+
     // Derive Key Encryption Key (KEK) from signature + wallet address
     // Method: SHA-256 hash (NOT PBKDF2)
     // This re-derives the same KEK used during encryption
     const encoder = new TextEncoder();
     const signatureBytes = encoder.encode(signature);
     const walletBytes = encoder.encode(walletAddress.toLowerCase());
-    
+
     const combined = new Uint8Array(signatureBytes.length + walletBytes.length);
     combined.set(signatureBytes, 0);
     combined.set(walletBytes, signatureBytes.length);
-    
+
     // SHA-256 hash to derive KEK (deterministic: same inputs = same KEK)
     const hash = await crypto.subtle.digest('SHA-256', toBufferSource(combined));
     const derivedKey = new Uint8Array(hash);
-    
+
     // Decrypt symmetric key
     const decrypted = await decryptWithAES(encrypted, derivedKey);
     return decrypted;
