@@ -353,20 +353,20 @@ export class DIDService {
         logger.info(`Legacy contract address: ${legacyContractAddress}`);
         logger.info(`Creating DID for wallet: ${walletAddress}`);
 
-        const mintContract = legacyContract.connect(this.signer) as ethers.Contract & {
-          createDid: (owner: string) => Promise<ethers.ContractTransactionResponse>;
-        };
+        const mintContract = legacyContract.connect(this.signer);
 
         try {
-          // Encode the transaction data to verify it's correct
           const data = mintContract.interface.encodeFunctionData('createDid', [walletAddress]);
           logger.info(`Encoded transaction data: ${data}`);
 
-          // Estimate gas to catch errors early
-          const gasEstimate = await mintContract.createDid.estimateGas(walletAddress);
+          const gasEstimate = await this.provider.estimateGas({
+            from: this.signer.address,
+            to: legacyContractAddress,
+            data,
+          });
           logger.info(`Estimated gas: ${gasEstimate.toString()}`);
 
-          tx = await mintContract.createDid(walletAddress);
+          tx = await mintContract.getFunction('createDid').send(walletAddress);
           logger.info(`Transaction sent: ${tx.hash}`);
           logger.info(`Transaction data: ${tx.data}`);
 
