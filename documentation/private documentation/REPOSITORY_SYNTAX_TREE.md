@@ -2,7 +2,7 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPiOSv2**, **SPappv2**).
 
-> **Last updated:** 2026-06-05 — Privacy-first analytics funnel (API + web SDK); wallet inactivity timeout; private docs trimmed; Terraform modules present under `infra/terraform/`; wallet funnel runbook (`deployment/WALLET_FUNNEL_SETUP_ISSUE.md`).
+> **Last updated:** 2026-06-07 — UI/UX user actions reference added; prior: privacy-first analytics funnel, wallet inactivity timeout.
 
 ---
 
@@ -681,6 +681,7 @@ documentation/
     ├── PRODUCTION_ENV_LOCK.md      # API + Universal Link + AASA same-domain matrix; EAS secrets — Markdown
     ├── SECURITY_COMPLETE_GUIDE.md  # Consolidated security config (headers, deps, WAF pointers) — Markdown
     ├── TECHNICAL_REVIEW.md         # UX/UI/security review; cross-check with sprint/tree when architecture changes
+    ├── UI_UX_USER_ACTIONS.md       # Exhaustive inventory of user-facing actions, routes, flows (web + mobile)
     ├── VC_ONE_PAGER.md
     ├── chatbot.md                  # Chatbot + API gateway + Scaleway direct (internal)
     └── programming_sprint.md       # Implementation status + follow-ups

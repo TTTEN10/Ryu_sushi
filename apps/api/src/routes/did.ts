@@ -132,17 +132,18 @@ router.post(
       // Create DID
       const result = await didService.createDID(req.wallet.walletAddress);
 
-      logger.info(`DID created for ${req.wallet.walletAddress}: token ${result.tokenId}`);
+      logger.info(`DID created for ${req.wallet.walletAddress}: token ${result.tokenId}, sponsored=${result.isSponsored}`);
 
       res.json({
         success: true,
-        message: 'DID created successfully',
+        message: result.isSponsored ? 'DID created successfully (gas sponsored by backend)' : 'DID created successfully',
         data: {
           hasDid: true,
           tokenId: result.tokenId,
           encryptedDataExists: false,
           walletAddress: req.wallet.walletAddress,
           txHash: result.txHash,
+          isSponsored: result.isSponsored,
         },
       });
     } catch (error: any) {

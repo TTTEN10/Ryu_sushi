@@ -11,6 +11,7 @@ interface DIDInfo {
   encryptedDataSize?: number;
   contractAddress?: string;
   network?: string;
+  isSponsored?: boolean;
 }
 
 export default function DIDManager() {
@@ -20,6 +21,7 @@ export default function DIDManager() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isSponsored, setIsSponsored] = useState<boolean | null>(null);
 
   // Load DID info when component mounts or auth state changes
   useEffect(() => {
@@ -97,7 +99,14 @@ export default function DIDManager() {
 
       const data = await response.json();
       if (data.success) {
-        setSuccess('DID created successfully!');
+        // Track if this was a sponsored mint
+        const sponsored = data.data?.isSponsored ?? false;
+        setIsSponsored(sponsored);
+        setSuccess(
+          sponsored
+            ? 'DID created successfully! Gas was sponsored by the backend.'
+            : 'DID created successfully!'
+        );
         // Reload DID info
         await loadDIDInfo();
         // Update auth context
@@ -226,6 +235,19 @@ export default function DIDManager() {
                 </>
               )}
             </button>
+
+            {/* Sponsored Mint Notice */}
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">Gas-Free Minting</p>
+                  <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                    No ETH needed — the backend sponsors the gas fee for your Safe ID Token.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

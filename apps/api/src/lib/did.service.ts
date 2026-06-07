@@ -302,9 +302,10 @@ export class DIDService {
 
   /**
    * Create a DID for a wallet
-   * Uses backend signer if available, otherwise requires public minting
+   * Uses backend signer if available (sponsored mint), otherwise requires public minting
+   * @returns Object with tokenId, txHash, and isSponsored flag indicating if backend paid gas
    */
-  async createDID(walletAddress: string): Promise<{ tokenId: string; txHash: string }> {
+  async createDID(walletAddress: string): Promise<{ tokenId: string; txHash: string; isSponsored: boolean }> {
     try {
       // Validate network
       const network = await this.provider.getNetwork();
@@ -339,15 +340,22 @@ export class DIDService {
       const legacyAbi = DID_IDENTITY_TOKEN_ABI;
       const legacyContract = new ethers.Contract(legacyContractAddress, legacyAbi, this.provider);
 
-      let tx;
+      let tx: ethers.ContractTransactionResponse;
+      let isSponsored: boolean;
+
       if (this.signer) {
+        // Backend-sponsored mint: backend pays gas via createDid(address)
         const mintContract = legacyContract.connect(this.signer) as ethers.Contract & {
           createDid: (owner: string) => Promise<ethers.ContractTransactionResponse>;
         };
         tx = await mintContract.createDid(walletAddress);
+        isSponsored = true;
+        logger.info(`DID created for ${walletAddress}: BACKEND-SPONSORED mint (backend pays gas)`);
       } else {
-        // Public minting - user must call createMyDid() themselves
-        throw new Error('Backend signer not configured. User must create DID via wallet using createMyDid().');
+        // No backend signer configured - cannot sponsor
+        throw new Error(
+          'Backend signer not configured. To enable gas-sponsored DID minting, set DID_BACKEND_SIGNER_PRIVATE_KEY environment variable.'
+        );
       }
 
       const receipt = await tx.wait();
@@ -357,11 +365,12 @@ export class DIDService {
       // Get tokenId from legacy contract
       const tokenId = await legacyContract.getDidId(walletAddress);
 
-      logger.info(`DID created for ${walletAddress}: token ID ${tokenId}, tx ${receipt.hash}`);
+      logger.info(`DID created for ${walletAddress}: token ID ${tokenId}, tx ${receipt.hash}, sponsored=${isSponsored}`);
 
       return {
         tokenId: tokenId.toString(),
         txHash: receipt.hash,
+        isSponsored,
       };
     } catch (error: any) {
       logger.error('Error creating DID:', error);

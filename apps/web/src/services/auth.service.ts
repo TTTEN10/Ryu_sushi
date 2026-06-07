@@ -185,10 +185,14 @@ export async function fetchWalletSession(): Promise<SessionMeResponse['data'] | 
 }
 
 export async function logoutWalletSession(): Promise<void> {
+  // Call backend logout (may return 401 if already logged out or token expired)
   await fetch(walletAuthFetchUrl('/auth/logout'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: API_SESSION_CREDENTIALS,
+  }).catch(() => {
+    // Ignore errors - backend might be unreachable or return 401
+    // We'll clear cookies locally anyway
   });
 }
 

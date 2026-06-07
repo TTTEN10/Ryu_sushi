@@ -246,15 +246,16 @@ router.get(
 /**
  * POST /api/auth/logout
  * Logout and clear session
- * 
- * Auth: Required (wallet session)
+ *
+ * Note: Does NOT require authentication - allows logout even with expired/invalid tokens
  */
 router.post(
   '/logout',
-  authenticateWallet,
-  async (_req: AuthenticatedRequest, res: Response) => {
+  async (_req: Request, res: Response) => {
     try {
+      // Always clear the cookie, regardless of auth status
       res.clearCookie('walletSession');
+      logger.info('User logged out successfully');
       res.json({
         success: true,
         message: 'Logged out successfully',

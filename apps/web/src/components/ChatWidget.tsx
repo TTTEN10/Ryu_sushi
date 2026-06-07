@@ -14,6 +14,7 @@ import { apiFetch, apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
+import CrisisResourceBanner from './CrisisResourceBanner';
 
 interface Message {
   id: string;
@@ -200,7 +201,7 @@ export default function ChatWidget() {
         }
       }
 
-      showToast('info', 'Creating Safe ID Token...');
+      showToast('info', 'Creating Safe ID Token (gas sponsored)...');
 
       const response = await apiFetch('/did/create', {
         method: 'POST',
@@ -218,7 +219,13 @@ export default function ChatWidget() {
       }
 
       const tokenId = data.data?.tokenId ? String(data.data.tokenId) : null;
-      showToast('success', tokenId ? `Safe ID Token created! Token ID: ${tokenId}` : 'Safe ID Token created!');
+      const isSponsored = data.data?.isSponsored ?? false;
+      const successMessage = isSponsored
+        ? `Safe ID Token created! Gas was sponsored — no ETH needed.`
+        : tokenId
+          ? `Safe ID Token created! Token ID: ${tokenId}`
+          : 'Safe ID Token created!';
+      showToast('success', successMessage);
 
       await checkDID({ skipVerifiedCheck: true });
       setShowDidCreatePrompt(false);
@@ -991,6 +998,7 @@ export default function ChatWidget() {
 
       {/* Input */}
       <div className="border-t border-gray-200 dark:border-white/20 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
+        <CrisisResourceBanner />
         {/* Offline Indicator */}
         {isOffline && (
           <div className="mb-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">

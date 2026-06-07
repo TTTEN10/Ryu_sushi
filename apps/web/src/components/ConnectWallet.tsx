@@ -118,11 +118,16 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
 
   const handleDisconnect = async () => {
     try {
+      // Clear idle logout flag first (prevent "inactive" message on next login)
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
       }
+      // Clear activity tracking
       clearWalletActivityTracking();
+      // Logout (skipIdleFlag: true means don't SET the idle flag, but we already cleared it)
       await logout({ skipIdleFlag: true });
+      // Force reload to ensure all state is cleared
+      window.location.reload();
     } catch (err) {
       console.error('Logout error:', err);
     }
@@ -254,7 +259,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
                     ? 'Checking chat save status'
                     : authState.didStatus === 'error'
                       ? 'Backend configuration missing — check RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL'
-                      : 'Wallet verified — create your Safe ID Token to save chat history'
+                      : 'Wallet verified — create your Safe ID Token (gas sponsored) to save chat history'
               }
             >
               {authState.didStatus === 'checking' ? (

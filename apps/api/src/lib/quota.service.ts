@@ -153,8 +153,26 @@ export class QuotaService {
   }
 
   /**
+   * Check if Redis is configured (regardless of connection status)
+   */
+  isRedisConfigured(): boolean {
+    return this.redis !== null;
+  }
+
+  /**
+   * Get Redis connection status for health checks
+   */
+  getRedisStatus(): 'ready' | 'connecting' | 'reconnecting' | 'disconnected' | 'not_configured' {
+    if (!this.redis) return 'not_configured';
+    return this.redis.status as 'ready' | 'connecting' | 'reconnecting' | 'disconnected' || 'disconnected';
+  }
+
+  /**
    * Get quota status for a DID
    * Optionally accepts walletAddress to check subscription tier
+   *
+   * In production with Redis configured, throws error if Redis unavailable
+   * In development, falls back to allowing all requests
    */
   async getQuotaStatus(did: string, walletAddress?: string): Promise<QuotaStatus> {
     // Get subscription limits if wallet address is provided
@@ -172,8 +190,13 @@ export class QuotaService {
     }
 
     if (!this.isRedisAvailable()) {
-      // Fallback: return subscription-based quota if Redis is not available
-      logger.warn(`Redis not available, returning subscription quota for DID: ${did}`);
+      // In production with Redis configured, throw error to fail closed
+      if (this.redis !== null && process.env.NODE_ENV === 'production') {
+        logger.error(`Redis configured but not ready (status: ${this.redis.status}). Quota enforcement disabled.`);
+        throw new Error('Redis not available for quota enforcement');
+      }
+      // Fallback: return subscription-based quota if Redis is not configured (development)
+      logger.warn(`Redis not configured, returning subscription quota for DID: ${did}`);
       return {
         did,
         dailyUsed: 0,
@@ -267,10 +290,18 @@ export class QuotaService {
   /**
    * Increment chat usage for a DID
    * Returns true if increment was successful, false if quota exceeded
+   *
+   * In production with Redis configured, throws error if Redis unavailable
    */
   async incrementUsage(did: string): Promise<{ success: boolean; status: QuotaStatus }> {
     if (!this.isRedisAvailable()) {
-      logger.warn(`Redis not available, allowing usage for DID: ${did}`);
+      // In production with Redis configured, throw error to fail closed
+      if (this.redis !== null && process.env.NODE_ENV === 'production') {
+        logger.error(`Redis configured but not ready (status: ${this.redis.status}). Cannot increment usage.`);
+        throw new Error('Redis not available for quota enforcement');
+      }
+      // Fallback: allow usage if Redis is not configured (development)
+      logger.warn(`Redis not configured, allowing usage for DID: ${did}`);
       const status = await this.getQuotaStatus(did);
       return { success: true, status };
     }

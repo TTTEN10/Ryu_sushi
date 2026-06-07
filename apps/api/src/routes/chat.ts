@@ -653,6 +653,55 @@ router.get('/health', (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/chat/health/redis
+ * Health check for Redis connection (quota enforcement)
+ */
+router.get('/health/redis', async (_req: Request, res: Response) => {
+  try {
+    const quotaService = QuotaService.getInstance();
+    const isConfigured = quotaService.isRedisConfigured();
+    const redisStatus = quotaService.getRedisStatus();
+    const isReady = redisStatus === 'ready';
+
+    if (!isConfigured) {
+      return res.status(503).json({
+        success: false,
+        service: 'redis',
+        status: 'not_configured',
+        message: 'Redis is not configured. Quotas will not be enforced.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!isReady) {
+      return res.status(503).json({
+        success: false,
+        service: 'redis',
+        status: redisStatus,
+        message: 'Redis is not connected. Quotas cannot be enforced.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({
+      success: true,
+      service: 'redis',
+      status: redisStatus,
+      message: 'Redis connected. Quotas are being enforced.',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(503).json({
+      success: false,
+      service: 'redis',
+      status: 'error',
+      message: error.message || 'Redis health check failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * Rate limiting for export/delete endpoints (stricter to prevent abuse)
  * 5 requests per hour per wallet
  */
