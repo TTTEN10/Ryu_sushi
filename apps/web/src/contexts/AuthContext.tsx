@@ -10,6 +10,7 @@ import { useWallet } from './WalletContext';
 import { useWalletLogin } from '../hooks/useWalletLogin';
 import { recordDidSuccess, recordSessionSuccess } from '../utils/conversionMetrics';
 import { fetchWalletSession, logoutWalletSession, postDidCheck } from '../services/auth.service';
+import { fetchOnChainDidStatus } from '../utils/did-contract';
 import { useWalletInactivityTimeout } from '../hooks/useWalletInactivityTimeout';
 import {
   WALLET_IDLE_LOGOUT_FLAG,
@@ -79,7 +80,7 @@ function clearLegacyWalletToken(): void {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const { wallet, disconnectWallet } = useWallet();
+  const { wallet, disconnectWallet, provider } = useWallet();
   const { executeLogin } = useWalletLogin();
 
   const [authState, setAuthState] = useState<AuthState>({
@@ -91,6 +92,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading: false,
     error: null,
   });
+
+  const applyDidCheckResult = useCallback(
+    (hasDid: boolean, tokenId: string | null) => {
+      const didInfo: DIDInfo = {
+        hasDid,
+        did: tokenId,
+        didHash: tokenId,
+        isValid: hasDid,
+        tokenId,
+      };
+      setAuthState((prev) => ({
+        ...prev,
+        didStatus: hasDid ? 'exists' : 'none',
+        didInfo,
+      }));
+    },
+    [],
+  );
 
   const checkDID = useCallback(
     async (options?: { skipVerifiedCheck?: boolean }) => {
@@ -121,27 +140,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           throw new Error(result.message || 'Failed to check DID status');
         }
 
-        const tid =
+        let hasDid = result.data.hasDid;
+        let tokenId =
           result.data.tokenId !== undefined && result.data.tokenId !== null
             ? String(result.data.tokenId)
             : null;
-        const didInfo: DIDInfo = {
-          hasDid: result.data.hasDid,
-          did: tid,
-          didHash: tid,
-          isValid: result.data.hasDid,
-          tokenId: tid,
-        };
 
-        setAuthState((prev) => ({
-          ...prev,
-          didStatus: result.data.hasDid ? 'exists' : 'none',
-          didInfo,
-        }));
+        // Backend may check registry V2 while token lives on legacy identity contract — confirm on-chain.
+        if (!hasDid && provider) {
+          try {
+            const onChain = await fetchOnChainDidStatus(provider, wallet.address);
+            if (onChain.hasDid) {
+              hasDid = true;
+              tokenId = onChain.tokenId;
+            }
+          } catch (onChainErr) {
+            console.warn('On-chain DID fallback check failed:', onChainErr);
+          }
+        }
+
+        applyDidCheckResult(hasDid, tokenId);
       } catch (err: unknown) {
         const isBackendConfigError = err instanceof Error && (err as any).isBackendConfigError;
+
+        // When backend is unavailable, still try on-chain so returning users are not prompted to re-mint.
+        if (provider) {
+          try {
+            const onChain = await fetchOnChainDidStatus(provider, wallet.address);
+            if (onChain.hasDid) {
+              applyDidCheckResult(true, onChain.tokenId);
+              return;
+            }
+          } catch (onChainErr) {
+            console.warn('On-chain DID fallback after backend error failed:', onChainErr);
+          }
+        }
+
         if (isBackendConfigError) {
-          // Backend missing env vars (RPC_URL, DID_REGISTRY_ADDRESS, DATABASE_URL)
           console.error('DID check failed: backend configuration missing');
         } else {
           console.error('DID check error:', err);
@@ -153,7 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }));
       }
     },
-    [wallet, authState.isVerified],
+    [wallet, provider, authState.isVerified, applyDidCheckResult],
   );
 
   const loginWithWallet = useCallback(async () => {

@@ -156,11 +156,14 @@ function getDIDServiceConfig(): (DIDServiceConfig & { useNewRegistry: boolean })
 /**
  * DID Service Class
  */
+type DidOnChainSource = 'none' | 'registry' | 'legacy';
+
 export class DIDService {
   private config: DIDServiceConfig & { useNewRegistry: boolean };
   private provider: ethers.JsonRpcProvider;
   private contract: ethers.Contract;
   private signer: ethers.Wallet | null = null;
+  private legacyContract: ethers.Contract | null = null;
 
   constructor(config: DIDServiceConfig & { useNewRegistry: boolean }) {
     this.config = config;
@@ -177,16 +180,49 @@ export class DIDService {
     }
   }
 
+  /** Legacy DIDIdentityToken (profile + backend mint). Used when registry has no token for wallet. */
+  private getLegacyIdentityContract(): ethers.Contract | null {
+    const legacyAddress = process.env.DID_IDENTITY_TOKEN_ADDRESS;
+    if (!legacyAddress) {
+      return null;
+    }
+    if (!this.legacyContract) {
+      this.legacyContract = new ethers.Contract(
+        legacyAddress,
+        DID_IDENTITY_TOKEN_ABI,
+        this.provider,
+      );
+    }
+    return this.legacyContract;
+  }
+
+  /** Resolve whether the wallet DID lives on registry V2, legacy identity token, or neither. */
+  private async resolveDidOnChainSource(walletAddress: string): Promise<DidOnChainSource> {
+    if (this.config.useNewRegistry) {
+      const registryTokenId = await this.contract.getTokenIdByAddress(walletAddress);
+      if (registryTokenId !== 0n) {
+        return 'registry';
+      }
+      const legacy = this.getLegacyIdentityContract();
+      if (legacy && (await legacy.hasDid(walletAddress))) {
+        return 'legacy';
+      }
+      return 'none';
+    }
+
+    if (await this.contract.hasDid(walletAddress)) {
+      return 'legacy';
+    }
+    return 'none';
+  }
+
   /**
    * Check if a wallet has a DID
    */
   async hasDid(walletAddress: string): Promise<boolean> {
     try {
-      if (this.config.useNewRegistry) {
-        const tokenId = await this.contract.getTokenIdByAddress(walletAddress);
-        return tokenId !== 0n;
-      }
-      return await this.contract.hasDid(walletAddress);
+      const source = await this.resolveDidOnChainSource(walletAddress);
+      return source !== 'none';
     } catch (error) {
       logger.error('Error checking DID existence:', error);
       throw error;
@@ -211,9 +247,9 @@ export class DIDService {
         throw new Error(`Invalid wallet address: ${walletAddress}`);
       }
 
-      const has = await this.hasDid(walletAddress);
-      
-      if (!has) {
+      const source = await this.resolveDidOnChainSource(walletAddress);
+
+      if (source === 'none') {
         return {
           hasDid: false,
           tokenId: null,
@@ -222,19 +258,24 @@ export class DIDService {
         };
       }
 
-      const tokenId = this.config.useNewRegistry
-        ? await this.contract.getTokenIdByAddress(walletAddress)
-        : await this.contract.getDidId(walletAddress);
-      
-      const isRevoked = this.config.useNewRegistry
-        ? await this.contract.isAddressRevoked(walletAddress)
-        : await this.contract.isRevoked(walletAddress);
-      
+      let tokenId: bigint;
+      let isRevoked: boolean;
+      let profileContract: ethers.Contract | null = null;
+
+      if (source === 'registry') {
+        tokenId = await this.contract.getTokenIdByAddress(walletAddress);
+        isRevoked = await this.contract.isAddressRevoked(walletAddress);
+      } else {
+        profileContract = this.getLegacyIdentityContract() ?? this.contract;
+        tokenId = await profileContract.getDidId(walletAddress);
+        isRevoked = await profileContract.isRevoked(walletAddress);
+      }
+
       // Profile data: only available on legacy DIDIdentityToken
       let encryptedDataExists = false;
       let profile: { owner: string; createdAt: bigint; lastUpdatedAt: bigint; chatDataReference: string; encryptedKeyMetadata: string } | undefined;
-      if (!this.config.useNewRegistry) {
-        const p = await this.contract.getProfileByOwner(walletAddress);
+      if (profileContract) {
+        const p = await profileContract.getProfileByOwner(walletAddress);
         encryptedDataExists = p.encryptedKeyMetadata.length > 0 || p.chatDataReference !== ethers.ZeroHash;
         profile = {
           owner: p.owner.toLowerCase(),

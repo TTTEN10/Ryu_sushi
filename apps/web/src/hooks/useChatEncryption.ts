@@ -277,21 +277,11 @@ export function useChatEncryption() {
         // 2. User is using a different wallet
         // 3. Corrupted data
 
-        // Clear the corrupted chat from backend to avoid repeated failures
-        // User will start fresh with the current key
-        console.warn('Chat decryption failed - clearing corrupted chat from backend. Starting fresh with new key.');
-
-        // Silently delete the corrupted chat (best effort)
-        // Note: Backend endpoint is /api/chat (DELETE) but may not exist in all deployments
-        apiFetch('/chat', { method: 'DELETE' })
-          .catch((deleteErr) => {
-            // 404 is OK - endpoint might not exist, just log and continue
-            if (deleteErr?.status !== 404) {
-              console.warn('Failed to delete corrupted chat:', deleteErr);
-            } else {
-              console.log('Corrupted chat cleanup skipped (endpoint not available)');
-            }
-          });
+        // Clear the corrupted chat from backend to avoid repeated failures (best effort).
+        const deleteResp = await apiFetch('/chat', { method: 'DELETE' }).catch(() => null);
+        if (deleteResp && !deleteResp.ok && deleteResp.status !== 404) {
+          console.warn('Failed to delete corrupted chat:', deleteResp.status);
+        }
 
         // Return empty array - user will start with fresh chat
         return [];

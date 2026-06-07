@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatEncryption, type SaveChatResult } from '../hooks/useChatEncryption';
-import { updateChatReference } from '../utils/did-contract';
+import { updateChatReference, fetchOnChainDidStatus } from '../utils/did-contract';
 import { keyMetadataBytesForDidUpdate } from '../utils/did-key-metadata';
 import { useOffline } from '../hooks/useOffline';
 import { useToast } from '../hooks/useToast';
@@ -72,8 +72,8 @@ function TypingDots({ className = '' }: { className?: string }) {
 
 export default function ChatWidget() {
   const [searchParams] = useSearchParams();
-  const { authState, userMode } = useAuth();
-  const { wallet, signer } = useWallet();
+  const { authState, userMode, checkDID } = useAuth();
+  const { wallet, signer, provider } = useWallet();
   const { symmetricKey, encryptedKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
@@ -116,12 +116,22 @@ export default function ChatWidget() {
     if (authState.isVerified) {
       setGuestPromptCount(0);
       setShowGuestLimitModal(false);
-      // Show DID creation prompt if user doesn't have a DID yet
-      if (authState.didStatus === 'none' || (authState.didInfo && !authState.didInfo.hasDid)) {
-        setShowDidCreatePrompt(true);
-      }
     }
-  }, [authState.isVerified, authState.didStatus, authState.didInfo]);
+  }, [authState.isVerified]);
+
+  // Show DID creation prompt only after check completes and no token exists for this wallet.
+  useEffect(() => {
+    if (authState.didStatus === 'exists') {
+      setShowDidCreatePrompt(false);
+      return;
+    }
+    if (!authState.isVerified || authState.didStatus === 'checking') {
+      return;
+    }
+    if (authState.didStatus === 'none') {
+      setShowDidCreatePrompt(true);
+    }
+  }, [authState.isVerified, authState.didStatus]);
 
   // Warn guest users about data loss on refresh/close if they have an active conversation
   useEffect(() => {
@@ -173,63 +183,45 @@ export default function ChatWidget() {
   }, [isSending, isStreaming, messages]);
 
   const handleCreateDID = useCallback(async () => {
-    if (!wallet || !signer) {
+    if (!wallet) {
       showToast('error', 'Wallet not connected');
       return;
     }
 
     try {
-      showToast('info', 'Creating Safe ID Token... Please approve the transaction in your wallet.');
-
-      // Import ethers and contract ABI
-      const { ethers } = await import('ethers');
-
-      // Legacy DID Identity Token ABI (createMyDid function)
-      const DID_ABI = [
-        'function createMyDid() external returns (uint256)',
-        'function getDidId(address user) external view returns (uint256)',
-        'function hasDid(address user) external view returns (bool)',
-      ];
-
-      // Contract address from env
-      const contractAddress = import.meta.env.VITE_DID_IDENTITY_TOKEN_ADDRESS;
-      if (!contractAddress) {
-        throw new Error('DID contract address not configured');
+      // Re-check on-chain before minting — user may already have a token from a prior session.
+      if (provider) {
+        const onChain = await fetchOnChainDidStatus(provider, wallet.address);
+        if (onChain.hasDid) {
+          showToast('success', `Safe ID Token found (ID: ${onChain.tokenId})`);
+          await checkDID({ skipVerifiedCheck: true });
+          setShowDidCreatePrompt(false);
+          return;
+        }
       }
 
-      // Create contract instance connected to signer
-      const contract = new ethers.Contract(contractAddress, DID_ABI, signer);
+      showToast('info', 'Creating Safe ID Token...');
 
-      // Call createMyDid - user will see MetaMask transaction
-      const tx = await contract.createMyDid();
-      console.log('DID creation transaction sent:', tx.hash);
-
-      showToast('info', 'Waiting for transaction confirmation...');
-
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log('DID creation confirmed:', receipt.hash);
-
-      // Get the token ID
-      const tokenId = await contract.getDidId(wallet.address);
-      console.log('DID created with token ID:', tokenId.toString());
-
-      showToast('success', `Safe ID Token created! Token ID: ${tokenId.toString()}`);
-
-      // Call backend to update internal state (optional, for caching)
-      await apiFetch('/did/create', {
+      const response = await apiFetch('/did/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }).catch(() => {
-        // Ignore backend errors - DID is already created on-chain
-        console.log('Backend sync skipped (DID already created on-chain)');
+        headers: { 'Content-Type': 'application/json' },
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create Safe ID Token');
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to create Safe ID Token');
+      }
+
+      const tokenId = data.data?.tokenId ? String(data.data.tokenId) : null;
+      showToast('success', tokenId ? `Safe ID Token created! Token ID: ${tokenId}` : 'Safe ID Token created!');
+
+      await checkDID({ skipVerifiedCheck: true });
       setShowDidCreatePrompt(false);
-      // Trigger DID status refresh
-      window.location.reload();
     } catch (err: any) {
       console.error('Error creating DID:', err);
       if (err.code === 'ACTION_REJECTED') {
@@ -240,7 +232,7 @@ export default function ChatWidget() {
         showToast('error', err.message || 'Failed to create Safe ID Token');
       }
     }
-  }, [wallet, signer, showToast]);
+  }, [wallet, provider, checkDID, showToast]);
 
   const syncDidChatReferenceIfNeeded = useCallback(
     async (saveResult: SaveChatResult, options?: { showToasts?: boolean }) => {
@@ -889,15 +881,9 @@ export default function ChatWidget() {
                   <span>Keep your data secure and private</span>
                 </li>
               </ul>
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-xs text-blue-800 dark:text-blue-300">
-                  <strong>Note:</strong> Without a DID, your chat encryption key is stored only in this browser. Clearing browser data will lose access to your chats.
-                </p>
-              </div>
               <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <p className="text-xs text-amber-800 dark:text-amber-300">
-                  <strong>Requires Sepolia ETH:</strong> You'll need a small amount of Sepolia ETH for gas (~$0.05).
-                  Get free Sepolia ETH from <a href="https://sepoliafaucet.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900 dark:hover:text-amber-100">sepoliafaucet.com</a>.
+                  Token creation is handled securely on Sepolia. No wallet transaction or gas is required from you.
                 </p>
               </div>
               <div className="pt-2">

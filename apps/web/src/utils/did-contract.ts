@@ -31,6 +31,39 @@ const DID_IDENTITY_TOKEN_ABI = [
   'function ownerOf(uint256 tokenId) external view returns (address)',
 ];
 
+export type OnChainDidStatus = {
+  hasDid: boolean;
+  tokenId: string | null;
+};
+
+/**
+ * Read DID ownership from the legacy identity token contract (client-side RPC).
+ * Used when the backend registry check misses tokens minted on the legacy contract.
+ */
+export async function fetchOnChainDidStatus(
+  provider: ethers.Provider,
+  walletAddress: string,
+): Promise<OnChainDidStatus> {
+  const contractAddress = getDIDContractAddress();
+  if (!contractAddress) {
+    return { hasDid: false, tokenId: null };
+  }
+
+  const contract = new ethers.Contract(
+    contractAddress,
+    DID_IDENTITY_TOKEN_ABI,
+    provider,
+  );
+
+  const hasDid = await contract.hasDid(walletAddress);
+  if (!hasDid) {
+    return { hasDid: false, tokenId: null };
+  }
+
+  const tokenId = await contract.getDidId(walletAddress);
+  return { hasDid: true, tokenId: tokenId.toString() };
+}
+
 /**
  * Get DID contract address from environment or use default
  */
