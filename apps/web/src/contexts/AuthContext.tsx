@@ -229,20 +229,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = useCallback(async (options?: { skipIdleFlag?: boolean }) => {
     const skipIdleFlag = options?.skipIdleFlag ?? false;
+    console.log('[AuthContext] logout() called, skipIdleFlag:', skipIdleFlag);
     try {
+      console.log('[AuthContext] Calling logoutWalletSession()...');
       await logoutWalletSession();
+      console.log('[AuthContext] logoutWalletSession() completed');
     } catch (err: any) {
       // 401 is expected when user is already logged out - don't treat as error
       if (err?.status !== 401) {
-        console.error('Logout error:', err);
+        console.error('[AuthContext] Logout error:', err);
+      } else {
+        console.log('[AuthContext] Logout returned 401 (expected if already logged out)');
       }
     } finally {
       // Only set idle flag for inactivity timeout logouts, NOT manual logouts
       if (!skipIdleFlag && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(WALLET_IDLE_LOGOUT_FLAG, '1');
+        console.log('[AuthContext] Set idle logout flag in sessionStorage');
       }
+      console.log('[AuthContext] Clearing legacy wallet token and activity tracking');
       clearLegacyWalletToken();
       clearWalletActivityTracking();
+      console.log('[AuthContext] Resetting auth state');
       setAuthState({
         walletAddress: null,
         network: null,
@@ -252,7 +260,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading: false,
         error: null,
       });
+      console.log('[AuthContext] Calling disconnectWallet()');
       disconnectWallet();
+      console.log('[AuthContext] logout() completed');
     }
   }, [disconnectWallet]);
 

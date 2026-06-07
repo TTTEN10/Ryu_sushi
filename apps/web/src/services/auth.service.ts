@@ -186,14 +186,18 @@ export async function fetchWalletSession(): Promise<SessionMeResponse['data'] | 
 
 export async function logoutWalletSession(): Promise<void> {
   // Call backend logout (may return 401 if already logged out or token expired)
-  await fetch(walletAuthFetchUrl('/auth/logout'), {
+  const logoutUrl = walletAuthFetchUrl('/auth/logout');
+  console.log('[auth.service] Calling logout:', logoutUrl);
+  const response = await fetch(logoutUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: API_SESSION_CREDENTIALS,
-  }).catch(() => {
+  }).catch((err) => {
     // Ignore errors - backend might be unreachable or return 401
     // We'll clear cookies locally anyway
+    console.warn('[auth.service] Logout fetch error (ignored):', err.message);
   });
+  console.log('[auth.service] Logout response status:', response?.status);
 }
 
 export type DidCheckResponse = {

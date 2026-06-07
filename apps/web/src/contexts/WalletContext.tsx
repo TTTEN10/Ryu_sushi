@@ -542,11 +542,16 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, [walletConnectProvider, clearWalletState, wallet?.address, wallet?.chainId]);
 
   const disconnectWallet = useCallback(() => {
+    console.log('[WalletContext] disconnectWallet() called');
     if (walletConnectProvider && walletConnectProvider.session) {
+      console.log('[WalletContext] Disconnecting WalletConnect session');
       walletConnectProvider.disconnect();
     }
+    console.log('[WalletContext] Clearing wallet state');
     clearWalletState();
+    console.log('[WalletContext] Clearing error');
     setError(null);
+    console.log('[WalletContext] disconnectWallet() completed');
   }, [walletConnectProvider, clearWalletState]);
 
   /**

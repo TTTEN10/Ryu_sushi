@@ -154,11 +154,36 @@ else
   log "WARN: DATABASE_URL unset — encrypted chat save/load will fail until Postgres is configured"
 fi
 
+NODE_API_DID_BACKEND_SIGNER="${DID_BACKEND_SIGNER_PRIVATE_KEY:-}"
+NODE_API_REDIS_URL="${REDIS_URL:-}"
+APP_ENABLE_REDIS=0
+if [[ -n "${NODE_API_REDIS_URL}" ]]; then
+  eval "$(
+    REDIS_URL="${NODE_API_REDIS_URL}" node <<'NODE'
+const raw = process.env.REDIS_URL;
+const normalized = raw.replace(/^redis:\/\//, 'http://').replace(/^rediss:\/\//, 'https://');
+let host = '';
+try {
+  host = new URL(normalized).hostname;
+} catch {
+  process.exit(0);
+}
+const needsRedis = host === 'localhost' || host === '127.0.0.1' || host === 'redis';
+const composeUrl =
+  host === 'localhost' || host === '127.0.0.1' ? raw.replace(host, 'redis') : raw;
+const esc = (s) => JSON.stringify(s);
+console.log(`export NODE_API_REDIS_URL=${esc(composeUrl)}`);
+console.log(`export APP_ENABLE_REDIS=${needsRedis ? '1' : '0'}`);
+NODE
+  )"
+fi
+
 NODE_API_DEPENDS_BLOCK=""
 APP_POSTGRES_SERVICE_BLOCK=""
+APP_REDIS_SERVICE_BLOCK=""
+NODE_API_DEPENDS_LINES=""
 if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then
-  NODE_API_DEPENDS_BLOCK="
-    depends_on:
+  NODE_API_DEPENDS_LINES="${NODE_API_DEPENDS_LINES}
       postgres:
         condition: service_healthy"
   APP_POSTGRES_SERVICE_BLOCK="
@@ -177,6 +202,28 @@ if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then
       timeout: 5s
       retries: 10
 "
+fi
+if [[ "${APP_ENABLE_REDIS}" == "1" ]]; then
+  NODE_API_DEPENDS_LINES="${NODE_API_DEPENDS_LINES}
+      redis:
+        condition: service_healthy"
+  APP_REDIS_SERVICE_BLOCK="
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: [\"redis-server\", \"--appendonly\", \"yes\"]
+    healthcheck:
+      test: [\"CMD\", \"redis-cli\", \"ping\"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+"
+fi
+if [[ -n "${NODE_API_DEPENDS_LINES}" ]]; then
+  NODE_API_DEPENDS_BLOCK="
+    depends_on:${NODE_API_DEPENDS_LINES}"
 fi
 
 # Where vLLM / chatbot runs and how the app backend reaches it (set MODEL_API_URL_FOR_COMPOSE before this script to override).
@@ -499,11 +546,13 @@ services:
       - DID_REGISTRY_ADDRESS=${NODE_API_DID_REGISTRY}
       - DID_IDENTITY_TOKEN_ADDRESS=${NODE_API_DID_IDENTITY}
       - DATABASE_URL=${NODE_API_DATABASE_URL}
+      - DID_BACKEND_SIGNER_PRIVATE_KEY=${NODE_API_DID_BACKEND_SIGNER}
+      - REDIS_URL=${NODE_API_REDIS_URL}
     deploy:
       resources:
         limits:
           memory: 1G
-${APP_POSTGRES_SERVICE_BLOCK}
+${APP_POSTGRES_SERVICE_BLOCK}${APP_REDIS_SERVICE_BLOCK}
   backend:
     build: ./backend
     extra_hosts:
@@ -541,6 +590,7 @@ volumes:
   caddy_data:
   caddy_config:
   postgres_data:
+  redis_data:
 EOF
 
   cat > Caddyfile <<\"EOF\"
@@ -565,6 +615,9 @@ ${CADDY_SITE_NAMES} {
     reverse_proxy node-api:3001
   }
   handle /api/chat/concurrency {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/quota {
     reverse_proxy node-api:3001
   }
   handle_path /api/* {
@@ -595,6 +648,9 @@ http://${APP_IP} {
     reverse_proxy node-api:3001
   }
   handle /api/chat/concurrency {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/quota {
     reverse_proxy node-api:3001
   }
   handle_path /api/* {

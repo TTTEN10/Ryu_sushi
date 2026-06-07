@@ -20,7 +20,6 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [showNetworkGuide, setShowNetworkGuide] = useState(false);
-  const [showVerificationInfo, setShowVerificationInfo] = useState(false);
   const [verificationStep, setVerificationStep] = useState<'idle' | 'requesting' | 'signing' | 'verifying' | 'complete'>('idle');
   const [autoVerifyRequested, setAutoVerifyRequested] = useState(false);
   const verifyInFlightRef = useRef(false);
@@ -118,18 +117,23 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
 
   const handleDisconnect = async () => {
     try {
+      console.log('[ConnectWallet] handleDisconnect called');
       // Clear idle logout flag first (prevent "inactive" message on next login)
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
+        console.log('[ConnectWallet] Cleared idle logout flag from sessionStorage');
       }
       // Clear activity tracking
       clearWalletActivityTracking();
+      console.log('[ConnectWallet] Cleared wallet activity tracking');
       // Logout (skipIdleFlag: true means don't SET the idle flag, but we already cleared it)
+      console.log('[ConnectWallet] Calling logout from AuthContext...');
       await logout({ skipIdleFlag: true });
+      console.log('[ConnectWallet] logout() completed, reloading page...');
       // Force reload to ensure all state is cleared
       window.location.reload();
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error('[ConnectWallet] Logout error:', err);
     }
   };
 
@@ -213,16 +217,8 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
               : 'relative flex items-center gap-2'
           }
         >
-          {/* Wallet Address & Verification Status - clickable for info when not verified */}
-          <div
-            role={!authState.isVerified ? "button" : undefined}
-            tabIndex={!authState.isVerified ? 0 : undefined}
-            onClick={!authState.isVerified ? () => setShowVerificationInfo(!showVerificationInfo) : undefined}
-            onKeyDown={!authState.isVerified ? (e) => e.key === 'Enter' && setShowVerificationInfo(!showVerificationInfo) : undefined}
-            className={`flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg ${!authState.isVerified ? 'cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30' : ''}`}
-            title={!authState.isVerified ? "Why verify? Click for info" : undefined}
-            aria-label={!authState.isVerified ? "Learn why verification is needed" : undefined}
-          >
+          {/* Wallet Address & Verification Status */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             {authState.isVerified ? (
               <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
             ) : (
@@ -232,21 +228,6 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
               {formatAddress(wallet.address)}
             </span>
           </div>
-
-          {/* Verification Info Tooltip - drops down from wallet address */}
-          {showVerificationInfo && !authState.isVerified && (
-            <div className="absolute top-full left-0 mt-2 max-w-xs p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-800 dark:text-blue-300 z-50 shadow-lg">
-              <p className="font-semibold mb-1">Why verify?</p>
-              <p className="mb-1">Keeps this space yours, saved chats link to your wallet</p>
-              <p>One signature, not a payment</p>
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowVerificationInfo(false); }}
-                className="mt-2 text-blue-600 dark:text-blue-400 hover:underline text-xs"
-              >
-                Got it
-              </button>
-            </div>
-          )}
 
           {/* DID status — icon-only, same Wallet / CheckCircle pattern as address pill */}
           {authState.isVerified && (
