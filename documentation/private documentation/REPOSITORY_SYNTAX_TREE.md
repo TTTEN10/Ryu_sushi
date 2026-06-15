@@ -2,7 +2,7 @@
 
 A tree view of the codebase where each **leaf** is a file with: **name**, **function**, **language**. Root folder name in clones may vary; paths below are relative to the repo root (e.g. **SPiOSv2**, **SPappv2**).
 
-> **Last updated:** 2026-06-07 — UI/UX user actions reference added; prior: privacy-first analytics funnel, wallet inactivity timeout.
+> **Last updated:** 2026-06-11 — Contract failure handling with retry logic (web + mobile); prior: UI/UX user actions reference, privacy-first analytics funnel, wallet inactivity timeout.
 
 ---
 
@@ -319,7 +319,7 @@ apps/web/
 │   │   ├── conversionMetrics.ts   # Optional funnel timestamps cookie (`sp_product_metrics`) — TypeScript
 │   │   ├── cookieUtils.ts         # Cookie helpers — TypeScript
 │   │   ├── crypto-helpers.ts      # Web Crypto BufferSource normalization — TypeScript
-│   │   ├── did-contract.ts        # DID contract calls (frontend) — TypeScript
+│   │   ├── did-contract.ts        # DID contract calls (frontend) with **retry logic** (`sendContractWriteWithRetry`, 4 attempts, 900ms base) — TypeScript
 │   │   ├── did-key-metadata.ts    # On-chain encrypted DEK wire format helpers — TypeScript
 │   │   ├── did-encryption.ts      # DID-based encryption — TypeScript
 │   │   ├── encryption.ts          # General encryption — TypeScript
@@ -431,7 +431,7 @@ apps/safepsy-mobile/
     │   ├── chatHistoryService.ts # DEK in SecureStore; GET/POST /api/chat/load|save; optional DID trigger after save — TypeScript
     │   ├── chatSessionLifecycle.ts # Reset symmetric key + DEK + AsyncStorage on wallet change / logout — TypeScript
     │   ├── chatStream.ts     # POST /api/chat/completions SSE + retries + delta buffering + stream phases — TypeScript
-    │   ├── didService.ts     # POST /api/did/update then wallet sendTransaction (chat reference) — TypeScript
+    │   ├── didService.ts     # POST /api/did/update then wallet sendTransaction with **retry logic** (exponential backoff, 4 attempts) — TypeScript
     │   ├── secureToken.ts    # SecureStore: JWT + wrapped DEK per wallet — TypeScript
     │   ├── walletApi.ts      # fetch helpers: wallet connect/verify, /me, logout — TypeScript
     │   └── walletService.ts  # Sepolia switch, sign-in orchestration — TypeScript

@@ -154,6 +154,18 @@ When you confirm deletion:
 
 Deletion is immediate and irreversible. Rate limits apply (5 export/delete requests per hour) to prevent accidental or malicious data loss.
 
+### 23. Can I rotate my encryption key?
+
+Yes. You can rotate your encryption key at any time from your **DID Profile** page. Key rotation generates a new random encryption key, re-encrypts your chat history with the new key, and updates your DID contract with the new wrapped key.
+
+**Why rotate?** You might rotate your key if you suspect it was compromised, after switching wallets, or as part of regular security hygiene.
+
+**What happens:** Your chat remains intact but is re-encrypted with the new key. The old key can no longer decrypt your data. The rotation event is logged in our security audit log.
+
+**Rate limits:** Key rotation is limited to 5 times per hour to prevent abuse.
+
+For full details, see [KEY_ROTATION_GUIDE.md](./KEY_ROTATION_GUIDE.md).
+
 ---
 
 ## Liability and guarantees

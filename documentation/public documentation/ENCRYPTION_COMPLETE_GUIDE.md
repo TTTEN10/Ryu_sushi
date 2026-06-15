@@ -298,7 +298,7 @@ Protect your seed phrase, prefer a hardware wallet, lock your device, sign out o
 
 ---
 
-## 14. FAQ
+## 13. FAQ
 
 ### Can SafePsy recover my data if I lose my wallet?
 

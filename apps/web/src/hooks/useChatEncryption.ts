@@ -7,6 +7,7 @@ import {
   decryptSymmetricKey,
   encryptChatHistory,
   decryptChatHistory,
+  rotateEncryptionKey as rotateEncryptionKeyUtil,
 } from '../utils/did-encryption';
 import type { JsonRpcSigner } from 'ethers';
 import { getEncryptedKeyMetadata, updateEncryptedKeyMetadata } from '../utils/did-contract';
@@ -372,6 +373,134 @@ export function useChatEncryption() {
     [symmetricKey, authState.isVerified, authState.didInfo],
   );
 
+  /**
+   * Rotate encryption key
+   *
+   * Key Rotation Flow:
+   * 1. Load current encrypted chat
+   * 2. Generate new DEK and wrap with wallet
+   * 3. Decrypt chat with old key
+   * 4. Re-encrypt chat with new key
+   * 5. Save new encrypted chat to API
+   * 6. Update DID contract with new wrapped key
+   * 7. Update local state with new key
+   *
+   * @returns Object with success status and new key metadata
+   */
+  const rotateKey = useCallback(async (): Promise<{
+    success: boolean;
+    newBlobHash: string | null;
+    error?: string;
+  }> => {
+    if (!symmetricKey || !encryptedKey || !authState.isVerified || !wallet || !signer) {
+      const error = 'Encryption not initialized or wallet not verified';
+      console.error('rotateKey failed:', error, {
+        hasSymmetricKey: !!symmetricKey,
+        hasEncryptedKey: !!encryptedKey,
+        isVerified: authState.isVerified,
+        hasWallet: !!wallet,
+        hasSigner: !!signer,
+      });
+      return { success: false, newBlobHash: null, error };
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      console.log('Starting key rotation...');
+
+      // Step 1: Load current encrypted chat
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      const loadResponse = await apiFetch('/chat/load', {
+        method: 'GET',
+        headers,
+      });
+
+      if (!loadResponse.ok) {
+        throw new Error('Failed to load current chat for key rotation');
+      }
+
+      const loadData = await loadResponse.json();
+      if (!loadData.success || !loadData.data?.encryptedChatBlob) {
+        throw new Error('No chat history found to rotate');
+      }
+
+      const currentEncryptedBlob = loadData.data.encryptedChatBlob;
+
+      // Step 2-4: Generate new key and re-encrypt chat
+      const rotationResult = await rotateEncryptionKeyUtil(
+        symmetricKey,
+        currentEncryptedBlob,
+        wallet.address,
+        signer
+      );
+
+      console.log('Key rotation completed locally:', {
+        newBlobHash: rotationResult.newBlobHash.substring(0, 16) + '...',
+      });
+
+      // Step 5: Save new encrypted chat to API
+      const saveResponse = await apiFetch('/chat/rotate-key', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          newEncryptedBlob: rotationResult.newEncryptedChat,
+          newBlobHash: rotationResult.newBlobHash,
+          newEncryptedKeyMetadata: rotationResult.newEncryptedKey,
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json().catch(() => ({}));
+        throw new Error((errorData as { message?: string }).message || 'Failed to save rotated key');
+      }
+
+      const saveData = await saveResponse.json();
+      console.log('Key rotation saved to API successfully');
+
+      // Step 6: Update DID contract with new wrapped key (if DID exists)
+      if (authState.didInfo?.hasDid && provider) {
+        try {
+          const bytes = encryptedChatKeyToOnchainBytes(rotationResult.newEncryptedKey);
+          await updateEncryptedKeyMetadata(signer, bytes);
+          console.log('New key metadata updated in DID contract');
+        } catch (didError: any) {
+          console.error('Failed to update DID contract with new key:', didError);
+          // Don't fail the whole rotation - API save succeeded
+          // User can retry DID update manually
+        }
+      }
+
+      // Step 7: Update local state with new key
+      setSymmetricKey(rotationResult.newSymmetricKey);
+      setEncryptedKey(rotationResult.newEncryptedKey);
+
+      // Persist to localStorage (critical for users without DID)
+      localStorage.setItem(legacyLocalStorageKey(wallet.address), rotationResult.newEncryptedKey);
+
+      console.log('Key rotation complete - new key active');
+
+      return {
+        success: true,
+        newBlobHash: rotationResult.newBlobHash,
+      };
+    } catch (err: any) {
+      console.error('Key rotation error:', err);
+      setError(err.message || 'Failed to rotate encryption key');
+      return {
+        success: false,
+        newBlobHash: null,
+        error: err.message || 'Failed to rotate encryption key',
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  }, [symmetricKey, encryptedKey, authState.isVerified, wallet, signer, provider, authState.didInfo]);
+
   useEffect(() => {
     if (authState.isVerified && wallet && signer) {
       initializeKey();
@@ -379,7 +508,6 @@ export function useChatEncryption() {
       setSymmetricKey(null);
       setEncryptedKey(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authState.isVerified, wallet, signer]);
 
   return {
@@ -391,5 +519,6 @@ export function useChatEncryption() {
     saveChat,
     saveKeyToDID,
     initializeKey,
+    rotateKey,
   };
 }

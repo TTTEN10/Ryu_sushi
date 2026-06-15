@@ -253,8 +253,13 @@ router.post(
   '/logout',
   async (_req: Request, res: Response) => {
     try {
-      // Always clear the cookie, regardless of auth status
-      res.clearCookie('walletSession');
+      // Clear the cookie with exact same settings as when it was set (see verify route)
+      res.clearCookie('walletSession', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
       logger.info('User logged out successfully');
       res.json({
         success: true,

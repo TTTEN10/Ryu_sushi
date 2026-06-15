@@ -813,6 +813,122 @@ router.post(
 );
 
 /**
+ * POST /api/chat/rotate-key
+ * Rotate encryption key for authenticated wallet
+ *
+ * Auth: Required (wallet session)
+ *
+ * Flow:
+ * 1. Validate authenticated wallet session
+ * 2. Accept new encrypted key metadata and new encrypted chat blob
+ * 3. Update database with new encrypted blob and hash
+ * 4. Log audit event (key rotation)
+ * 5. Frontend is responsible for updating DID contract with new key metadata
+ *
+ * Security:
+ * - Rate limited (5 per hour)
+ * - Requires valid wallet session
+ * - Audit logged
+ */
+router.post(
+  '/rotate-key',
+  authenticateWallet,
+  exportDeleteRateLimit,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.wallet) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const walletAddress = req.wallet.walletAddress.toLowerCase();
+      const { newEncryptedBlob, newBlobHash, newEncryptedKeyMetadata } = req.body;
+
+      // Validate required fields
+      if (!newEncryptedBlob || !newBlobHash) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields: newEncryptedBlob and newBlobHash',
+          error: 'MISSING_FIELDS',
+        });
+      }
+
+      // Verify the new encrypted key metadata format (should contain colons for signature:iv:encrypted)
+      if (newEncryptedKeyMetadata) {
+        const colonCount = (newEncryptedKeyMetadata.match(/:/g) || []).length;
+        if (colonCount < 2) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid encrypted key metadata format',
+            error: 'INVALID_KEY_FORMAT',
+          });
+        }
+      }
+
+      // Check if chat exists
+      const existingChat = await prisma.encryptedChat.findUnique({
+        where: { walletAddress },
+      });
+
+      if (!existingChat) {
+        return res.status(404).json({
+          success: false,
+          message: 'No chat history found to rotate key for',
+          error: 'CHAT_NOT_FOUND',
+        });
+      }
+
+      // Update the encrypted chat with new blob and hash
+      await prisma.encryptedChat.update({
+        where: { walletAddress },
+        data: {
+          encryptedBlob: newEncryptedBlob,
+          encryptedBlobHash: newBlobHash,
+          // Note: encryptedKeyMetadata is NOT stored in DB - it's stored on-chain in DID
+          updatedAt: new Date(),
+        },
+      });
+
+      // Log audit event (redacted actor)
+      const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(walletAddress)).substring(0, 16);
+      logger.info(`Key rotation initiated for wallet ${hashedWallet}...`);
+
+      await prisma.securityAuditLog.create({
+        data: {
+          eventType: 'KEY_ROTATION_INITIATED',
+          actor: `${walletAddress.substring(0, 10)}...`,
+          resource: `/api/chat/rotate-key`,
+          success: true,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          details: JSON.stringify({
+            hasDid: !!existingChat.didTokenId,
+            newBlobHash: newBlobHash.substring(0, 16) + '...',
+          }),
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Key rotation successful. Remember to update DID contract with new key metadata.',
+        data: {
+          rotatedAt: new Date().toISOString(),
+          blobHash: newBlobHash,
+        },
+      });
+    } catch (error: any) {
+      logger.error('Key rotation error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to rotate encryption key',
+      });
+    }
+  }
+);
+
+/**
  * DELETE /api/chat
  * Delete encrypted chat history (user-initiated)
  *

@@ -14,6 +14,7 @@ import did from "./routes/did";
 import auth from "./routes/auth";
 import payment from "./routes/payment";
 import rag from "./routes/rag";
+import admin from "./routes/admin";
 import metricsRoutes from "./routes/metrics";
 import analyticsRoutes from "./routes/analytics";
 import analyticsDashboardRoutes from "./routes/analytics-dashboard";
@@ -191,6 +192,7 @@ export function createApp() {
   app.use("/api/did", did);
   app.use("/api/payment", payment);
   app.use("/api/rag", rag);
+  app.use("/api/admin", admin);
   app.use("/api/metrics", metricsRoutes);
   app.use("/api/analytics", analyticsRoutes);
   app.use("/api/analytics/dashboard", analyticsDashboardRoutes);

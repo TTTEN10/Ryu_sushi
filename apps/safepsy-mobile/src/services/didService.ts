@@ -3,6 +3,18 @@ import { API_BASE_URL } from '../config/env';
 import { addMonitoringBreadcrumb, captureException, captureMonitoringEvent } from '../instrumentation/sentry';
 import { getWalletSessionToken } from './secureToken';
 
+const WRITE_TX_MAX_ATTEMPTS = 4;
+const WRITE_TX_BASE_DELAY_MS = 900;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableWriteError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /nonce|timeout|NETWORK_ERROR|rate limit|too many|ECONNRESET|ETIMEDOUT|replacement|underpriced|ECONNREFUSED|503|502/i.test(msg);
+}
+
 export type DidTxPhase = 'signing' | 'pending' | 'confirmed' | 'failed';
 
 export type DidUpdatePrepareResponse = {
@@ -57,6 +69,49 @@ export type TriggerDidOptions = {
   onPhase?: (phase: DidTxPhase, detail?: string) => void;
 };
 
+/**
+ * Send a contract transaction with exponential backoff retry on transient errors.
+ */
+async function sendTransactionWithRetry(
+  signer: JsonRpcSigner,
+  txConfig: { to: string; data: string; chainId: number },
+  onPhase?: (phase: DidTxPhase, detail?: string) => void,
+): Promise<ethers.TransactionReceipt> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= WRITE_TX_MAX_ATTEMPTS; attempt++) {
+    try {
+      onPhase?.('signing');
+      const tx = await signer.sendTransaction({
+        to: txConfig.to,
+        data: txConfig.data,
+        chainId: txConfig.chainId,
+      });
+
+      onPhase?.('pending', tx.hash);
+      addMonitoringBreadcrumb('did', 'tx_submitted', { hash: tx.hash, attempt });
+
+      const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('Transaction receipt not available');
+      }
+
+      return receipt;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= WRITE_TX_MAX_ATTEMPTS || !isRetryableWriteError(err)) {
+        throw err;
+      }
+      // Exponential backoff: 900ms, 1.8s, 3.6s
+      const delay = WRITE_TX_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      addMonitoringBreadcrumb('did', 'tx_retry', { attempt, delay });
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
 export async function triggerDidUpdateAfterSave(
   signer: JsonRpcSigner,
   saveData: SaveChatApiData,
@@ -85,16 +140,8 @@ export async function triggerDidUpdateAfterSave(
       throw new Error(prepared.message || 'DID update prepare failed');
     }
 
-    onPhase?.('signing');
-    addMonitoringBreadcrumb('did', 'send_transaction');
-    const tx = await signer.sendTransaction({
-      to: prepared.data.to,
-      data: prepared.data.data,
-      chainId: prepared.data.chainId,
-    });
-    onPhase?.('pending', tx.hash);
-    addMonitoringBreadcrumb('did', 'tx_submitted', { hash: tx.hash });
-    await tx.wait();
+    await sendTransactionWithRetry(signer, prepared.data, onPhase);
+
     onPhase?.('confirmed');
     captureMonitoringEvent('did_chat_reference_confirmed', { area: 'did_tx' }, 'info');
   } catch (e) {

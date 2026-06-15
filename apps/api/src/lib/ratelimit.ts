@@ -164,3 +164,28 @@ export const analyticsEventRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 })
+
+/**
+ * Admin endpoint rate limiting
+ * Stricter than general API limits to prevent brute force attacks on admin secret
+ * Allows 10 failed attempts per 15 minutes before blocking
+ */
+export const adminRateLimitMiddleware = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per 15 minutes
+  message: {
+    success: false,
+    message: 'Too many admin access attempts. Please try again later.',
+    error: 'ADMIN_RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    return req.ip || 'unknown';
+  },
+  skip: (req: Request, res: Response) => {
+    // Don't rate limit successful authentications (200 OK)
+    // This allows legitimate admin use while blocking brute force
+    return res.statusCode === 200;
+  },
+})

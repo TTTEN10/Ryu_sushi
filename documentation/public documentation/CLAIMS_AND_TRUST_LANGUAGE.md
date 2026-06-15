@@ -31,7 +31,7 @@ This document lists every trust claim SafePsy might make, with **approved wordin
 
 | Aspect | Approved wording | Evidence | Disallowed wording |
 |--------|------------------|----------|--------------------|
-| **Security measures** | "We use AES-256-GCM, TLS 1.3, DID-based authentication, security headers, rate limiting, and audit logging for security-relevant events." | Security & Privacy Policy; [SECURITY_COMPLETE_GUIDE.md](./SECURITY_COMPLETE_GUIDE.md); WAF/headers docs | "Unhackable"; "Military-grade" (unless qualified); "100% secure" |
+| **Security measures** | "We use AES-256-GCM, TLS 1.3, DID-based authentication, security headers, rate limiting, and audit logging for security-relevant events. Users can rotate their encryption key at any time." | Security & Privacy Policy; [SECURITY_COMPLETE_GUIDE.md](./SECURITY_COMPLETE_GUIDE.md); WAF/headers docs; [KEY_ROTATION_GUIDE.md](./KEY_ROTATION_GUIDE.md) | "Unhackable"; "Military-grade" (unless qualified); "100% secure" |
 | **Audit logging** | "We record security-relevant events (e.g. authentication success/failure) in audit logs. Logs use redacted identifiers and do not contain full PII or secrets." | Security policy; log redaction; DPIA | "We log everything for your safety" (implies content logging) |
 
 ---

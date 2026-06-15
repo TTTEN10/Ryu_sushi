@@ -300,3 +300,79 @@ export async function hashEncryptedChat(encryptedChat: string): Promise<string> 
   return ethers.hexlify(new Uint8Array(hash));
 }
 
+/**
+ * Generate a new random AES-256-GCM key for key rotation
+ *
+ * This is used when the user wants to rotate their encryption key
+ * for security purposes (e.g., suspected compromise, regular rotation).
+ *
+ * @returns New 32-byte symmetric key
+ */
+export function generateNewSymmetricKey(): Uint8Array {
+  return generateSymmetricKey();
+}
+
+/**
+ * Rotate encryption key: generate new DEK and re-encrypt chat history
+ *
+ * Key Rotation Flow:
+ * 1. Generate new random DEK (32 bytes)
+ * 2. Encrypt new DEK with wallet signature (wrap it)
+ * 3. Decrypt chat history with old key
+ * 4. Re-encrypt chat history with new key
+ * 5. Return new DEK, wrapped key, and re-encrypted chat
+ *
+ * @param currentSymmetricKey Current DEK to decrypt existing chat
+ * @param encryptedChatHistory Current encrypted chat blob
+ * @param walletAddress Wallet address for key wrapping
+ * @param signer Ethers signer for signing
+ * @param messages Decrypted chat messages (optional, if already decrypted)
+ * @returns Object with new key material and re-encrypted chat
+ */
+export async function rotateEncryptionKey(
+  currentSymmetricKey: Uint8Array,
+  encryptedChatHistory: string,
+  walletAddress: string,
+  signer: ethers.JsonRpcSigner,
+  messages?: any[]
+): Promise<{
+  newSymmetricKey: Uint8Array;
+  newEncryptedKey: string;
+  newEncryptedChat: string;
+  newBlobHash: string;
+}> {
+  try {
+    // Step 1: Generate new random DEK
+    const newSymmetricKey = generateNewSymmetricKey();
+
+    // Step 2: Encrypt new DEK with wallet signature
+    const newEncryptedKey = await encryptSymmetricKey(newSymmetricKey, walletAddress, signer);
+
+    // Step 3: Decrypt chat history with old key
+    let decryptedHistory: string;
+    if (messages && messages.length > 0) {
+      // If messages are already provided, use them
+      decryptedHistory = JSON.stringify(messages);
+    } else {
+      // Decrypt the encrypted chat history
+      decryptedHistory = await decryptChatHistory(encryptedChatHistory, currentSymmetricKey);
+    }
+
+    // Step 4: Re-encrypt chat history with new key
+    const newEncryptedChat = await encryptChatHistory(decryptedHistory, newSymmetricKey);
+
+    // Step 5: Generate hash of new encrypted chat (for on-chain storage)
+    const newBlobHash = await hashEncryptedChat(newEncryptedChat);
+
+    return {
+      newSymmetricKey,
+      newEncryptedKey,
+      newEncryptedChat,
+      newBlobHash,
+    };
+  } catch (error: any) {
+    console.error('Error rotating encryption key:', error);
+    throw new Error('Failed to rotate encryption key: ' + (error.message || 'Unknown error'));
+  }
+}
+

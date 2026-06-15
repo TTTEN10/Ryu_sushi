@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
-import { ArrowUp, X, Edit2, Trash2, Check, X as CloseIcon, WifiOff, MessageSquare, CheckCircle } from 'lucide-react';
+import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useChatEncryption, type SaveChatResult } from '../hooks/useChatEncryption';
+import { useChatEncryption } from '../hooks/useChatEncryption';
 import { updateChatReference, fetchOnChainDidStatus } from '../utils/did-contract';
 import { keyMetadataBytesForDidUpdate } from '../utils/did-key-metadata';
 import { useOffline } from '../hooks/useOffline';
@@ -21,8 +21,6 @@ interface Message {
   content: string;
   timestamp: Date;
   encrypted?: boolean;
-  isEditing?: boolean;
-  canEdit?: boolean; // User messages can be edited within 30 seconds
 }
 
 interface PaywallData {
@@ -47,7 +45,6 @@ interface PaywallData {
 }
 
 const MAX_MESSAGE_LENGTH = 2000;
-const EDIT_WINDOW_MS = 30000; // 30 seconds
 /** Guest mode: max user messages per browser session (in-memory only; resets on refresh). */
 const GUEST_PROMPT_LIMIT = 5;
 
@@ -89,14 +86,18 @@ export default function ChatWidget() {
   >('idle');
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallData, setPaywallData] = useState<PaywallData | null>(null);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [guestPromptCount, setGuestPromptCount] = useState(0);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [isMockMode, setIsMockMode] = useState(false);
   const [widgetVisible, setWidgetVisible] = useState(true);
+  // Manual save state: track pending save after AI response
+  const [pendingDidSave, setPendingDidSave] = useState<{
+    visible: boolean;
+    saveResult: null;
+  }>({ visible: false, saveResult: null });
+  const [isSavingToDid, setIsSavingToDid] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -240,48 +241,76 @@ export default function ChatWidget() {
     }
   }, [wallet, provider, checkDID, showToast]);
 
-  const syncDidChatReferenceIfNeeded = useCallback(
-    async (saveResult: SaveChatResult, options?: { showToasts?: boolean }) => {
-      const showToasts = options?.showToasts ?? false;
-      if (
-        isGuest ||
-        !signer ||
-        !wallet ||
-        !saveResult.requiresDidUpdate ||
-        !saveResult.blobHash
-      ) {
-        return;
-      }
+  // Show manual save button after AI response (user must click to save to DID)
+  const showManualSaveButton = useCallback(() => {
+    if (isGuest || !signer || !wallet) {
+      return;
+    }
+    // Show save button after 3 seconds
+    setTimeout(() => {
+      setPendingDidSave({ visible: true, saveResult: null });
+    }, 3000);
+  }, [isGuest, signer, wallet]);
+
+  // Handle manual save to DID - user clicks "Save history chat on DID" button
+  const handleSaveToDid = useCallback(async () => {
+    if (!signer || !wallet || !encryptedKey) {
+      showToast('error', 'Wallet not connected or encryption not ready');
+      return;
+    }
+
+    setIsSavingToDid(true);
+
+    try {
+      // Step 1: Save encrypted chat to backend first
+      const updatedMessages = [...messages];
+      const saveResult = await saveChat(
+        updatedMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+        }))
+      );
+
       const chatRef = saveResult.chatReference ?? saveResult.blobHash;
-      try {
-        if (showToasts) {
-          showToast('info', 'Updating DID contract...');
-        }
-        const metaBytes = keyMetadataBytesForDidUpdate(
-          encryptedKey,
-          saveResult.preserveEncryptedKeyMetadata,
-        );
-        const receipt = await updateChatReference(signer, chatRef, metaBytes);
-        if (showToasts) {
-          showToast('success', 'DID updated! Chat reference stored on-chain');
-          console.log(
-            'DID updated successfully:',
-            (receipt as { hash?: string }).hash ||
-              (receipt as { transactionHash?: string }).transactionHash,
-          );
-        }
-      } catch (didError: unknown) {
-        console.error('Error updating DID:', didError);
-        if (showToasts) {
-          showToast(
-            'warning',
-            'Chat saved. DID update failed - you can update later from DID settings.',
-          );
-        }
+
+      if (!chatRef) {
+        throw new Error('No chat reference received from backend');
       }
-    },
-    [isGuest, signer, wallet, encryptedKey, showToast],
-  );
+
+      const metaBytes = keyMetadataBytesForDidUpdate(
+        encryptedKey,
+        saveResult.preserveEncryptedKeyMetadata,
+      );
+
+      // Validate metaBytes is not empty before sending transaction
+      if (metaBytes.length === 0) {
+        throw new Error('Encrypted key metadata is empty - cannot save to DID');
+      }
+
+      showToast('info', 'Saving to DID contract...');
+      const receipt = await updateChatReference(signer, chatRef, metaBytes);
+
+      showToast('success', 'Session saved to ID token!');
+      console.log(
+        'DID updated successfully:',
+        (receipt as { hash?: string }).hash ||
+          (receipt as { transactionHash?: string }).transactionHash,
+      );
+
+      setPendingDidSave({ visible: false, saveResult: null });
+    } catch (err: any) {
+      console.error('Error saving to DID:', err);
+      if (err.code === 'ACTION_REJECTED') {
+        showToast('warning', 'Save cancelled - you can save later from DID settings.');
+      } else {
+        showToast('error', err.message || 'Failed to save to DID');
+      }
+    } finally {
+      setIsSavingToDid(false);
+    }
+  }, [messages, signer, wallet, encryptedKey, saveChat, showToast]);
 
   // After the 5th guest message is sent, show conversion modal once streaming finishes.
   useEffect(() => {
@@ -358,22 +387,14 @@ export default function ChatWidget() {
       loadChat()
         .then((loadedMessages) => {
           const raw = loadedMessages ?? [];
-          const now = Date.now();
           setMessages(
-            raw.map((msg: any) => {
-              const timestamp = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
-              const messageTime = timestamp.getTime();
-              const canEdit = msg.role === 'user' && now - messageTime < EDIT_WINDOW_MS;
-
-              return {
-                id: msg.id || `msg-${Date.now()}-${Math.random()}`,
-                role: msg.role,
-                content: msg.content,
-                timestamp,
-                encrypted: false,
-                canEdit,
-              };
-            })
+            raw.map((msg: any) => ({
+              id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp),
+              encrypted: false,
+            }))
           );
           setIsLoadingHistory(false);
         })
@@ -392,118 +413,6 @@ export default function ChatWidget() {
     const behavior: ScrollBehavior = isStreaming ? 'auto' : 'smooth';
     scrollToBottom(behavior);
   }, [messages, isStreaming, isSending, showAssistantTyping, scrollToBottom]);
-
-  // Check if message can be edited (within 30 seconds) — only while editable messages exist
-  useEffect(() => {
-    if (!messages.some((msg) => msg.role === 'user' && msg.canEdit)) return;
-
-    const interval = setInterval(() => {
-      setMessages((prev) => {
-        let changed = false;
-        const next = prev.map((msg) => {
-          if (msg.role === 'user' && msg.canEdit) {
-            const now = Date.now();
-            const messageTime = msg.timestamp.getTime();
-            const canEdit = now - messageTime < EDIT_WINDOW_MS;
-            if (canEdit !== msg.canEdit) changed = true;
-            return { ...msg, canEdit };
-          }
-          return msg;
-        });
-        return changed ? next : prev;
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [messages]);
-
-  // Handle editing a message
-  const handleEditMessage = (messageId: string) => {
-    const message = messages.find((m) => m.id === messageId);
-    if (message && message.canEdit) {
-      setEditingMessageId(messageId);
-      setEditContent(message.content);
-      inputRef.current?.focus();
-    }
-  };
-
-  // Handle saving edited message
-  const handleSaveEdit = async () => {
-    if (!editContent.trim() || !editingMessageId) return;
-
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === editingMessageId
-          ? { ...msg, content: editContent.trim(), canEdit: false, isEditing: false }
-          : msg
-      )
-    );
-
-    try {
-      const updatedMessages = messages.map((msg) =>
-        msg.id === editingMessageId
-          ? { ...msg, content: editContent.trim() }
-          : msg
-      );
-      if (!isGuest) {
-        const saveResult = await saveChat(
-          updatedMessages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-          }))
-        );
-        await syncDidChatReferenceIfNeeded(saveResult);
-      }
-      showToast('success', 'Message updated');
-    } catch (error) {
-      console.error('Error saving edited message:', error);
-      showToast('error', 'Failed to update message');
-    }
-
-    setEditingMessageId(null);
-    setEditContent('');
-  };
-
-  // Handle canceling edit
-  const handleCancelEdit = () => {
-    setEditingMessageId(null);
-    setEditContent('');
-  };
-
-  // Handle deleting a message
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!window.confirm('Are you sure you want to delete this message?')) {
-      return;
-    }
-
-    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-
-    try {
-      const updatedMessages = messages.filter((msg) => msg.id !== messageId);
-      if (!isGuest) {
-        const saveResult = await saveChat(
-          updatedMessages.map((msg) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-          }))
-        );
-        await syncDidChatReferenceIfNeeded(saveResult);
-      }
-      showToast('success', 'Message deleted');
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      showToast('error', 'Failed to delete message');
-      // Restore message on error
-      const message = messages.find((m) => m.id === messageId);
-      if (message) {
-        setMessages((prev) => [...prev, message]);
-      }
-    }
-  };
 
   // Handle sending a message.
   // Guest mode: messages stay in React state only; API requests include mode: 'guest' (no server persistence).
@@ -552,7 +461,6 @@ export default function ChatWidget() {
         content: trimmed,
         timestamp: new Date(),
         encrypted: false,
-        canEdit: true,
       };
 
       if (isGuest) {
@@ -562,25 +470,7 @@ export default function ChatWidget() {
       setMessages((prev) => [...prev, userMessage]);
       recordFirstMessageSent();
 
-      // Best-effort persistence of the user message (authenticated)
-      // Note: Full save with DID update happens after streaming completes (persistAfterStream)
-      if (!isGuest) {
-        setSendPhase('encrypting');
-        try {
-          const updatedMessages = [...messages, userMessage];
-          await saveChat(
-            updatedMessages.map((msg) => ({
-              id: msg.id,
-              role: msg.role,
-              content: msg.content,
-              timestamp: msg.timestamp,
-            }))
-          );
-        } catch (error) {
-          // Silent fail for intermediate save - final save will happen after streaming
-          console.error('Error saving intermediate chat:', error);
-        }
-      }
+      // Don't save intermediate messages - only save when user clicks "Save history chat on DID"
 
       setInput('');
       setIsStreaming(true);
@@ -677,46 +567,16 @@ export default function ChatWidget() {
         if (streamFinalized) return;
         streamFinalized = true;
         setIsStreaming(false);
-        setSendPhase('saving');
+        setSendPhase('idle');
         if (assistantMessage.content.trim().length > 0) {
           recordFirstReplyReceived();
         }
-        try {
-          if (!isGuest && signer && wallet) {
-            // Step 1: Save encrypted chat to backend (useChatEncryption handles encryption)
-            const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
-            const saveResult = await saveChat(
-              updatedMessages.map((msg) => ({
-                id: msg.id,
-                role: msg.role,
-                content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
-                timestamp: msg.timestamp,
-              }))
-            );
+        // Add assistant message to the chat
+        setMessages((prev) => [...prev, { ...assistantMessage, encrypted: false }]);
 
-            await syncDidChatReferenceIfNeeded(saveResult, { showToasts: true });
-          } else if (!isGuest) {
-            // No signer/wallet, just save without DID update
-            const updatedMessages = [...messages, { ...assistantMessage, encrypted: false }];
-            await saveChat(
-              updatedMessages.map((msg) => ({
-                id: msg.id,
-                role: msg.role,
-                content: msg.role === 'assistant' ? assistantMessage.content : msg.content,
-                timestamp: msg.timestamp,
-              }))
-            );
-          }
-        } catch (error: any) {
-          console.error('Error saving chat:', error);
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          const isEncryptionNotInitialized = errorMsg.includes('Encryption not initialized');
-
-          if (isEncryptionNotInitialized) {
-            showToast('error', 'Encryption not ready. Please wait a moment and try again.');
-          } else {
-            showToast('error', `Failed to save chat: ${errorMsg}`);
-          }
+        // Show manual save button after 3 seconds (for authenticated users with DID)
+        if (!isGuest && signer && wallet && encryptedKey) {
+          showManualSaveButton();
         }
       };
 
@@ -975,13 +835,6 @@ export default function ChatWidget() {
             <MessageBubble
               key={message.id}
               message={message}
-              isEditing={editingMessageId === message.id}
-              editContent={editContent}
-              onEdit={handleEditMessage}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-              onDelete={handleDeleteMessage}
-              setEditContent={setEditContent}
             />
           ))
         )}
@@ -989,6 +842,30 @@ export default function ChatWidget() {
         {showAssistantTyping && (
           <div className="flex justify-start" role="status" aria-live="polite" aria-label="Assistant is responding">
             <TypingDots className="py-2" />
+          </div>
+        )}
+
+        {/* Manual Save to DID Button - appears 3 seconds after AI response */}
+        {pendingDidSave.visible && !isSavingToDid && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={handleSaveToDid}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              title="Save this conversation to your Safe ID Token on-chain"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span>Save session in ID token</span>
+            </button>
+          </div>
+        )}
+
+        {/* Saving State */}
+        {isSavingToDid && (
+          <div className="mt-4 flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-300">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Saving to DID...</span>
+            </div>
           </div>
         )}
 
@@ -1021,59 +898,28 @@ export default function ChatWidget() {
             </button>
           </p>
         )}
-        
-        {/* Editing Indicator */}
-        {editingMessageId && (
-          <div className="mb-2 flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs">
-            <span className="text-blue-700 dark:text-blue-300">Editing message...</span>
-            <button
-              onClick={handleCancelEdit}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
-              aria-label="Cancel editing"
-            >
-              <CloseIcon className="w-3 h-3" />
-            </button>
-          </div>
-        )}
 
         <div className="flex space-x-2">
           <div className="flex-1 relative">
             <input
               ref={inputRef}
               type="text"
-              value={editingMessageId ? editContent : input}
+              value={input}
               onChange={(e) => {
-                if (editingMessageId) {
-                  if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
-                    setEditContent(e.target.value);
-                  }
-                } else {
-                  if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
-                    setInput(e.target.value);
-                  }
+                if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
+                  setInput(e.target.value);
                 }
               }}
               onKeyPress={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  if (editingMessageId) {
-                    handleSaveEdit();
-                  } else {
-                    handleSend();
-                  }
-                }
-                if (e.key === 'Escape') {
-                  if (editingMessageId) {
-                    handleCancelEdit();
-                  }
+                  handleSend();
                 }
               }}
               placeholder={
-                editingMessageId
-                  ? 'Edit your message...'
-                  : isGuest
-                    ? 'Say it in your own words...'
-                    : 'Type your message...'
+                isGuest
+                  ? 'Say it in your own words...'
+                  : 'Type your message...'
               }
               disabled={
                 isStreaming ||
@@ -1087,25 +933,7 @@ export default function ChatWidget() {
               className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-neutral-950 text-heading placeholder:text-body placeholder:opacity-50"
             />
           </div>
-          {editingMessageId ? (
-            <>
-              <button
-                onClick={handleSaveEdit}
-                disabled={!editContent.trim()}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Save edit"
-              >
-                <Check className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Cancel edit"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </>
-          ) : isStreaming ? (
+          {isStreaming ? (
             <button
               onClick={handleCancel}
               className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
@@ -1159,95 +987,26 @@ export default function ChatWidget() {
   );
 }
 
-// Message Bubble Component
+// Message Bubble Component - no edit/delete functionality
 const MessageBubble = memo(function MessageBubble({
   message,
-  isEditing = false,
-  editContent = '',
-  onEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onDelete,
-  setEditContent,
 }: {
   message: Message;
-  isEditing?: boolean;
-  editContent?: string;
-  onEdit?: (id: string) => void;
-  onSaveEdit?: () => void;
-  onCancelEdit?: () => void;
-  onDelete?: (id: string) => void;
-  setEditContent?: (content: string) => void;
 }) {
-  const [showActions, setShowActions] = useState(false);
   const isUser = message.role === 'user';
 
   return (
     <div
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} group`}
-      onMouseEnter={() => isUser && setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[80%] rounded-lg px-4 py-3 relative ${
+        className={`max-w-[80%] rounded-lg px-4 py-3 ${
           isUser
             ? 'bg-indigo-600 text-white'
             : 'bg-gray-50 dark:bg-gray-800/50 text-heading border border-gray-200 dark:border-white/20'
         }`}
       >
-        {isEditing && isUser ? (
-          <div className="space-y-2">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent?.(e.target.value)}
-              className="w-full px-2 py-1 rounded text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
-              rows={3}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={onSaveEdit}
-                className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-              >
-                Save
-              </button>
-              <button
-                onClick={onCancelEdit}
-                className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{message.content}</p>
-            {isUser && showActions && message.canEdit && !isEditing && (
-              <div className="absolute -top-8 right-0 flex gap-1 bg-gray-800 dark:bg-gray-700 rounded-lg p-1">
-                <button
-                  onClick={() => onEdit?.(message.id)}
-                  className="p-1 hover:bg-gray-700 dark:hover:bg-gray-600 rounded"
-                  title="Edit message"
-                  aria-label="Edit message"
-                >
-                  <Edit2 className="w-3 h-3 text-white" />
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this message?')) {
-                      onDelete?.(message.id);
-                    }
-                  }}
-                  className="p-1 hover:bg-gray-700 dark:hover:bg-gray-600 rounded"
-                  title="Delete message"
-                  aria-label="Delete message"
-                >
-                  <Trash2 className="w-3 h-3 text-white" />
-                </button>
-              </div>
-            )}
-          </>
-        )}
+        <p className={`text-sm whitespace-pre-wrap ${isUser ? 'text-white' : 'text-heading'}`}>{message.content}</p>
         {message.encrypted ? (
           <p className={`text-xs mt-2 ${isUser ? 'text-indigo-100' : 'text-body opacity-75'}`}>
             <span aria-label="Encrypted">🔒</span>

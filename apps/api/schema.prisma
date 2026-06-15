@@ -35,18 +35,21 @@ model ContactMessage {
 }
 
 model EncryptedChat {
-  id                  String   @id @default(cuid())
-  walletAddress       String   @unique
+  id                  String    @id @default(cuid())
+  walletAddress       String    @unique
   didTokenId          String?
   encryptedBlob       String
   encryptedBlobHash   String
   encryptedKey        String?
   encryptedSummaryRef String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  expiresAt           DateTime?
+  retentionDays       Int?
 
   @@index([walletAddress])
   @@index([didTokenId])
+  @@index([expiresAt])
   @@map("encrypted_chats")
 }
 

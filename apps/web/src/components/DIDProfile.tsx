@@ -14,7 +14,8 @@ import {
   Copy,
   ExternalLink,
   RefreshCw,
-  MessageSquare
+  MessageSquare,
+  Key
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { apiFetch } from '../config/api';
@@ -57,6 +58,9 @@ export default function DIDProfile() {
   const [isExportingChat, setIsExportingChat] = useState(false);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isRotatingKey, setIsRotatingKey] = useState(false);
+  const [showRotateConfirm, setShowRotateConfirm] = useState(false);
+  const [lastKeyRotation, setLastKeyRotation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -315,6 +319,38 @@ export default function DIDProfile() {
     }
   };
 
+  const handleRotateKey = async () => {
+    if (!authState.isVerified || !authState.walletAddress) {
+      showToast('error', 'Please verify your wallet first');
+      return;
+    }
+
+    if (!showRotateConfirm) {
+      setShowRotateConfirm(true);
+      return;
+    }
+
+    try {
+      setIsRotatingKey(true);
+      setError(null);
+
+      // The actual key rotation requires the useChatEncryption hook
+      // We'll dispatch a custom event that a provider component can handle
+      window.dispatchEvent(new CustomEvent('rotate-encryption-key'));
+
+      showToast('success', 'Key rotation initiated. Please wait for confirmation.');
+      setShowRotateConfirm(false);
+      setLastKeyRotation(new Date().toISOString());
+
+    } catch (err: any) {
+      console.error('Error rotating key:', err);
+      setError(err.message || 'Failed to rotate encryption key');
+      showToast('error', err.message || 'Failed to rotate encryption key');
+    } finally {
+      setIsRotatingKey(false);
+    }
+  };
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     showToast('success', `${label} copied to clipboard`);
@@ -569,7 +605,7 @@ export default function DIDProfile() {
             Chat Data Management
           </h3>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <button
               onClick={handleExportChat}
               disabled={isExportingChat}
@@ -606,10 +642,37 @@ export default function DIDProfile() {
             </button>
           </div>
 
-          <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
-            Export your encrypted chat history for backup, or delete it permanently.
-            On-chain references (hashes) remain immutable but point to deleted data.
-          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRotateKey}
+              disabled={isRotatingKey}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRotatingKey ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Rotating...</span>
+                </>
+              ) : (
+                <>
+                  <Key className="w-4 h-4" />
+                  <span>Rotate Key</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Export your encrypted chat history for backup, or delete it permanently.
+              On-chain references (hashes) remain immutable but point to deleted data.
+            </p>
+            {lastKeyRotation && (
+              <p className="text-xs text-gray-500 dark:text-gray-500">
+                Last key rotation: {new Date(lastKeyRotation).toLocaleString()}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Delete Chat Confirmation */}
@@ -674,6 +737,42 @@ export default function DIDProfile() {
                   <button
                     onClick={() => setShowRevokeConfirm(false)}
                     disabled={isRevoking}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Key Rotation Confirmation */}
+        {showRotateConfirm && (
+          <div className="mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Key className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">
+                  Rotate your encryption key
+                </p>
+                <ul className="text-xs text-purple-700 dark:text-purple-300 space-y-1 mb-3">
+                  <li>• A new encryption key will be generated</li>
+                  <li>• Your chat history will be re-encrypted with the new key</li>
+                  <li>• The new key will be stored in your DID contract</li>
+                  <li>• This is useful if you suspect your key was compromised</li>
+                </ul>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRotateKey}
+                    disabled={isRotatingKey}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRotatingKey ? 'Rotating...' : 'Confirm Key Rotation'}
+                  </button>
+                  <button
+                    onClick={() => setShowRotateConfirm(false)}
+                    disabled={isRotatingKey}
                     className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel

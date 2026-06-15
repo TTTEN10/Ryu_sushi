@@ -130,8 +130,13 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       // Logout (skipIdleFlag: true means don't SET the idle flag, but we already cleared it)
       console.log('[ConnectWallet] Calling logout from AuthContext...');
       await logout({ skipIdleFlag: true });
-      console.log('[ConnectWallet] logout() completed, reloading page...');
+      console.log('[ConnectWallet] logout() completed');
+
+      // Add small delay to ensure cookies are fully cleared before reload
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Force reload to ensure all state is cleared
+      console.log('[ConnectWallet] Reloading page...');
       window.location.reload();
     } catch (err) {
       console.error('[ConnectWallet] Logout error:', err);
@@ -140,6 +145,16 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
 
   const formatAddress = (address: string) => {
     return `0x...${address.slice(-4)}`;
+  };
+
+  // Format address with verification status indicator
+  const formatAddressWithStatus = (address: string, isVerified: boolean) => {
+    const shortAddress = address.slice(-4);
+    if (isVerified) {
+      return `(v) 0x...${shortAddress}`;
+    } else {
+      return `( ) 0x...${shortAddress}`;
+    }
   };
 
   const dismissVerificationError = () => {
@@ -222,17 +237,25 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
           <div className="relative">
             <button
               onClick={() => setShowWalletDetails(!showWalletDetails)}
-              className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-              title="Click to view wallet details"
+              className={
+                authState.isVerified
+                  ? "flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                  : "flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+              }
+              title={authState.isVerified ? "Wallet verified" : "Wallet connected - click to verify"}
               aria-label="View wallet details"
             >
               {authState.isVerified ? (
                 <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
               ) : (
-                <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               )}
-              <span className="text-sm font-mono text-green-700 dark:text-green-300">
-                {formatAddress(wallet.address)}
+              <span className={
+                authState.isVerified
+                  ? "text-sm font-mono text-green-700 dark:text-green-300"
+                  : "text-sm font-mono text-amber-700 dark:text-amber-300"
+              }>
+                {formatAddressWithStatus(wallet.address, authState.isVerified)}
               </span>
             </button>
 
@@ -266,6 +289,20 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     </div>
+                    {/* Verification status indicator */}
+                    <div className="mt-1 flex items-center gap-1">
+                      {authState.isVerified ? (
+                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <Wallet className="w-3 h-3" />
+                          Not verified - click "Verify" to sign in
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Network</p>
@@ -278,14 +315,6 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
                       </span>
                     </div>
                   </div>
-                  {authState.isVerified && (
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Wallet verified</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 {/* Close on outside click */}
                 <div

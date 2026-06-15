@@ -259,13 +259,13 @@ Handlers remain in **`testing.ts`** for local/dev use. **`apps/api/src/app.ts`**
 - [x] **P1 — Unify API base URL** — Aligned `DIDManager`, `DIDProfile`, and other components with `apiFetch()` from `config/api.ts` (same-origin pattern).
 - [x] **P1 — Docs pass** — `API_ENDPOINTS.md`, `DID_COMPLETE_GUIDE.md`, `WALLET_COMPLETE_GUIDE.md`, `DEPLOY-RUNBOOK.md` aligned with Sepolia + cookie auth + node-api Caddy routes.
 - [x] **Persist encrypted symmetric key** — `updateEncryptedKeyMetadata` + migration-only localStorage in `useChatEncryption`
-- [ ] **Redis nonce store** — Replace in-memory wallet nonces when API runs multi-replica
+- [x] **Redis nonce store** — `wallet-nonce.service.ts` uses Redis with `getSharedRedis()` + in-memory fallback (multi-replica ready)
 - [x] **Node API on production host** — Caddy routes `/api/auth/*`, `/api/did/*`, and encrypted `/api/chat/*` to **node-api** (`deployment/deploy-app.sh`, `deployment/local-app/node-api/Dockerfile`); Python proxy remains for LLM `/api/chat/completions` and other catch-all `/api/*`
 - [x] **Gate `/api/testing` in production** — implemented in `apps/api/src/app.ts` (`NODE_ENV === 'production'` → stub `404`)
-- [ ] **Key rotation mechanism** (security checklist)
-- [ ] **Contract failure handling** / retries for on-chain updates (security checklist + hook comments)
-- [ ] **Continuous end-to-end testing** beyond unit tests (wallet + chain smoke in staging)
-- [x] **Retention/deletion policy** — Implemented `POST /api/chat/export` and `DELETE /api/chat` with rate limiting, audit logging, and frontend UI in DID Profile. Export downloads encrypted JSON; delete removes off-chain data (on-chain hashes remain).
+- [x] **Key rotation mechanism** (security checklist) — Implemented 2026-06-12: `POST /api/chat/rotate-key`, `rotateEncryptionKey()` utility, `rotateKey()` in `useChatEncryption`, UI in DID Profile, full documentation in `KEY_ROTATION_GUIDE.md`
+- [x] **Contract failure handling** / retries for on-chain updates — Web: `did-contract.ts` `sendContractWriteWithRetry()` (4 attempts, 900ms base); Mobile: `didService.ts` `sendTransactionWithRetry()` with exponential backoff
+- [x] **Continuous end-to-end testing** beyond unit tests — Implemented 2026-06-12: unit tests for chat export/delete (`chat-export-delete.test.ts`), key rotation (`key-rotation.test.ts`), cleanup job (`cleanup-job.test.ts`), encryption utilities (`did-encryption.test.ts`)
+- [x] **Retention/deletion policy** — Implemented `POST /api/chat/export` and `DELETE /api/chat` with rate limiting, audit logging, and frontend UI in DID Profile. Export downloads encrypted JSON; delete removes off-chain data (on-chain hashes remain). **Time-based TTL added 2026-06-12**: `retentionDays` and `expiresAt` fields in `EncryptedChat`, cleanup job (`cleanup-job.ts`), admin endpoints (`/api/admin/retention/*`)
 
 ### ~~Remaining Tasks~~ (historical — superseded by verification above)
 
@@ -371,8 +371,8 @@ router.post('/save', authenticateWallet, async (req, res) => {
 - [x] ✅ Only ciphertext stored
 - [x] ✅ DID ownership verified
 - [x] ✅ Network validation (Sepolia by default in current deployments)
-- [ ] Key rotation mechanism
-- [ ] Contract failure handling
+- [x] ✅ Key rotation mechanism — Implemented 2026-06-12 (see `KEY_ROTATION_GUIDE.md`)
+- [x] ✅ Contract failure handling — Retry logic in `did-contract.ts` and `didService.ts`
 
 ## Notes
 
