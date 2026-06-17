@@ -317,7 +317,7 @@ _[Fill in during test]_
 
 ## Test Results Summary
 
-**Test Date:** 2026-06-07  
+**Test Date:** 2026-06-16  
 **Backend Signer Wallet:** `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`  
 **Backend Signer Balance:** 0.801 ETH (~800 DID mints possible)
 
@@ -325,16 +325,16 @@ _[Fill in during test]_
 |--------|--------|-------|
 | 1 | ⏳ Pending Manual | Backend configured ✅ Requires browser testing |
 | 2 | ⏳ Pending Manual | Backend configured ✅ Requires browser testing |
-| 3 | ⏳ Skipped | Redis not configured (`REDIS_URL` not set) |
+| 3 | ✅ Ready | Redis configured ✅ `REDIS_URL=redis://redis:6379/0` + `APP_ENABLE_REDIS=1` |
 | 4 | ⏳ Pending Manual | Requires Test 1 to pass first |
 | 5 | ⏳ Pending Manual | Requires Test 1 to pass first |
 | 6 | ⏳ Pending Manual | Code implemented, needs verification |
 | 7 | ⏳ Pending Manual | Requires Test 1 to pass first |
-| 8 | ⏳ Skipped | Redis not configured (`REDIS_URL` not set) |
+| 8 | ✅ Ready | Redis configured ✅ Quota enforcement enabled |
 | 9 | ⏳ Pending Manual | Code implemented, needs verification |
 | 10 | ⏳ Pending Manual | Backend configured ✅ Requires browser testing |
 
-**Overall Status:** 🟡 **Backend Ready, Awaiting Manual Browser Testing**
+**Overall Status:** 🟢 **Ready for Manual E2E Testing** (Redis + all fixes deployed 2026-06-16)
 
 ### Configuration Verification (2026-06-07 13:57 UTC)
 
@@ -359,9 +359,11 @@ DID Endpoint: Responding (requires auth)
 
 ### Manual Testing Required
 
-To complete tests 1, 2, 4, 5, 6, 7, 9, 10:
+**Updated 2026-06-16:** Redis now configured. All tests can run.
 
-1. Open browser to `http://localhost:3000` or production URL
+To complete tests 1-10:
+
+1. Open browser to production URL (`https://polinapsycho.com/beta/chat`)
 2. Connect wallet (MetaMask or WalletConnect)
 3. Follow test steps above
 4. Fill in actual results in each test section
