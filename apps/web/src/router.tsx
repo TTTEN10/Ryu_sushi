@@ -12,6 +12,7 @@ import FAQ from './components/FAQ'
 import Support from './components/Support'
 import Feedback from './components/Feedback'
 import Testing from './components/Testing'
+import AboutMe from './components/AboutMe'
 import SEOHead from './components/SEOHead'
 import { useSEO } from './hooks/useSEO'
 import { useFocusManagement, useKeyboardNavigation } from './hooks/useFocusManagement'
@@ -123,6 +124,14 @@ export const routes: RouteObject[] = [
     element: (
       <RouteWithSEO>
         <Feedback />
+      </RouteWithSEO>
+    ),
+  },
+  {
+    path: '/profile',
+    element: (
+      <RouteWithSEO>
+        <AboutMe />
       </RouteWithSEO>
     ),
   },

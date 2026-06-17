@@ -27,4 +27,6 @@ export APP_IP="${APP_IP:-151.115.151.231}"
 export API_IP="${API_IP:-${APP_IP}}"
 export APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
 export CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
+# Enable Redis for quota enforcement in production
+export APP_ENABLE_REDIS="${APP_ENABLE_REDIS:-1}"
 exec "${SCRIPT_DIR}/deploy.sh" "$@"

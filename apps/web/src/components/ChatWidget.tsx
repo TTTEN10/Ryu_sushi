@@ -874,6 +874,24 @@ export default function ChatWidget() {
 
       {/* Input */}
       <div className="border-t border-gray-200 dark:border-white/20 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
+        {/* Crisis Resource Banner */}
+        {!isGuest && (
+          <div className="mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              <strong>Crisis support:</strong> Dr. Safe is not a crisis service. If you're in crisis or need immediate help, please contact your local emergency number or visit{' '}
+              <a
+                href="https://findahelpline.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-amber-900 dark:hover:text-amber-200"
+              >
+                findahelpline.com
+              </a>
+              .
+            </p>
+          </div>
+        )}
+
         {/* Offline Indicator */}
         {isOffline && (
           <div className="mb-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
