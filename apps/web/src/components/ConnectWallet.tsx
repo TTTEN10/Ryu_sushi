@@ -143,10 +143,6 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
     }
   };
 
-  const formatAddress = (address: string) => {
-    return `0x...${address.slice(-4)}`;
-  };
-
   // Format address with verification status indicator
   const formatAddressWithStatus = (address: string, isVerified: boolean) => {
     const shortAddress = address.slice(-4);

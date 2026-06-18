@@ -273,7 +273,7 @@ export async function getDeviceBreakdown(range: TimeRange = {}): Promise<DeviceB
 
   for (const event of events) {
     const deviceType = (event.deviceType as keyof DeviceBreakdown) || 'unknown';
-    if (breakdown.hasOwnProperty(deviceType)) {
+    if (Object.prototype.hasOwnProperty.call(breakdown, deviceType)) {
       breakdown[deviceType]++;
     } else {
       breakdown.unknown++;

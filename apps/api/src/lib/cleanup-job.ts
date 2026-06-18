@@ -78,7 +78,7 @@ async function runCleanup(
       // Log what would be deleted without actually deleting
       for (const chat of expiredChats) {
         const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(chat.walletAddress)).substring(0, 16);
-        logger.info(`Cleanup job (DRY RUN): Would delete chat for wallet ${hashedWallet}..., expired at ${chat.expiresAt.toISOString()}`);
+        logger.info(`Cleanup job (DRY RUN): Would delete chat for wallet ${hashedWallet}..., expired at ${chat.expiresAt!.toISOString()}`);
       }
 
       return {
@@ -108,7 +108,7 @@ async function runCleanup(
         userAgent: 'cleanup-job',
         details: JSON.stringify({
           walletAddress: chat.walletAddress,
-          expiresAt: chat.expiresAt.toISOString(),
+          expiresAt: chat.expiresAt!.toISOString(),
           createdAt: chat.createdAt.toISOString(),
           reason: 'retention_policy_expired',
         }),

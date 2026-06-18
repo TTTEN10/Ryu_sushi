@@ -21,8 +21,8 @@ import logger from '../lib/logger';
 
 export interface AuthenticatedAdminRequest extends Request {
   admin?: {
-    authenticated: true;
-    authenticatedAt: Date;
+    authenticated: boolean;
+    authenticatedAt: Date | null;
   };
 }
 
@@ -32,7 +32,7 @@ export interface AuthenticatedAdminRequest extends Request {
  * Validates X-Admin-Secret header against ADMIN_SECRET environment variable.
  */
 export function authenticateAdmin(
-  req: Request,
+  req: AuthenticatedAdminRequest,
   res: Response,
   next: NextFunction
 ): void {

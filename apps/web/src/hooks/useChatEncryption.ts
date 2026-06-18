@@ -459,7 +459,7 @@ export function useChatEncryption() {
         throw new Error((errorData as { message?: string }).message || 'Failed to save rotated key');
       }
 
-      const saveData = await saveResponse.json();
+      await saveResponse.json();
       console.log('Key rotation saved to API successfully');
 
       // Step 6: Update DID contract with new wrapped key (if DID exists)

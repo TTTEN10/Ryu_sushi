@@ -21,7 +21,6 @@ export default function DIDManager() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isSponsored, setIsSponsored] = useState<boolean | null>(null);
 
   // Load DID info when component mounts or auth state changes
   useEffect(() => {
@@ -99,9 +98,7 @@ export default function DIDManager() {
 
       const data = await response.json();
       if (data.success) {
-        // Track if this was a sponsored mint
         const sponsored = data.data?.isSponsored ?? false;
-        setIsSponsored(sponsored);
         setSuccess(
           sponsored
             ? 'DID created successfully! Gas was sponsored by the backend.'
