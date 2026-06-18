@@ -4,11 +4,12 @@
  * Provides endpoints for fetching analytics metrics and funnel data.
  * Used for building dashboards and reports.
  *
- * IMPORTANT: These endpoints should be protected by authentication
- * and only accessible to authorized users (admins, operators).
+ * IMPORTANT: These endpoints are protected by admin authentication
+ * and only accessible to authorized users with valid X-Admin-Secret header.
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+import { authenticateAdmin, AuthenticatedAdminRequest } from '../middleware/authenticate-admin';
 import {
   getFunnelMetrics,
   calculateFunnelConversionRates,
@@ -25,26 +26,8 @@ import logger from '../lib/logger';
 
 const router = Router();
 
-// ============================================================================
-// Middleware: Admin Authentication (placeholder)
-// ============================================================================
-
-/**
- * TODO: Replace with actual admin authentication middleware.
- * This is a placeholder - implement proper auth before production use.
- */
-function adminAuthMiddleware(req: Request, res: Response, next: Function) {
-  // In production, verify admin token/session here
-  // Example: verify admin JWT, check admin session, etc.
-
-  // For now, allow all requests (REMOVE THIS in production)
-  // throw new Error('Admin auth not implemented');
-
-  next();
-}
-
 // Apply admin auth to all routes
-router.use(adminAuthMiddleware);
+router.use(authenticateAdmin);
 
 // ============================================================================
 // Routes
@@ -58,7 +41,7 @@ router.use(adminAuthMiddleware);
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/funnel', async (req: Request, res: Response) => {
+router.get('/funnel', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
@@ -100,7 +83,7 @@ router.get('/funnel', async (req: Request, res: Response) => {
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/daily', async (req: Request, res: Response) => {
+router.get('/daily', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
 
@@ -132,7 +115,7 @@ router.get('/daily', async (req: Request, res: Response) => {
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/devices', async (req: Request, res: Response) => {
+router.get('/devices', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
@@ -167,7 +150,7 @@ router.get('/devices', async (req: Request, res: Response) => {
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/sessions', async (req: Request, res: Response) => {
+router.get('/sessions', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
@@ -202,7 +185,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/wallet-providers', async (req: Request, res: Response) => {
+router.get('/wallet-providers', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
@@ -237,7 +220,7 @@ router.get('/wallet-providers', async (req: Request, res: Response) => {
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/dropoffs', async (req: Request, res: Response) => {
+router.get('/dropoffs', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
@@ -272,7 +255,7 @@ router.get('/dropoffs', async (req: Request, res: Response) => {
  * Query params:
  * - date: ISO date string (required) - cohort date to analyze
  */
-router.get('/retention', async (req: Request, res: Response) => {
+router.get('/retention', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const dateParam = req.query.date as string;
 
@@ -318,7 +301,7 @@ router.get('/retention', async (req: Request, res: Response) => {
  * Query params:
  * - days: number (default: 30)
  */
-router.get('/summary', async (req: Request, res: Response) => {
+router.get('/summary', async (req: AuthenticatedAdminRequest, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 30;
     const startDate = new Date();
