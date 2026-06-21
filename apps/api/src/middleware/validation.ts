@@ -16,30 +16,35 @@ export function validate(
   source: 'body' | 'query' | 'params' = 'body'
 ) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const { error, value } = schema.validate(req[source], {
-      abortEarly: false,
-      stripUnknown: true,
-    });
-
-    if (error) {
-      const errors = error.details.map((detail) => ({
-        field: detail.path.join('.'),
-        message: detail.message,
-      }));
-
-      logger.warn(`Validation failed for ${source}:`, errors);
-
-      res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors,
+    try {
+      const { error, value } = schema.validate(req[source], {
+        abortEarly: false,
+        stripUnknown: true,
       });
-      return;
-    }
 
-    // Replace request data with validated and sanitized data
-    req[source] = value;
-    next();
+      if (error) {
+        const errors = error.details.map((detail) => ({
+          field: detail.path.join('.'),
+          message: detail.message,
+        }));
+
+        logger.warn(`Validation failed for ${source}:`, errors);
+
+        res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors,
+        });
+        return;
+      }
+
+      // Replace request data with validated and sanitized data
+      req[source] = value;
+      next();
+    } catch (error) {
+      logger.error(`Validation middleware error for ${source}:`, error);
+      next(error);
+    }
   };
 }
 

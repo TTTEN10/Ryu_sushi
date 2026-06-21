@@ -620,6 +620,12 @@ ${CADDY_SITE_NAMES} {
   handle /api/chat/quota {
     reverse_proxy node-api:3001
   }
+  handle /api/analytics/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/metrics/* {
+    reverse_proxy node-api:3001
+  }
   handle_path /api/* {
     reverse_proxy backend:5000
   }
@@ -651,6 +657,12 @@ http://${APP_IP} {
     reverse_proxy node-api:3001
   }
   handle /api/chat/quota {
+    reverse_proxy node-api:3001
+  }
+  handle /api/analytics/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/metrics/* {
     reverse_proxy node-api:3001
   }
   handle_path /api/* {
