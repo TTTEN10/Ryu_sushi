@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run from apps/api. Requires ETHERSCAN_API_KEY and optionally SEPOLIA_RPC_URL in .env.
-# See documentation/SMART_CONTRACTS_DEPLOYMENT.md §5 and deployments/SEPOLIA_DEPLOYED_CONTRACTS.md.
+# See documentation/public documentation/api/contracts/SEPOLIA_DEPLOYED_CONTRACTS.md
 
 set -e
 cd "$(dirname "$0")/.."

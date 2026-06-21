@@ -113,18 +113,8 @@ temp/
 *.p12
 *.pfx
 *private*
-# Allow only the canonical repo tree map (folder name matches *private*).
-!documentation/private documentation/
-!documentation/private documentation/REPOSITORY_SYNTAX_TREE.md
-documentation/private documentation/*
-!documentation/private documentation/REPOSITORY_SYNTAX_TREE.md
-!documentation/private documentation/EXCHANGE_PARTNER_ONE_PAGER.md
-!documentation/private documentation/LAUNCH.md
-!documentation/private documentation/NEW_INSTANCES_DEPLOYMENT.md
-!documentation/private documentation/PERSONAS.md
-!documentation/private documentation/VC_ONE_PAGER.md
-!documentation/private documentation/TECHNICAL_REVIEW.md
-!documentation/private documentation/programming_sprint.md
+# Internal docs (local only; not published to GitHub)
+documentation/private documentation/
 *secret*
 *credentials*
 *secrets*

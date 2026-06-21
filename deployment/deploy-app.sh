@@ -11,7 +11,7 @@ set -euo pipefail
 # - API server (vLLM/OpenAI-compatible endpoint) — legacy when USE_SCALEWAY_DIRECT=0
 # - App server (frontend + Python API proxy + caddy)
 #
-# LLM routing (see documentation/chatbot-migration.md and documentation/private documentation/chatbot.md):
+# LLM routing (see documentation/private documentation/chatbot.md and documentation/private documentation/chatbot.md):
 #   USE_SCALEWAY_DIRECT=1  — Python proxy → Scaleway Generative API (no chatbot :8000)
 #   USE_SCALEWAY_DIRECT=0  — Python proxy → FastAPI chatbot (MODEL_API_URL / SKIP_VLLM_DEPLOY)
 #

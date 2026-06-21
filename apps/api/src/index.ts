@@ -5,10 +5,38 @@ import { initializeConfig } from "./lib/config";
 import { cryptoPaymentService } from "./lib/crypto-payment.service";
 import { startLlmUpstreamHealthPoller } from "./lib/llm-upstream-health";
 import { shouldRunLlmUpstreamHealthPoller, shouldUseScalewayDirect } from "./lib/llm-routing";
+import { validateSecretsOrThrow } from "./lib/production-config-guard";
 import { createApp } from "./app";
 
 // Load environment variables from monorepo root (single .env; avoids Prisma vs apps/api duplicate)
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+
+// CRITICAL: Validate all secrets BEFORE any other initialization
+// This prevents running with insecure defaults
+try {
+  logger.info('🔒 Validating secrets before startup...');
+  validateSecretsOrThrow();
+  logger.info('✅ All secrets validated successfully');
+} catch (error) {
+  console.error('');
+  console.error('========================================');
+  console.error('  STARTUP BLOCKED: Invalid Secrets');
+  console.error('========================================');
+  console.error('');
+  console.error('The application cannot start safely with the current configuration.');
+  console.error('');
+  console.error('QUICK FIX:');
+  console.error('1. Run: cp .env.template .env');
+  console.error('2. Generate secrets:');
+  console.error('   openssl rand -hex 32  # For JWT_SECRET, IP_SALT, ADMIN_SECRET');
+  console.error('3. Change database password immediately');
+  console.error('4. Revoke exposed Scaleway API key at console.scaleway.com');
+  console.error('5. Generate new DID wallet (compromised key detected)');
+  console.error('');
+  console.error('See .env.template for detailed instructions.');
+  console.error('');
+  process.exit(1);
+}
 
 // Initialize secret manager configuration (async, but don't block startup)
 initializeConfig().catch((error) => {

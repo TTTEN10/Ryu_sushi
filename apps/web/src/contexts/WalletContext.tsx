@@ -180,7 +180,17 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, []);
 
   // Check for existing connection on mount
+  // Skip auto-reconnect if user manually logged out (sessionStorage flag)
   useEffect(() => {
+    const MANUAL_LOGOUT_KEY = 'sp_manual_logout';
+
+    // Check if user manually logged out - if so, don't auto-reconnect
+    const isManualLogout = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(MANUAL_LOGOUT_KEY) === '1';
+    if (isManualLogout) {
+      console.log('[WalletContext] Skipping auto-reconnect after manual logout');
+      return;
+    }
+
     const checkExistingConnection = async () => {
       // Check MetaMask connection
       if (typeof window.ethereum !== 'undefined') {
@@ -190,13 +200,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           if (accounts.length > 0) {
             const network = await provider.getNetwork();
             const chainId = Number(network.chainId);
-            
+
             // Only allow Sepolia Testnet
             if (chainId !== SUPPORTED_CHAIN_ID) {
               console.warn('Unsupported chain detected on existing connection. Chain ID:', chainId);
               return;
             }
-            
+
             const signer = await provider.getSigner();
             const addr = ethers.getAddress(accounts[0].address);
             setProvider(provider);
@@ -217,13 +227,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         try {
           const accounts = walletConnectProvider.accounts;
           const chainId = walletConnectProvider.chainId;
-          
+
           // Only allow Sepolia Testnet
           if (chainId !== SUPPORTED_CHAIN_ID) {
             console.warn('Unsupported chain detected on WalletConnect connection. Chain ID:', chainId);
             return;
           }
-          
+
           if (accounts.length > 0) {
             // Create ethers provider from WalletConnect
           const ethersProvider = new ethers.BrowserProvider(walletConnectProvider);
@@ -339,6 +349,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       trackEvent('wallet_click', {
         wallet_provider: getWalletProvider(),
       }).catch(console.error);
+
+      // Clear manual logout flag when user reconnects
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('sp_manual_logout');
+      }
 
       setIsLoading(true);
       setError(null);

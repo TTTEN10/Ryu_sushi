@@ -102,29 +102,48 @@ export async function requestWalletMessage(
 ): Promise<string> {
   // Checksum the address (EIP-55) - API validation requires checksummed addresses
   const checksummedAddress = ethers.getAddress(address);
-  const response = await fetch(walletAuthFetchUrl('/auth/wallet/connect', options), {
-    method: 'POST',
-    headers: walletAuthLegacyHeaders({ address: checksummedAddress, chainId }),
-    credentials: API_SESSION_CREDENTIALS,
-    body: walletConnectJsonBody(checksummedAddress, chainId),
-  });
+  const cacheKey = `POST:/auth/wallet/connect:${checksummedAddress}:${chainId}`;
 
-  if (!response.ok) {
-    let msg = `Failed to request verification message (${response.status})`;
+  // Return existing in-flight request if available (deduplication)
+  const existing = inFlightRequests.get(cacheKey);
+  if (existing) {
+    const result = await existing;
+    return result.message as string;
+  }
+
+  const promise = (async () => {
     try {
-      const err = (await response.json()) as { message?: string };
-      if (err.message) msg = err.message;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
+      const response = await fetchWithRetry(walletAuthFetchUrl('/auth/wallet/connect', options), {
+        method: 'POST',
+        headers: walletAuthLegacyHeaders({ address: checksummedAddress, chainId }),
+        credentials: API_SESSION_CREDENTIALS,
+        body: walletConnectJsonBody(checksummedAddress, chainId),
+      });
 
-  const json = (await response.json()) as WalletConnectResponse;
-  if (!json.success) {
-    throw new Error(json.message || 'Failed to request verification message');
-  }
-  return json.data.message;
+      if (!response.ok) {
+        let msg = `Failed to request verification message (${response.status})`;
+        try {
+          const err = (await response.json()) as { message?: string };
+          if (err.message) msg = err.message;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+
+      const json = (await response.json()) as WalletConnectResponse;
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to request verification message');
+      }
+      return { message: json.data.message };
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, promise);
+  const result = await promise;
+  return result.message;
 }
 
 export async function verifyWalletSignature(
@@ -161,27 +180,90 @@ export async function verifyWalletSignature(
   return json;
 }
 
+/** In-flight request tracking for deduplication */
+const inFlightRequests = new Map<string, Promise<any>>();
+
+/** Sleep helper */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Fetch with automatic retry on 429 rate limit errors.
+ * Retries up to 3 times with exponential backoff (1s, 2s, 4s).
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // If rate limited (429), wait and retry
+      if (response.status === 429 && attempt < maxRetries) {
+        const retryAfterMs = 1000 * Math.pow(2, attempt); // Exponential backoff: 1s, 2s, 4s
+        console.warn(`Rate limited (${response.status}), retrying in ${retryAfterMs}ms... (attempt ${attempt + 1}/${maxRetries})`);
+        await sleep(retryAfterMs);
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err as Error;
+      // Network error - retry with backoff
+      if (attempt < maxRetries) {
+        const retryAfterMs = 1000 * Math.pow(2, attempt);
+        console.warn(`Network error, retrying in ${retryAfterMs}ms...`, err);
+        await sleep(retryAfterMs);
+      }
+    }
+  }
+
+  // All retries exhausted - throw last error or create one
+  if (lastError) throw lastError;
+  throw new Error('Request failed after retries');
+}
+
 /** Uses session cookie only — no Bearer token in JS (XSS-safe). */
 export async function fetchWalletSession(): Promise<SessionMeResponse['data'] | null> {
-  const response = await fetch(walletAuthFetchUrl('/auth/me'), {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: API_SESSION_CREDENTIALS,
-  });
+  const cacheKey = 'GET:/auth/me';
 
-  if (response.status === 401) {
-    return null;
+  // Return existing in-flight request if available (deduplication)
+  const existing = inFlightRequests.get(cacheKey);
+  if (existing) {
+    return existing;
   }
 
-  if (!response.ok) {
-    throw new Error('Session validation failed');
-  }
+  const promise = (async () => {
+    try {
+      const response = await fetchWithRetry(walletAuthFetchUrl('/auth/me'), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: API_SESSION_CREDENTIALS,
+      });
 
-  const json = (await response.json()) as SessionMeResponse;
-  if (!json.success || !json.data) {
-    return null;
-  }
-  return json.data;
+      if (response.status === 401) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error('Session validation failed');
+      }
+
+      const json = (await response.json()) as SessionMeResponse;
+      if (!json.success || !json.data) {
+        return null;
+      }
+      return json.data;
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, promise);
+  return promise;
 }
 
 export async function logoutWalletSession(): Promise<void> {

@@ -133,9 +133,10 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
       console.log('[ConnectWallet] logout() completed');
 
       // Add small delay to ensure cookies are fully cleared before reload
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Force reload to ensure all state is cleared
+      // Note: Wallet extension may still be connected, but auth session is cleared
       console.log('[ConnectWallet] Reloading page...');
       window.location.reload();
     } catch (err) {

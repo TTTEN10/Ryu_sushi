@@ -6,7 +6,7 @@ Complete reference for all production API endpoints. Base URL: `/api` (same-orig
 
 **Authentication (mobile):** Optional `Authorization: Bearer <jwt>`; verify response may include `data.token` for SecureStore.
 
-**Production routing:** On the app host (Caddy), **`/api/auth/*`**, **`/api/did/*`**, and encrypted **`/api/chat/*`** routes hit the **Node** `apps/api` service; other **`/api/*`** paths hit the Python LLM proxy. See `deployment/DEPLOY-RUNBOOK.md`.
+**Production routing:** On the app host (Caddy), **`/api/auth/*`**, **`/api/did/*`**, and encrypted **`/api/chat/*`** routes hit the **Node** `apps/api` service; other **`/api/*`** paths hit the Python LLM proxy. See `documentation/private documentation/DEPLOY-RUNBOOK.md` (local clone; not on GitHub).
 
 ---
 

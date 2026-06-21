@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Preset wrapper: single-host app deploy, Scaleway direct (validated prod path).
-# See deployment/DEPLOY-RUNBOOK.md for infrastructure, secrets, and troubleshooting.
+# See documentation/private documentation/DEPLOY-RUNBOOK.md for infrastructure, secrets, and troubleshooting.
 # Local parity: ./deployment/deploy-local-app.sh
 #
 # Usage:

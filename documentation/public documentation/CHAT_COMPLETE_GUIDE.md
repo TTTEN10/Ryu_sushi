@@ -101,8 +101,8 @@ The web app sends `mode: "guest"` on `POST /api/chat/completions` when the user 
 | Topology | What serves `/api/...` | Chat widget (`/api/chat/completions`) |
 |----------|-------------------------|----------------------------------------|
 | **Local / full stack** | Node `apps/api` (e.g. port 3001) | Works: SSE contract, guest mode, save/load, quota. |
-| **`deployment/deploy-live-app.sh` production** | Caddy → **Python proxy** → Scaleway Generative API | OpenAI-shaped `POST /api/chat/completions` and `/api/v1/models` (guest mode supported). Full SafePsy SSE + `/api/chat/save` require Node `apps/api` (local dev). See `documentation/chatbot-migration.md`. |
-| **Scaleway Generative API** | Production LLM (via app proxy or Node `AIGatewayService`) | Set `SCALEWAY_API_KEY`; see `documentation/chatbot-migration.md`. |
+| **`deployment/deploy-live-app.sh` production** | Caddy → **Python proxy** → Scaleway Generative API | OpenAI-shaped `POST /api/chat/completions` and `/api/v1/models` (guest mode supported). Full SafePsy SSE + `/api/chat/save` require Node `apps/api` (local dev). See `documentation/private documentation/chatbot.md`. |
+| **Scaleway Generative API** | Production LLM (via app proxy or Node `AIGatewayService`) | Set `SCALEWAY_API_KEY`; see `documentation/private documentation/chatbot.md`. |
 
 For the **SSE wire format** used by `apps/api`, see [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md).
 

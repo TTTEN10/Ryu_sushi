@@ -5,7 +5,7 @@ scaleway_access_key  = "SCWXXXXXXXXXXXXXXXXX"
 scaleway_secret_key    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 scaleway_project_id    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Deploy after apply: ./deployment/deploy-live-app.sh (see deployment/DEPLOY-RUNBOOK.md)
+# Deploy after apply: ./deployment/deploy-live-app.sh (see documentation/private documentation/DEPLOY-RUNBOOK.md)
 # Optional overrides (defaults: scw-last-app 471a791b… @ 151.115.151.231; app + chatbot same instance)
 # app_instance_id     = "471a791b-573e-45f3-b0c6-bf630476fc6c"
 # chatbot_instance_id = "471a791b-573e-45f3-b0c6-bf630476fc6c"

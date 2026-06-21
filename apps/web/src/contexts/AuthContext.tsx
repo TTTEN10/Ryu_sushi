@@ -242,6 +242,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('[AuthContext] Logout returned 401 (expected if already logged out)');
       }
     } finally {
+      // Set manual logout flag to prevent wallet auto-reconnect on reload
+      // (Only for manual logouts, not inactivity timeouts)
+      if (skipIdleFlag && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('sp_manual_logout', '1');
+        console.log('[AuthContext] Set manual logout flag to prevent auto-reconnect');
+      }
       // Only set idle flag for inactivity timeout logouts, NOT manual logouts
       if (!skipIdleFlag && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(WALLET_IDLE_LOGOUT_FLAG, '1');

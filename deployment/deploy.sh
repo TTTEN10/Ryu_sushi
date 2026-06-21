@@ -228,7 +228,7 @@ validate_credentials() {
     fi
   fi
   if [[ -n "${SCW_ACCESS_KEY:-}" ]] && [[ -f "${HOME}/.config/scw/config.yaml" ]]; then
-    warn "[PRE-FLIGHT] SCW_ACCESS_KEY is set and ~/.config/scw/config.yaml exists — Terraform may warn about multiple credential sources (see deployment/deploy-issue.md §7)."
+    warn "[PRE-FLIGHT] SCW_ACCESS_KEY is set and ~/.config/scw/config.yaml exists — Terraform may warn about multiple credential sources (see documentation/private documentation/deploy-issue.md §7)."
     log_event "preflight_scw_warning" "{\"note\":\"multiple_scw_sources_possible\"}"
   fi
 }

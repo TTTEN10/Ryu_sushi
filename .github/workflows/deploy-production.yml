@@ -1,6 +1,6 @@
 # Production Deployment Workflow
 # Validated path: deploy-live-app.sh → scw-last-app (151.115.151.231), Scaleway direct.
-# See deployment/DEPLOY-RUNBOOK.md
+# See documentation/private documentation/DEPLOY-RUNBOOK.md
 #
 # Requires GitHub secrets:
 #   SSH_PRIVATE_KEY — root access to scw-last-app

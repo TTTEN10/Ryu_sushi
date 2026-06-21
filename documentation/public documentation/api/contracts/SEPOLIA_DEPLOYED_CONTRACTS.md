@@ -1,6 +1,6 @@
 # SafePsy DID Contracts - Sepolia Testnet Deployment
 
-**Canonical reference**: This is the single source of truth for Sepolia contract addresses and deployment status. All other docs should link here (`apps/api/deployments/SEPOLIA_DEPLOYED_CONTRACTS.md`).
+**Canonical reference**: This is the single source of truth for Sepolia contract addresses and deployment status. All other docs should link here (`documentation/public documentation/api/contracts/SEPOLIA_DEPLOYED_CONTRACTS.md`).
 
 **Network**: Sepolia Testnet  
 **Chain ID**: 11155111  
