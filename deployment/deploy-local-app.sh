@@ -50,6 +50,12 @@ log "Building Node API on host (wallet auth/DID routes)..."
 log "Materializing stack in ${LOCAL_STACK_DIR}"
 
 [[ -n "${JWT_SECRET}" ]] || die "JWT_SECRET must be set in repo .env for wallet auth (Node API)"
+[[ -n "${ADMIN_SECRET}" ]] || die "ADMIN_SECRET must be set in repo .env for Node API"
+NODE_API_DID_BACKEND_SIGNER="${DID_BACKEND_SIGNER_PRIVATE_KEY:-}"
+[[ -n "${NODE_API_DID_BACKEND_SIGNER}" ]] || die "DID_BACKEND_SIGNER_PRIVATE_KEY must be set in repo .env for Node API"
+ADMIN_SECRET="${ADMIN_SECRET:-}"
+IP_SALT="${IP_SALT:-}"
+IP_HASHING_ENABLED="${IP_HASHING_ENABLED:-true}"
 NODE_API_FRONTEND_URL="http://localhost:${LOCAL_HTTP_PORT}"
 SIWE_DOMAIN="${SIWE_DOMAIN:-localhost}"
 SIWE_URI="${SIWE_URI:-http://localhost:${LOCAL_HTTP_PORT}}"
@@ -164,6 +170,7 @@ $(if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then echo "    depends_on:
       NODE_ENV: production
       PORT: "3001"
       JWT_SECRET: "${JWT_SECRET}"
+      ADMIN_SECRET: "${ADMIN_SECRET}"
       FRONTEND_URL: "${NODE_API_FRONTEND_URL}"
       SIWE_DOMAIN: "${SIWE_DOMAIN}"
       SIWE_URI: "${SIWE_URI}"
@@ -172,6 +179,14 @@ $(if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then echo "    depends_on:
       DID_REGISTRY_ADDRESS: "${NODE_API_DID_REGISTRY}"
       DID_IDENTITY_TOKEN_ADDRESS: "${NODE_API_DID_IDENTITY}"
       DATABASE_URL: "${NODE_API_DATABASE_URL}"
+      DID_BACKEND_SIGNER_PRIVATE_KEY: "${NODE_API_DID_BACKEND_SIGNER}"
+      IP_SALT: "${IP_SALT}"
+      IP_HASHING_ENABLED: "${IP_HASHING_ENABLED}"
+      USE_SCALEWAY_DIRECT: "${USE_SCALEWAY_DIRECT}"
+      SCALEWAY_API_KEY: "${SCALEWAY_API_KEY}"
+      SCALEWAY_PROJECT_ID: "${SCALEWAY_PROJECT_ID}"
+      SCALEWAY_MODEL: "${SCALEWAY_MODEL}"
+      SCALEWAY_API_BASE_URL: "${SCALEWAY_API_BASE_URL}"
 
 $(if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then cat <<PG
 

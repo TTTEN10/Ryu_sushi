@@ -114,6 +114,9 @@ if [[ -f "${REPO_ROOT}/.env" ]]; then
   set +a
 fi
 JWT_SECRET="${JWT_SECRET:-}"
+ADMIN_SECRET="${ADMIN_SECRET:-}"
+IP_SALT="${IP_SALT:-}"
+IP_HASHING_ENABLED="${IP_HASHING_ENABLED:-true}"
 if [[ "${APP_DOMAIN}" == www.* ]]; then
   NODE_API_FRONTEND_URL="https://${APP_DOMAIN}"
 else
@@ -493,6 +496,8 @@ else
 
   [[ -f "${NODE_API_DOCKERFILE}" ]] || die "Missing ${NODE_API_DOCKERFILE}"
   [[ -n "${JWT_SECRET}" ]] || die "JWT_SECRET must be set in repo .env for Node API (wallet auth on production)"
+  [[ -n "${ADMIN_SECRET}" ]] || die "ADMIN_SECRET must be set in repo .env for Node API (admin auth + production startup guard)"
+  [[ -n "${NODE_API_DID_BACKEND_SIGNER}" ]] || die "DID_BACKEND_SIGNER_PRIVATE_KEY must be set in repo .env for Node API (sponsored DID mint)"
   log "STEP 5a-node: Sync monorepo node-api build context -> ${APP_IP}:${APP_BASE_DIR}/node-api-src"
   run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/node-api-src && rm -rf ${APP_BASE_DIR}/node-api-src/*'"
   COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - \
@@ -538,6 +543,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_SECRET=${ADMIN_SECRET}
       - FRONTEND_URL=${NODE_API_FRONTEND_URL}
       - SIWE_DOMAIN=${SIWE_DOMAIN}
       - SIWE_URI=${SIWE_URI}
@@ -548,6 +554,13 @@ services:
       - DATABASE_URL=${NODE_API_DATABASE_URL}
       - DID_BACKEND_SIGNER_PRIVATE_KEY=${NODE_API_DID_BACKEND_SIGNER}
       - REDIS_URL=${NODE_API_REDIS_URL}
+      - IP_SALT=${IP_SALT}
+      - IP_HASHING_ENABLED=${IP_HASHING_ENABLED}
+      - USE_SCALEWAY_DIRECT=${USE_SCALEWAY_DIRECT:-0}
+      - SCALEWAY_API_KEY=${SCALEWAY_API_KEY:-}
+      - SCALEWAY_PROJECT_ID=${SCALEWAY_PROJECT_ID:-}
+      - SCALEWAY_MODEL=${SCALEWAY_MODEL:-}
+      - SCALEWAY_API_BASE_URL=${SCALEWAY_API_BASE_URL:-}
     deploy:
       resources:
         limits:
