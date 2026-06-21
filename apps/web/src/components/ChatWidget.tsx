@@ -564,8 +564,10 @@ export default function ChatWidget() {
       };
 
       const persistAfterStream = async () => {
+        // Synchronous guard to prevent race condition when both [DONE] and event:done arrive
         if (streamFinalized) return;
         streamFinalized = true;
+
         setIsStreaming(false);
         setSendPhase('idle');
         if (assistantMessage.content.trim().length > 0) {
@@ -573,15 +575,17 @@ export default function ChatWidget() {
         }
         // Message is already being added during streaming via delta.content updates.
         // Just ensure the final message is in state with complete content.
+        // Use a single atomic update to prevent duplicates.
         setMessages((prev) => {
-          const lastMsg = prev[prev.length - 1];
-          // Update the last assistant message with final content if it exists
-          if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
-            // Ensure content is final and no duplication
-            if (lastMsg.content === assistantMessage.content) {
-              return prev;
-            }
-            return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
+          // First, check if this exact message already exists anywhere in the array
+          const existingIndex = prev.findIndex(
+            (m) => m.id === assistantMessage.id && m.role === 'assistant'
+          );
+          if (existingIndex !== -1) {
+            // Update the existing one in place - this is the normal path
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
+            return updated;
           }
           // Fallback: add if somehow missing (shouldn't happen in normal flow)
           return [...prev, { ...assistantMessage, encrypted: false }];
@@ -616,8 +620,9 @@ export default function ChatWidget() {
               const data = JSON.parse(raw);
 
               // OpenAI-compatible SSE (chat.completion.chunk): no "event:" lines
+              // Check for delta.content ONLY when there's no explicit event type (default OpenAI format)
               const delta = data?.choices?.[0]?.delta as { content?: string } | undefined;
-              if (delta?.content) {
+              if (delta?.content && !currentEvent) {
                 assistantMessage.content += delta.content;
                 setMessages((prev) => {
                   const lastMsg = prev[prev.length - 1];
@@ -633,7 +638,8 @@ export default function ChatWidget() {
               // Calling it here causes duplication since message is already being streamed
 
               if (currentEvent === 'token') {
-                // Append token to assistant message (legacy event format)
+                // Legacy event format: event: token with data.token
+                // Note: This is mutually exclusive with the delta.content path above
                 assistantMessage.content += data.token;
                 setMessages((prev) => {
                   const lastMsg = prev[prev.length - 1];
@@ -917,24 +923,6 @@ export default function ChatWidget() {
 
       {/* Input */}
       <div className="border-t border-gray-200 dark:border-white/20 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
-        {/* Crisis Resource Banner */}
-        {!isGuest && (
-          <div className="mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-            <p className="text-xs text-amber-800 dark:text-amber-300">
-              <strong>Crisis support:</strong> Dr. Safe is not a crisis service. If you're in crisis or need immediate help, please contact your local emergency number or visit{' '}
-              <a
-                href="https://findahelpline.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-amber-900 dark:hover:text-amber-200"
-              >
-                findahelpline.com
-              </a>
-              .
-            </p>
-          </div>
-        )}
-
         {/* Offline Indicator */}
         {isOffline && (
           <div className="mb-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">

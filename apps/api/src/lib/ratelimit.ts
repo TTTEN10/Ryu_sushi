@@ -8,6 +8,14 @@ export const rateLimitMiddleware = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req: Request) => {
+    // Skip rate limiting for high-frequency polling endpoints
+    // These have their own dedicated rate limiters or are authenticated
+    if (req.path === '/chat/concurrency') {
+      return true;
+    }
+    return false;
+  },
 })
 
 // Specific rate limiting for email subscription endpoint
@@ -187,5 +195,30 @@ export const adminRateLimitMiddleware = rateLimit({
     // Don't rate limit successful authentications (200 OK)
     // This allows legitimate admin use while blocking brute force
     return res.statusCode === 200;
+  },
+})
+
+/**
+ * Chat concurrency endpoint rate limiting
+ * More permissive limit for polling endpoint (frontend polls every few seconds)
+ * Uses wallet address for authenticated users, IP for others
+ */
+export const chatConcurrencyRateLimitMiddleware = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // limit each wallet/IP to 60 requests per minute (1 per second average)
+  message: {
+    success: false,
+    message: 'Too many concurrency check requests. Please wait a moment.',
+    error: 'CONCURRENCY_RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    // Use wallet address if authenticated, otherwise use IP
+    const walletAddress = req.headers['x-wallet-address'] as string;
+    if (walletAddress) {
+      return `wallet:${walletAddress.toLowerCase()}`;
+    }
+    return req.ip || 'unknown';
   },
 })

@@ -22,6 +22,7 @@ import { getUpstreamHealthSnapshot } from '../lib/llm-upstream-health';
 import { shouldUseScalewayDirect } from '../lib/llm-routing';
 import { requireUpstreamStatusAuth } from '../middleware/upstream-status-auth';
 import rateLimit from 'express-rate-limit';
+import { chatConcurrencyRateLimitMiddleware } from '../lib/ratelimit';
 
 const router = Router();
 
@@ -588,12 +589,14 @@ router.get(
 /**
  * GET /api/chat/concurrency
  * Check if a chat request is currently in progress for authenticated DID
- * 
+ *
  * Auth: Required (wallet session)
+ * Rate limit: 60 requests per minute per wallet (higher limit for polling)
  */
 router.get(
   '/concurrency',
   authenticateWallet,
+  chatConcurrencyRateLimitMiddleware,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       if (!req.wallet) {
