@@ -1,15 +1,14 @@
 /**
  * Admin Authentication Middleware
- * 
+ *
  * Provides access control for admin-only endpoints using:
- * - API key authentication (via header or environment)
- * - Admin wallet address whitelist
- * - Optional: JWT-based admin tokens (future enhancement)
+ * - API key authentication (X-Admin-API-Key header)
+ * - Verified JWT whose wallet is in RAG_ADMIN_WALLETS
  */
 
 import { Request, Response, NextFunction } from 'express';
 import logger from '../lib/logger';
-import { authenticateWallet, AuthenticatedRequest } from './auth';
+import { AuthenticatedRequest } from './auth';
 
 /**
  * Extended request interface with admin authentication
@@ -21,18 +20,42 @@ export interface AdminRequest extends AuthenticatedRequest {
   };
 }
 
-/**
- * Get admin API key from environment or header
- */
 function getAdminApiKey(req: Request): string | null {
-  // Check header first (X-Admin-API-Key)
   const headerKey = req.headers['x-admin-api-key'] as string;
-  if (headerKey) {
-    return headerKey;
+  return headerKey || null;
+}
+
+function getWalletToken(req: Request): string | undefined {
+  return (
+    req.headers['authorization']?.replace('Bearer ', '') ||
+    req.cookies?.token ||
+    (req.headers['x-wallet-token'] as string)
+  );
+}
+
+async function tryAdminWalletAuth(req: AdminRequest): Promise<boolean> {
+  const token = getWalletToken(req);
+  if (!token) {
+    return false;
   }
 
-  // Check environment variable (for server-side scripts)
-  return process.env.RAG_ADMIN_API_KEY || null;
+  try {
+    const { verifyWalletToken } = await import('../lib/session');
+    const session = verifyWalletToken(token);
+
+    if (session && isAdminWallet(session.walletAddress)) {
+      req.wallet = session;
+      req.admin = {
+        method: 'wallet',
+        identifier: session.walletAddress,
+      };
+      return true;
+    }
+  } catch {
+    // Invalid token; caller decides whether to reject or continue
+  }
+
+  return false;
 }
 
 /**
@@ -54,9 +77,9 @@ function isAdminWallet(walletAddress: string): boolean {
 
 /**
  * Admin authentication middleware
- * Supports multiple authentication methods:
- * 1. API key (X-Admin-API-Key header or RAG_ADMIN_API_KEY env var)
- * 2. Wallet authentication (wallet must be in RAG_ADMIN_WALLETS whitelist)
+ * Supports two authentication methods:
+ * 1. API key (X-Admin-API-Key header matching RAG_ADMIN_API_KEY)
+ * 2. Verified JWT whose wallet is in RAG_ADMIN_WALLETS
  * 
  * Environment variables:
  * - RAG_ADMIN_API_KEY: Admin API key
@@ -82,42 +105,8 @@ export const adminAuth = async (
       return;
     }
 
-    // Try wallet authentication
-    // First ensure wallet is authenticated
-    const token = req.headers['authorization']?.replace('Bearer ', '') ||
-                  req.cookies?.token ||
-                  req.headers['x-wallet-token'] as string;
-
-    if (token) {
-      try {
-        // Use the authenticateWallet logic to verify the wallet
-        // We'll manually check the wallet here to avoid double authentication
-        const { verifyWalletToken } = await import('../lib/session');
-        const session = verifyWalletToken(token);
-
-        if (session && isAdminWallet(session.walletAddress)) {
-          req.wallet = session;
-          req.admin = {
-            method: 'wallet',
-            identifier: session.walletAddress,
-          };
-          logger.info(`Admin authenticated via wallet: ${session.walletAddress}`);
-          next();
-          return;
-        }
-      } catch (error) {
-        // Continue to check other methods
-      }
-    }
-
-    // Try wallet address from header (for development/testing)
-    const walletAddress = req.headers['x-wallet-address'] as string;
-    if (walletAddress && isAdminWallet(walletAddress)) {
-      req.admin = {
-        method: 'wallet',
-        identifier: walletAddress,
-      };
-      logger.info(`Admin authenticated via wallet header: ${walletAddress}`);
+    if (await tryAdminWalletAuth(req)) {
+      logger.info(`Admin authenticated via wallet: ${req.admin!.identifier}`);
       next();
       return;
     }
@@ -161,12 +150,7 @@ export const optionalAdminAuth = async (
       return;
     }
 
-    const walletAddress = req.headers['x-wallet-address'] as string;
-    if (walletAddress && isAdminWallet(walletAddress)) {
-      req.admin = {
-        method: 'wallet',
-        identifier: walletAddress,
-      };
+    if (await tryAdminWalletAuth(req)) {
       next();
       return;
     }
