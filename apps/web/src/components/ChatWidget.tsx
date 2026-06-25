@@ -562,8 +562,6 @@ export default function ChatWidget() {
         content: '',
         timestamp: new Date(),
       };
-      // Reset the ref for this message
-      assistantMessageAddedRef.current = false;
 
       const persistAfterStream = async () => {
         // Synchronous guard to prevent race condition when both [DONE] and event:done arrive
