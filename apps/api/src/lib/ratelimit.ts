@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit'
-import { Request, Response } from 'express'
+import { Request, Response, NextFunction } from 'express'
 
 // General rate limiting for API endpoints
 export const rateLimitMiddleware = rateLimit({
@@ -148,6 +148,37 @@ export const chatRateLimitMiddleware = rateLimit({
     return req.path === '/health' || req.path === '/healthz';
   },
 })
+
+/** Guest / anonymous chat: 5 completions per minute per IP (6th → 429) */
+const guestChatMinuteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many guest chat requests. Please wait a moment or sign in with your wallet.',
+    error: 'GUEST_RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.ip || 'unknown',
+})
+
+export function guestChatMinuteRateLimitMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  const body = req.body as { mode?: string } | undefined;
+  const mode = typeof body?.mode === 'string' ? body.mode.trim().toLowerCase() : undefined;
+  const wallet = (req as { wallet?: { walletAddress: string } }).wallet;
+
+  if (wallet && mode !== 'guest') {
+    next();
+    return;
+  }
+
+  guestChatMinuteLimiter(req, res, next);
+}
 
 /** Anonymous funnel intake (POST /api/metrics/funnel): bounded bursts per IP */
 export const funnelRateLimitMiddleware = rateLimit({

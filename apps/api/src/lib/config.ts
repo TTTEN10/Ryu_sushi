@@ -96,6 +96,7 @@ export async function initializeConfig(): Promise<void> {
     'pinata-api-key',
     'pinata-secret-key',
     'rag-admin-api-key',
+    'metrics-secret',
     'did-backend-signer-private-key',
   ];
 

@@ -4,7 +4,7 @@
  * Provides HTTP endpoints for document retrieval from the knowledge base.
  * 
  * Security:
- * - Index/Delete operations require admin authentication
+ * - Retrieve/Index/Delete require admin authentication (chat uses in-process RAG)
  * - All indexing operations are logged to audit log
  */
 
@@ -91,6 +91,7 @@ const batchIndexSchema = Joi.object({
  */
 router.post(
   '/retrieve',
+  adminAuth,
   validate(retrieveSchema),
   async (req: AdminRequest, res: Response) => {
     try {

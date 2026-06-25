@@ -16,6 +16,7 @@ import {
   extractNonceFromSiweMessage,
   consumeWalletNonce,
 } from '../lib/wallet-nonce.service';
+import { isAllowedOrigin } from '../lib/allowed-origins';
 
 const router = Router();
 
@@ -54,8 +55,27 @@ router.post(
       const nonce = ethers.hexlify(ethers.randomBytes(32));
       await registerWalletNonce(nonce, req.wallet.address, req.wallet.chainId);
 
-      // Extract domain from Origin header for SIWE message (EIP-4361 requires domain to match requesting origin)
       const originHeader = req.headers.origin;
+      const isProd = process.env.NODE_ENV === 'production';
+
+      if (originHeader) {
+        if (!isAllowedOrigin(originHeader)) {
+          logger.warn(`SIWE connect rejected: disallowed Origin ${originHeader}`);
+          return res.status(400).json({
+            success: false,
+            message: 'Origin not allowed for wallet sign-in',
+            error: 'ORIGIN_NOT_ALLOWED',
+          });
+        }
+      } else if (isProd) {
+        return res.status(400).json({
+          success: false,
+          message: 'Origin header required for wallet sign-in',
+          error: 'ORIGIN_REQUIRED',
+        });
+      }
+
+      // Extract domain from Origin header for SIWE message (EIP-4361 requires domain to match requesting origin)
       let domain: string | undefined;
       let uri: string | undefined;
       if (originHeader) {
@@ -64,7 +84,11 @@ router.post(
           domain = url.host;
           uri = originHeader;
         } catch {
-          // Invalid origin header, fallback to env/default
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid Origin header',
+            error: 'ORIGIN_INVALID',
+          });
         }
       }
 

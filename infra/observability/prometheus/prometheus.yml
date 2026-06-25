@@ -42,8 +42,9 @@ scrape_configs:
       - targets: ['postgres-exporter:9187']
     metrics_path: '/metrics'
 
-  # API Application - Custom metrics
+  # API Application - Custom metrics (Bearer token must match METRICS_SECRET on node-api)
   - job_name: 'safepsy-api'
+    bearer_token_file: /etc/prometheus/secrets/metrics_bearer_token
     static_configs:
       - targets: ['spglobalv1-landing:3000']
     metrics_path: '/metrics'

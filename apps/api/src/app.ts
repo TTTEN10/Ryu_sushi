@@ -25,6 +25,7 @@ import { sanitizeMiddleware } from "./middleware/sanitize";
 import { rateLimitMiddleware } from "./lib/ratelimit";
 import { metricsMiddleware } from "./middleware/metrics";
 import { getMetrics } from "./lib/metrics";
+import { requireMetricsAuth } from "./middleware/metrics-auth";
 
 // Request ID tracking (must be before other middleware)
 import { requestIdMiddleware } from "./middleware/request-id";
@@ -166,7 +167,7 @@ export function createApp() {
   app.get("/healthz", (_req, res) => res.send("ok"));
   app.get("/readyz", (_req, res) => res.send("ready"));
 
-  app.get("/metrics", async (_req, res) => {
+  app.get("/metrics", requireMetricsAuth, async (_req, res) => {
     try {
       const metrics = await getMetrics();
       res.set("Content-Type", "text/plain; version=0.0.4");

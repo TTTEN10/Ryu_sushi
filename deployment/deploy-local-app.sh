@@ -51,6 +51,7 @@ log "Materializing stack in ${LOCAL_STACK_DIR}"
 
 [[ -n "${JWT_SECRET}" ]] || die "JWT_SECRET must be set in repo .env for wallet auth (Node API)"
 [[ -n "${ADMIN_SECRET}" ]] || die "ADMIN_SECRET must be set in repo .env for Node API"
+[[ -n "${METRICS_SECRET}" ]] || die "METRICS_SECRET must be set in repo .env for Node API (/metrics auth)"
 NODE_API_DID_BACKEND_SIGNER="${DID_BACKEND_SIGNER_PRIVATE_KEY:-}"
 [[ -n "${NODE_API_DID_BACKEND_SIGNER}" ]] || die "DID_BACKEND_SIGNER_PRIVATE_KEY must be set in repo .env for Node API"
 ADMIN_SECRET="${ADMIN_SECRET:-}"
@@ -149,6 +150,15 @@ cat > "${LOCAL_STACK_DIR}/Caddyfile" <<EOF
   handle /beta/chat/completions* {
     reverse_proxy node-api:3001
   }
+  handle /api/admin/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/rag/* {
+    reverse_proxy node-api:3001
+  }
+  handle /metrics {
+    reverse_proxy node-api:3001
+  }
   handle /api/analytics/* {
     reverse_proxy node-api:3001
   }
@@ -180,6 +190,8 @@ $(if [[ "${APP_ENABLE_POSTGRES}" == "1" ]]; then echo "    depends_on:
       PORT: "3001"
       JWT_SECRET: "${JWT_SECRET}"
       ADMIN_SECRET: "${ADMIN_SECRET}"
+      METRICS_SECRET: "${METRICS_SECRET}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379/0}"
       FRONTEND_URL: "${NODE_API_FRONTEND_URL}"
       SIWE_DOMAIN: "${SIWE_DOMAIN}"
       SIWE_URI: "${SIWE_URI}"

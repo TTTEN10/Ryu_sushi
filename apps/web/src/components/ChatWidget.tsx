@@ -562,6 +562,8 @@ export default function ChatWidget() {
         content: '',
         timestamp: new Date(),
       };
+      // Reset the ref for this message
+      assistantMessageAddedRef.current = false;
 
       const persistAfterStream = async () => {
         // Synchronous guard to prevent race condition when both [DONE] and event:done arrive
@@ -573,23 +575,9 @@ export default function ChatWidget() {
         if (assistantMessage.content.trim().length > 0) {
           recordFirstReplyReceived();
         }
-        // Message is already being added during streaming via delta.content updates.
-        // Just ensure the final message is in state with complete content.
-        // Use a single atomic update to prevent duplicates.
-        setMessages((prev) => {
-          // First, check if this exact message already exists anywhere in the array
-          const existingIndex = prev.findIndex(
-            (m) => m.id === assistantMessage.id && m.role === 'assistant'
-          );
-          if (existingIndex !== -1) {
-            // Update the existing one in place - this is the normal path
-            const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
-            return updated;
-          }
-          // Fallback: add if somehow missing (shouldn't happen in normal flow)
-          return [...prev, { ...assistantMessage, encrypted: false }];
-        });
+        // CRITICAL FIX: Message is ALREADY in state from streaming updates.
+        // Do NOT add/update here - the streaming path already handles it.
+        // Just show the save button.
 
         // Show manual save button after 3 seconds (for authenticated users with DID)
         if (!isGuest && signer && wallet && encryptedKey) {
@@ -627,7 +615,7 @@ export default function ChatWidget() {
                 setMessages((prev) => {
                   const lastMsg = prev[prev.length - 1];
                   if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
-                    // Update existing streaming message in place
+                    // Update existing streaming message in place - this is the normal path
                     return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
                   }
                   // First chunk - add the message
@@ -635,7 +623,6 @@ export default function ChatWidget() {
                 });
               }
               // Don't call persistAfterStream on finish_reason - it will be called on [DONE] or event:done
-              // Calling it here causes duplication since message is already being streamed
 
               if (currentEvent === 'token') {
                 // Legacy event format: event: token with data.token
@@ -644,8 +631,10 @@ export default function ChatWidget() {
                 setMessages((prev) => {
                   const lastMsg = prev[prev.length - 1];
                   if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
+                    // Update existing streaming message in place - this is the normal path
                     return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
                   }
+                  // First chunk - add the message
                   return [...prev, { ...assistantMessage, encrypted: false }];
                 });
               } else if (currentEvent === 'metadata') {

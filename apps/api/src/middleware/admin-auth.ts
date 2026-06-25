@@ -8,6 +8,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import logger from '../lib/logger';
+import { extractTokenFromRequest } from '../lib/session';
 import { AuthenticatedRequest } from './auth';
 
 /**
@@ -26,11 +27,7 @@ function getAdminApiKey(req: Request): string | null {
 }
 
 function getWalletToken(req: Request): string | undefined {
-  return (
-    req.headers['authorization']?.replace('Bearer ', '') ||
-    req.cookies?.token ||
-    (req.headers['x-wallet-token'] as string)
-  );
+  return extractTokenFromRequest(req) || (req.headers['x-wallet-token'] as string) || undefined;
 }
 
 async function tryAdminWalletAuth(req: AdminRequest): Promise<boolean> {

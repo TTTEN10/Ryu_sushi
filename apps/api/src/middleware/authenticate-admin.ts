@@ -170,7 +170,7 @@ function logAdminAccessAttempt(
  * but marks them for downstream handlers to check
  */
 export function optionalAuthenticateAdmin(
-  req: Request,
+  req: AuthenticatedAdminRequest,
   res: Response,
   next: NextFunction
 ): void {

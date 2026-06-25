@@ -115,6 +115,7 @@ if [[ -f "${REPO_ROOT}/.env" ]]; then
 fi
 JWT_SECRET="${JWT_SECRET:-}"
 ADMIN_SECRET="${ADMIN_SECRET:-}"
+METRICS_SECRET="${METRICS_SECRET:-}"
 IP_SALT="${IP_SALT:-}"
 IP_HASHING_ENABLED="${IP_HASHING_ENABLED:-true}"
 if [[ "${APP_DOMAIN}" == www.* ]]; then
@@ -497,7 +498,11 @@ else
   [[ -f "${NODE_API_DOCKERFILE}" ]] || die "Missing ${NODE_API_DOCKERFILE}"
   [[ -n "${JWT_SECRET}" ]] || die "JWT_SECRET must be set in repo .env for Node API (wallet auth on production)"
   [[ -n "${ADMIN_SECRET}" ]] || die "ADMIN_SECRET must be set in repo .env for Node API (admin auth + production startup guard)"
+  [[ -n "${METRICS_SECRET}" ]] || die "METRICS_SECRET must be set in repo .env for Node API (Prometheus /metrics auth)"
   [[ -n "${NODE_API_DID_BACKEND_SIGNER}" ]] || die "DID_BACKEND_SIGNER_PRIVATE_KEY must be set in repo .env for Node API (sponsored DID mint)"
+  log "STEP 5a-build: npm run build:api (Node API dist for Docker)"
+  (cd "${REPO_ROOT}" && npm run build:api) || die "npm run build:api failed"
+  [[ -d "${REPO_ROOT}/apps/api/dist" ]] || die "apps/api/dist missing after build:api"
   log "STEP 5a-node: Sync monorepo node-api build context -> ${APP_IP}:${APP_BASE_DIR}/node-api-src"
   run_ssh "${APP_IP}" "bash -lc 'mkdir -p ${APP_BASE_DIR}/node-api-src && rm -rf ${APP_BASE_DIR}/node-api-src/*'"
   COPYFILE_DISABLE=1 tar -C "${REPO_ROOT}" -cf - \
@@ -544,6 +549,7 @@ services:
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_SECRET=${ADMIN_SECRET}
+      - METRICS_SECRET=${METRICS_SECRET}
       - FRONTEND_URL=${NODE_API_FRONTEND_URL}
       - SIWE_DOMAIN=${SIWE_DOMAIN}
       - SIWE_URI=${SIWE_URI}
@@ -639,6 +645,15 @@ ${CADDY_SITE_NAMES} {
   handle /beta/chat/completions* {
     reverse_proxy node-api:3001
   }
+  handle /api/admin/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/rag/* {
+    reverse_proxy node-api:3001
+  }
+  handle /metrics {
+    reverse_proxy node-api:3001
+  }
   handle /api/analytics/* {
     reverse_proxy node-api:3001
   }
@@ -682,6 +697,15 @@ http://${APP_IP} {
     reverse_proxy node-api:3001
   }
   handle /beta/chat/completions* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/admin/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/rag/* {
+    reverse_proxy node-api:3001
+  }
+  handle /metrics {
     reverse_proxy node-api:3001
   }
   handle /api/analytics/* {

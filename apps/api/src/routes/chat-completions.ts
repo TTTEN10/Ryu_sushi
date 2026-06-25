@@ -4,8 +4,9 @@ import logger from '../lib/logger';
 import { optionalAuthenticateWallet, AuthenticatedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { aiGatewayService, ChatCompletionRequest } from '../lib/ai-gateway.service';
-import { chatRateLimitMiddleware } from '../lib/ratelimit';
+import { chatRateLimitMiddleware, guestChatMinuteRateLimitMiddleware } from '../lib/ratelimit';
 import { optionalQuotaMiddleware } from '../middleware/quota';
+import { guestChatQuotaMiddleware } from '../middleware/guest-quota';
 import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { priceOracleService } from '../lib/price-oracle.service';
 import { enhanceWithRAG } from '../lib/chat-rag-context';
@@ -40,6 +41,8 @@ export function mountChatCompletions(router: Router, path: string = '/completion
     path,
     chatRateLimitMiddleware,
     optionalAuthenticateWallet,
+    guestChatMinuteRateLimitMiddleware,
+    guestChatQuotaMiddleware,
     chatConcurrencyMiddleware,
     optionalQuotaMiddleware,
     validate(chatCompletionSchema),

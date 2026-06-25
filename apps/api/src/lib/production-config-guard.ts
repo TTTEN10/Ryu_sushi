@@ -79,6 +79,7 @@ export function validateSecretsOrThrow(): void {
 
   assertStrongSecret('JWT_SECRET', process.env.JWT_SECRET);
   assertStrongSecret('ADMIN_SECRET', process.env.ADMIN_SECRET);
+  assertStrongSecret('METRICS_SECRET', process.env.METRICS_SECRET);
   if (process.env.IP_HASHING_ENABLED === 'true') {
     assertStrongSecret('IP_SALT', process.env.IP_SALT);
   }
