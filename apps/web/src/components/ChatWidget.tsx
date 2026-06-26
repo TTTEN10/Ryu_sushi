@@ -103,6 +103,8 @@ export default function ChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const concurrencyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
+  // Track the current streaming assistant message ID to prevent duplicates
+  const streamingAssistantIdRef = useRef<string | null>(null);
 
   const isGuest = userMode === 'guest';
 
@@ -419,7 +421,10 @@ export default function ChatWidget() {
   // Authenticated: wallet-derived encryption + saveChat + quota path.
   const handleSend = async (contentOverride?: string) => {
     const trimmed = (typeof contentOverride === 'string' ? contentOverride : input).trim();
-    if (!trimmed || isStreaming || isSending || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
+    // Prevent double-send: check isStreaming/isSending first
+    if (!trimmed || isStreaming || isSending || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) {
+      return;
+    }
 
     // Authenticated users: require encryption to be ready
     if (!isGuest) {
@@ -556,12 +561,10 @@ export default function ChatWidget() {
 
       let buffer = '';
       let currentEvent = '';
-      let assistantMessage: Message = {
-        id: `msg-${Date.now()}-assistant`,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
+      const assistantMessageId = `msg-${Date.now()}-assistant`;
+      let assistantContent = '';
+      // Track that we've started streaming this message
+      streamingAssistantIdRef.current = assistantMessageId;
 
       const persistAfterStream = async () => {
         // Synchronous guard to prevent race condition when both [DONE] and event:done arrive
@@ -570,11 +573,11 @@ export default function ChatWidget() {
 
         setIsStreaming(false);
         setSendPhase('idle');
-        if (assistantMessage.content.trim().length > 0) {
+        if (assistantContent.trim().length > 0) {
           recordFirstReplyReceived();
         }
-        // CRITICAL FIX: Message is ALREADY in state from streaming updates.
-        // Do NOT add/update here - the streaming path already handles it.
+        // Clear the streaming ID
+        streamingAssistantIdRef.current = null;
         // Just show the save button.
 
         // Show manual save button after 3 seconds (for authenticated users with DID)
@@ -603,37 +606,49 @@ export default function ChatWidget() {
                 await persistAfterStream();
                 continue;
               }
+              // Skip processing if stream already finalized (prevents double-processing)
+              if (streamFinalized) {
+                continue;
+              }
               const data = JSON.parse(raw);
+
+              let tokenContent: string | null = null;
 
               // OpenAI-compatible SSE (chat.completion.chunk): no "event:" lines
               // Check for delta.content ONLY when there's no explicit event type (default OpenAI format)
               const delta = data?.choices?.[0]?.delta as { content?: string } | undefined;
               if (delta?.content && !currentEvent) {
-                assistantMessage.content += delta.content;
-                setMessages((prev) => {
-                  const lastMsg = prev[prev.length - 1];
-                  if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
-                    // Update existing streaming message in place - this is the normal path
-                    return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
-                  }
-                  // First chunk - add the message
-                  return [...prev, { ...assistantMessage, encrypted: false }];
-                });
+                tokenContent = delta.content;
               }
-              // Don't call persistAfterStream on finish_reason - it will be called on [DONE] or event:done
 
               if (currentEvent === 'token') {
                 // Legacy event format: event: token with data.token
-                // Note: This is mutually exclusive with the delta.content path above
-                assistantMessage.content += data.token;
+                tokenContent = data.token;
+              }
+
+              // Process token content if we have any
+              if (tokenContent) {
+                assistantContent += tokenContent;
                 setMessages((prev) => {
                   const lastMsg = prev[prev.length - 1];
-                  if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessage.id) {
-                    // Update existing streaming message in place - this is the normal path
-                    return [...prev.slice(0, -1), { ...lastMsg, content: assistantMessage.content }];
+                  // Check if the last message is our streaming assistant message
+                  if (lastMsg?.role === 'assistant' && lastMsg.id === assistantMessageId) {
+                    // Update existing streaming message in place
+                    return [...prev.slice(0, -1), { ...lastMsg, content: assistantContent }];
                   }
                   // First chunk - add the message
-                  return [...prev, { ...assistantMessage, encrypted: false }];
+                  // Dedup check: skip if last message has identical content (prevents double-response bug)
+                  // This can happen if the stream is processed twice or there's a race condition
+                  if (lastMsg?.role === 'assistant' && lastMsg.content === assistantContent && assistantContent.trim().length > 0) {
+                    return prev; // Skip duplicate
+                  }
+                  return [...prev, {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: assistantContent,
+                    timestamp: new Date(),
+                    encrypted: false,
+                  }];
                 });
               } else if (currentEvent === 'metadata') {
                 // Local mock stream advertises itself via metadata.
@@ -663,17 +678,23 @@ export default function ChatWidget() {
           }
         }
       }
+      // Stream ended naturally - ensure persistAfterStream is called
+      if (!streamFinalized) {
+        await persistAfterStream();
+      }
     } catch (error: any) {
+      // Clear streaming ID on error
+      streamingAssistantIdRef.current = null;
       if (error.name === 'AbortError') {
         console.log('Request aborted');
       } else {
-        const errorMsg = error instanceof Error 
-          ? error.message 
+        const errorMsg = error instanceof Error
+          ? error.message
           : getActionableErrorMessage(error);
-        
+
         setSendPhase('error');
         showToast('error', errorMsg);
-        
+
         setMessages((prev) => [
           ...prev,
           {
@@ -686,6 +707,8 @@ export default function ChatWidget() {
         ]);
       }
     } finally {
+      // Clear streaming ID in finally block
+      streamingAssistantIdRef.current = null;
       if (!streamFinalized) {
         setIsStreaming(false);
       }
