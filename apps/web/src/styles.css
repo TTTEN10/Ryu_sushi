@@ -111,6 +111,14 @@
     @apply bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white font-titillium font-semibold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 active:scale-95 transform;
     position: relative;
   }
+
+  /* Base layer sets dark text on all spans; keep CTA label/icon white in light mode */
+  .btn-primary span,
+  .btn-primary svg,
+  button.text-white span,
+  button.text-white svg {
+    color: inherit;
+  }
   
   .btn-primary:disabled {
     @apply opacity-50 cursor-not-allowed;

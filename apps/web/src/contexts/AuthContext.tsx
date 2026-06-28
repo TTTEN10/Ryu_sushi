@@ -299,41 +299,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return;
     }
 
-    try {
-      const session = await fetchWalletSession();
-      if (!session?.isVerified) {
-        setAuthState({
-          walletAddress: wallet.address,
-          network: wallet.chainId,
-          isVerified: false,
-          didStatus: 'none',
-          didInfo: null,
-          isLoading: false,
-          error: null,
-        });
-        return;
-      }
-      await checkDID({ skipVerifiedCheck: true });
-      touchWalletActivity();
-      setAuthState((prev) => ({
-        ...prev,
-        walletAddress: session.walletAddress,
-        network: session.chainId,
-        isVerified: true,
-      }));
-    } catch {
-      clearLegacyWalletToken();
-      setAuthState({
-        walletAddress: wallet.address,
-        network: wallet.chainId,
-        isVerified: false,
-        didStatus: 'none',
-        didInfo: null,
-        isLoading: false,
-        error: null,
-      });
-    }
-  }, [wallet, checkDID]);
+    // SECURITY: Require re-verification after page refresh (banking-app style)
+    // Do NOT automatically restore session from cookie - user must sign SIWE again
+    setAuthState({
+      walletAddress: wallet.address,
+      network: wallet.chainId,
+      isVerified: false,
+      didStatus: 'none',
+      didInfo: null,
+      isLoading: false,
+      error: null,
+    });
+  }, [wallet]);
 
   useEffect(() => {
     if (wallet) {

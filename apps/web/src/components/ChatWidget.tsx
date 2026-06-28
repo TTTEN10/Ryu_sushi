@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
-import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -95,8 +95,11 @@ export default function ChatWidget() {
   // Manual save state: track pending save after AI response
   const [pendingDidSave, setPendingDidSave] = useState<{
     visible: boolean;
-    saveResult: null;
+    saveResult: 'success' | 'cancelled' | 'error' | null;
   }>({ visible: false, saveResult: null });
+
+  // Track if current chat has been saved to DID
+  const [chatIsSaved, setChatIsSaved] = useState(false);
   const [isSavingToDid, setIsSavingToDid] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -324,6 +327,7 @@ export default function ChatWidget() {
       );
 
       setPendingDidSave({ visible: false, saveResult: null });
+      setChatIsSaved(true); // Mark chat as saved
     } catch (err: any) {
       console.error('Error saving to DID:', err);
       if (err.code === 'ACTION_REJECTED') {
@@ -434,6 +438,8 @@ export default function ChatWidget() {
               encrypted: false,
             }))
           );
+          // Loaded chat is considered "saved" (it came from backend)
+          setChatIsSaved(raw.length > 0);
           setIsLoadingHistory(false);
         })
         .catch((err) => {
@@ -509,6 +515,8 @@ export default function ChatWidget() {
       recordFirstMessageSent();
 
       // Don't save intermediate messages - only save when user clicks "Save history chat on DID"
+      // Mark chat as unsaved since user is adding new content
+      setChatIsSaved(false);
 
       setInput('');
       setIsStreaming(true);
@@ -921,7 +929,7 @@ export default function ChatWidget() {
         )}
 
         {/* Manual Save to DID Button - appears 3 seconds after AI response */}
-        {pendingDidSave.visible && !isSavingToDid && (
+        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === null && (
           <div className="mt-4 flex justify-center">
             <button
               onClick={handleSaveToDid}
@@ -934,12 +942,52 @@ export default function ChatWidget() {
           </div>
         )}
 
+        {/* Save Success Message - replaces button after successful save */}
+        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === 'success' && (
+          <div className="mt-4 flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-300 font-medium">
+              <CheckCircle className="w-4 h-4" />
+              <span>Chat saved to DID</span>
+            </div>
+          </div>
+        )}
+
+        {/* Save Cancelled Message */}
+        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === 'cancelled' && (
+          <div className="mt-4 flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
+              <AlertCircle className="w-4 h-4" />
+              <span>Save cancelled - you can save later from DID settings</span>
+            </div>
+          </div>
+        )}
+
+        {/* Save Error Message */}
+        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === 'error' && (
+          <div className="mt-4 flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300">
+              <AlertCircle className="w-4 h-4" />
+              <span>Failed to save - please try again</span>
+            </div>
+          </div>
+        )}
+
         {/* Saving State */}
         {isSavingToDid && (
           <div className="mt-4 flex justify-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-300">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Saving to DID...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Unsaved Changes Indicator */}
+        {!pendingDidSave.visible && messages.length > 0 && !chatIsSaved && !isGuest && authState.isVerified && (
+          <div className="mt-4 flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
+              <AlertCircle className="w-4 h-4" />
+              <span>Unsaved changes - click "Save session in ID token" when response appears</span>
             </div>
           </div>
         )}
