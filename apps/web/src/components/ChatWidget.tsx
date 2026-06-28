@@ -177,11 +177,41 @@ export default function ChatWidget() {
     });
   }, []);
 
+  // Deduplicate messages: keep only the last occurrence of each assistant message ID
+  const deduplicatedMessages = useMemo(() => {
+    const result = [];
+    const seenAssistantIds = new Map<string, number>();
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.role === 'assistant') {
+        // Track the last index for each assistant message ID
+        seenAssistantIds.set(msg.id, i);
+      }
+    }
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.role === 'assistant') {
+        // Only include if this is the last occurrence of this ID
+        if (seenAssistantIds.get(msg.id) === i) {
+          result.push(msg);
+        } else {
+          console.log('[ChatWidget] Filtered out duplicate assistant message:', msg.id);
+        }
+      } else {
+        result.push(msg);
+      }
+    }
+
+    return result;
+  }, [messages]);
+
   const showAssistantTyping = useMemo(() => {
     if (!isSending && !isStreaming) return false;
-    const last = messages[messages.length - 1];
+    const last = deduplicatedMessages[deduplicatedMessages.length - 1];
     return !last || last.role !== 'assistant' || last.content.length === 0;
-  }, [isSending, isStreaming, messages]);
+  }, [isSending, isStreaming, deduplicatedMessages]);
 
   const handleCreateDID = useCallback(async () => {
     if (!wallet) {
@@ -566,6 +596,7 @@ export default function ChatWidget() {
       const persistAfterStream = async () => {
         if (streamFinalized) return;
         streamFinalized = true;
+        console.log('[ChatWidget] persistAfterStream called, final content length:', assistantMessage.content.length);
         setIsStreaming(false);
         setSendPhase('idle');
         if (assistantMessage.content.trim().length > 0) {
@@ -598,6 +629,7 @@ export default function ChatWidget() {
             try {
               const raw = line.substring(6).trim();
               if (raw === '[DONE]') {
+                console.log('[ChatWidget] Received [DONE], finalizing stream');
                 await persistAfterStream();
                 continue;
               }
@@ -609,16 +641,30 @@ export default function ChatWidget() {
               if (delta?.content && !currentEvent) {
                 assistantMessage.content += delta.content;
                 setMessages((prev) => {
-                  // Find the assistant message ANYWHERE in the array to prevent duplicates
-                  const existingIndex = prev.findIndex(
+                  // DEFENSIVE: Filter out any duplicate assistant messages with same ID
+                  const filtered = prev.filter((m, idx) => {
+                    if (m.role === 'assistant' && m.id === assistantMessage.id) {
+                      // Keep only the LAST occurrence of our streaming message
+                      const laterIndex = prev.findIndex((m2, idx2) =>
+                        idx2 > idx && m2.role === 'assistant' && m2.id === assistantMessage.id
+                      );
+                      return laterIndex === -1;
+                    }
+                    return true;
+                  });
+
+                  // Now find if our message exists in the filtered array
+                  const existingIndex = filtered.findIndex(
                     (m) => m.id === assistantMessage.id && m.role === 'assistant'
                   );
                   if (existingIndex !== -1) {
-                    const updated = [...prev];
+                    const updated = [...filtered];
                     updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
+                    console.log('[ChatWidget] Updated streaming message, length:', assistantMessage.content.length);
                     return updated;
                   }
-                  return [...prev, assistantMessage];
+                  console.log('[ChatWidget] Adding new streaming message');
+                  return [...filtered, assistantMessage];
                 });
               }
               // Don't call persistAfterStream on finish_reason - it will be called on [DONE] or event:done
@@ -627,16 +673,28 @@ export default function ChatWidget() {
                 // Legacy event format: event: token with data.token
                 assistantMessage.content += data.token;
                 setMessages((prev) => {
-                  // Find the assistant message ANYWHERE in the array to prevent duplicates
-                  const existingIndex = prev.findIndex(
+                  // DEFENSIVE: Filter out any duplicate assistant messages with same ID
+                  const filtered = prev.filter((m, idx) => {
+                    if (m.role === 'assistant' && m.id === assistantMessage.id) {
+                      // Keep only the LAST occurrence of our streaming message
+                      const laterIndex = prev.findIndex((m2, idx2) =>
+                        idx2 > idx && m2.role === 'assistant' && m2.id === assistantMessage.id
+                      );
+                      return laterIndex === -1;
+                    }
+                    return true;
+                  });
+
+                  // Now find if our message exists in the filtered array
+                  const existingIndex = filtered.findIndex(
                     (m) => m.id === assistantMessage.id && m.role === 'assistant'
                   );
                   if (existingIndex !== -1) {
-                    const updated = [...prev];
+                    const updated = [...filtered];
                     updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
                     return updated;
                   }
-                  return [...prev, assistantMessage];
+                  return [...filtered, assistantMessage];
                 });
               } else if (currentEvent === 'metadata') {
                 // Local mock stream advertises itself via metadata.
@@ -840,7 +898,7 @@ export default function ChatWidget() {
             ) : null}
           </div>
         ) : (
-          messages.map((message) => (
+          deduplicatedMessages.map((message) => (
             <MessageBubble
               key={message.id}
               message={message}
