@@ -23,7 +23,7 @@ Follow these steps to reach **first value**: a private chat with Dr. Safe using 
 
 ### 3. Create your Safe ID Token
 
-- If you don’t have a DID yet, you’ll see **“Create my Safe ID Token”** (or similar).
+- If you do not have an ID token yet, you will see **"Create my Safe ID Token"** (or similar).
 - Click it. A **soulbound identity token** is minted on-chain (Sepolia). You may need a small amount of test ETH for gas.
 - When you see **“Identity active”** (and a token ID), you’re done with this step.
 
@@ -31,7 +31,7 @@ Follow these steps to reach **first value**: a private chat with Dr. Safe using 
 
 - Open the **chat** (e.g. from the main UI or chat widget).
 - Send a first message to **Dr. Safe**. Your messages are encrypted; the server does not use your chats to train models.
-- Once you’ve sent at least one message and received a reply, you’ve reached **activation**: DID + first chat.
+- Once you have sent at least one message and received a reply, you have reached **activation**: ID token + first chat.
 
 ### 5. (Not available during theBeta) Subscribe for premium
 

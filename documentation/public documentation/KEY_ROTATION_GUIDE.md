@@ -25,7 +25,7 @@ You might want to rotate your encryption key in these situations:
 2. Your existing chat history is decrypted with the old key
 3. All chat data is re-encrypted with the new key
 4. The new key is wrapped (encrypted) with your wallet signature
-5. The wrapped key is stored in your DID contract on-chain
+5. The wrapped key is stored in your ID token on-chain
 6. The re-encrypted chat blob is saved to the database
 
 **Important:** After rotation, the old key can no longer decrypt your chat data. Only the new key works.
@@ -37,30 +37,30 @@ You might want to rotate your encryption key in these situations:
 ### How to rotate your key
 
 1. **Open SafePsy** and connect your wallet
-2. **Navigate to your DID Profile** page
+2. **Navigate to My ID token** (`/profile`)
 3. **Scroll to "Chat Data Management"** section
 4. **Click "Rotate Key"**
 5. **Review the confirmation dialog** — understand what will happen
 6. **Click "Confirm Key Rotation"**
-7. **Wait for completion** — your wallet may ask you to sign a transaction to update the DID contract
+7. **Wait for completion** — your wallet may ask you to sign a transaction to update your ID token on-chain
 
 ### What you need
 
-- **Your wallet** — You must have access to the same wallet that owns your DID
+- **Your wallet** — You must have access to the same wallet that owns your ID token
 - **Existing chat data** — Key rotation requires chat history to re-encrypt
-- **Network connection** — Both the API and blockchain (for DID update) must be accessible
+- **Network connection** — Both the API and blockchain (for ID token update) must be accessible
 
 ### After rotation
 
 - Your chat history remains intact — just re-encrypted with the new key
-- The on-chain DID metadata is updated with the new wrapped key
+- The on-chain ID token metadata is updated with the new wrapped key
 - Your local session immediately uses the new key for future messages
 - The rotation event is logged in the security audit log
 
 ### Important notes
 
 - **Rotation is irreversible** — You cannot "go back" to the old key
-- **On-chain metadata is permanent** — The old wrapped key remains on-chain (as part of DID history), but the active key is updated
+- **On-chain metadata is permanent** — The old wrapped key remains on-chain (as part of ID token history), but the active key is updated
 - **No downtime** — You can continue chatting immediately after rotation
 - **Rate limited** — Key rotation is limited to 5 times per hour to prevent abuse
 
@@ -171,7 +171,7 @@ const decoded = new TextDecoder().decode(bytes).replace(/\0/g, '').trim();
 
 ### Security Considerations
 
-1. **Atomic operation** — The rotation should succeed or fail atomically. If the API save succeeds but the DID update fails, the user still has a valid rotation (just needs to retry DID update).
+1. **Atomic operation** — The rotation should succeed or fail atomically. If the API save succeeds but the ID token update fails, the user still has a valid rotation (just needs to retry the ID token update).
 
 2. **Verification** — After rotation, the frontend should verify that decryption works with the new key before clearing the old key from memory.
 
@@ -195,12 +195,12 @@ This error occurs if you don't have any saved chat history. Key rotation require
 
 **Solution:** Send some messages in your chat first, then try rotation again.
 
-### "Failed to update DID contract"
+### "Failed to update ID token on-chain"
 
-The API rotation succeeded, but the on-chain DID update failed (e.g., network congestion, gas issues).
+The API rotation succeeded, but the on-chain ID token update failed (e.g., network congestion, gas issues).
 
-**Solution:** Your chat is still protected with the new key. You can manually update the DID contract by:
-1. Going to your DID Profile
+**Solution:** Your chat is still protected with the new key. You can manually update your ID token by:
+1. Going to **My ID token** (`/profile`)
 2. Clicking "Refresh" to reload your profile
 3. The app should detect the mismatch and offer to update
 

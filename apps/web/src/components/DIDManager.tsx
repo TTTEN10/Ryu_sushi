@@ -50,7 +50,7 @@ export default function DIDManager() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load DID information');
+        throw new Error('Failed to load ID token information');
       }
 
       const data = await response.json();
@@ -61,11 +61,11 @@ export default function DIDManager() {
           checkDID();
         }
       } else {
-        throw new Error(data.message || 'Failed to load DID information');
+        throw new Error(data.message || 'Failed to load ID token information');
       }
     } catch (err: any) {
       console.error('Error loading DID info:', err);
-      setError(err.message || 'Failed to load DID information');
+      setError(err.message || 'Failed to load ID token information');
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +93,7 @@ export default function DIDManager() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create DID');
+        throw new Error(errorData.message || 'Failed to create ID token');
       }
 
       const data = await response.json();
@@ -101,19 +101,19 @@ export default function DIDManager() {
         const sponsored = data.data?.isSponsored ?? false;
         setSuccess(
           sponsored
-            ? 'DID created successfully! Gas was sponsored by the backend.'
-            : 'DID created successfully!'
+            ? 'ID token created successfully! Gas was sponsored by the backend.'
+            : 'ID token created successfully!'
         );
         // Reload DID info
         await loadDIDInfo();
         // Update auth context
         await checkDID();
       } else {
-        throw new Error(data.message || 'Failed to create DID');
+        throw new Error(data.message || 'Failed to create ID token');
       }
     } catch (err: any) {
       console.error('Error creating DID:', err);
-      setError(err.message || 'Failed to create DID');
+      setError(err.message || 'Failed to create ID token');
     } finally {
       setIsCreating(false);
     }
@@ -135,7 +135,7 @@ export default function DIDManager() {
       <div className="p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <p className="text-sm">Loading DID information...</p>
+          <p className="text-sm">Loading ID token information...</p>
         </div>
       </div>
     );

@@ -324,18 +324,18 @@ export async function postDidCheck(): Promise<DidCheckResponse | 'unauthorized'>
   }
 
   if (!response.ok) {
-    let msg = 'Failed to check DID status';
+    let msg = 'Failed to check ID token status';
     let isBackendConfigError = false;
     try {
       const err = (await response.json()) as { message?: string; error?: string };
       if (err.message) msg = err.message;
       else if (response.status === 503) {
-        msg = 'DID service unavailable on server — backend configuration missing (RPC_URL, DID_REGISTRY_ADDRESS)';
+        msg = 'ID token service unavailable on server — backend configuration missing (RPC_URL, DID_REGISTRY_ADDRESS)';
         isBackendConfigError = true;
       }
     } catch {
       if (response.status === 503) {
-        msg = 'DID service unavailable on server — backend configuration missing (RPC_URL, DID_REGISTRY_ADDRESS)';
+        msg = 'ID token service unavailable on server — backend configuration missing (RPC_URL, DID_REGISTRY_ADDRESS)';
         isBackendConfigError = true;
       }
     }

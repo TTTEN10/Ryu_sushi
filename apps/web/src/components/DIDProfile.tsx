@@ -91,7 +91,7 @@ export default function DIDProfile() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load DID profile');
+        throw new Error('Failed to load ID token profile');
       }
 
       const data = await response.json();
@@ -101,11 +101,11 @@ export default function DIDProfile() {
         // For now, we'll show empty pointers array
         setPointers([]);
       } else {
-        throw new Error(data.message || 'Failed to load DID profile');
+        throw new Error(data.message || 'Failed to load ID token profile');
       }
     } catch (err: any) {
       console.error('Error loading DID profile:', err);
-      setError(err.message || 'Failed to load DID profile');
+      setError(err.message || 'Failed to load ID token profile');
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +131,7 @@ export default function DIDProfile() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to export DID data');
+        throw new Error('Failed to export ID token data');
       }
 
       const data = await response.json();
@@ -148,14 +148,14 @@ export default function DIDProfile() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        showToast('success', 'DID profile exported successfully');
+        showToast('success', 'ID token profile exported successfully');
       } else {
-        throw new Error(data.message || 'Failed to export DID data');
+        throw new Error(data.message || 'Failed to export ID token data');
       }
     } catch (err: any) {
       console.error('Error exporting DID:', err);
-      setError(err.message || 'Failed to export DID data');
-      showToast('error', err.message || 'Failed to export DID data');
+      setError(err.message || 'Failed to export ID token data');
+      showToast('error', err.message || 'Failed to export ID token data');
     } finally {
       setIsExporting(false);
     }
@@ -296,7 +296,7 @@ export default function DIDProfile() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to revoke DID');
+        throw new Error(errorData.message || 'Failed to revoke ID token');
       }
 
       const data = await response.json();
@@ -308,12 +308,12 @@ export default function DIDProfile() {
         // Reload profile data
         await loadProfileData();
       } else {
-        throw new Error(data.message || 'Failed to revoke DID');
+        throw new Error(data.message || 'Failed to revoke ID token');
       }
     } catch (err: any) {
       console.error('Error revoking DID:', err);
-      setError(err.message || 'Failed to revoke DID');
-      showToast('error', err.message || 'Failed to revoke DID');
+      setError(err.message || 'Failed to revoke ID token');
+      showToast('error', err.message || 'Failed to revoke ID token');
     } finally {
       setIsRevoking(false);
     }
@@ -388,7 +388,7 @@ export default function DIDProfile() {
       <div className="p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg">
         <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <p className="text-sm">Loading DID profile...</p>
+          <p className="text-sm">Loading ID token profile...</p>
         </div>
       </div>
     );
@@ -399,7 +399,7 @@ export default function DIDProfile() {
       <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
         <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
           <AlertTriangle className="w-5 h-5" />
-          <p className="text-sm font-medium">No DID found. Please create your DID identity first.</p>
+          <p className="text-sm font-medium">No ID token found. Please create your ID token first.</p>
         </div>
       </div>
     );
@@ -416,8 +416,8 @@ export default function DIDProfile() {
               <Shield className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">DID Profile</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Decentralized Identity</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">My ID token</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Wallet-linked identity</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -573,7 +573,7 @@ export default function DIDProfile() {
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Export DID</span>
+                <span>Export ID token</span>
               </>
             )}
           </button>
@@ -591,7 +591,7 @@ export default function DIDProfile() {
               ) : (
                 <>
                   <Trash2 className="w-4 h-4" />
-                  <span>Revoke DID</span>
+                  <span>Revoke ID token</span>
                 </>
               )}
             </button>
@@ -687,7 +687,7 @@ export default function DIDProfile() {
                 <ul className="text-xs text-orange-700 dark:text-orange-300 space-y-1 mb-3">
                   <li>• Your encrypted chat data will be permanently deleted from our servers</li>
                   <li>• This action cannot be undone</li>
-                  <li>• On-chain DID metadata (hashes) will remain but point to deleted data</li>
+                  <li>• On-chain ID token metadata (hashes) will remain but point to deleted data</li>
                   <li>• Export your chat first if you want to keep a backup</li>
                 </ul>
                 <div className="flex items-center gap-2">
@@ -718,13 +718,13 @@ export default function DIDProfile() {
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-2">
-                  Warning: Revoking your DID is permanent
+                  Warning: Revoking your ID token is permanent
                 </p>
                 <ul className="text-xs text-red-700 dark:text-red-300 space-y-1 mb-3">
-                  <li>• Your DID token will be burned (destroyed)</li>
-                  <li>• Your address will be permanently banned from receiving new DIDs</li>
+                  <li>• Your ID token will be burned (destroyed)</li>
+                  <li>• Your address will be permanently banned from receiving new ID tokens</li>
                   <li>• This action cannot be undone</li>
-                  <li>• You will lose access to all DID-associated features</li>
+                  <li>• You will lose access to all ID token features</li>
                 </ul>
                 <div className="flex items-center gap-2">
                   <button
@@ -759,7 +759,7 @@ export default function DIDProfile() {
                 <ul className="text-xs text-purple-700 dark:text-purple-300 space-y-1 mb-3">
                   <li>• A new encryption key will be generated</li>
                   <li>• Your chat history will be re-encrypted with the new key</li>
-                  <li>• The new key will be stored in your DID contract</li>
+                  <li>• The new key will be stored in your ID token on-chain</li>
                   <li>• This is useful if you suspect your key was compromised</li>
                 </ul>
                 <div className="flex items-center gap-2">

@@ -313,10 +313,10 @@ export default function ChatWidget() {
 
       // Validate metaBytes is not empty before sending transaction
       if (metaBytes.length === 0) {
-        throw new Error('Encrypted key metadata is empty - cannot save to DID');
+        throw new Error('Encrypted key metadata is empty - cannot save to ID token');
       }
 
-      showToast('info', 'Saving to DID contract...');
+      showToast('info', 'Saving chat in ID token');
       const receipt = await updateChatReference(signer, chatRef, metaBytes);
 
       showToast('success', 'Session saved to ID token!');
@@ -331,9 +331,9 @@ export default function ChatWidget() {
     } catch (err: any) {
       console.error('Error saving to DID:', err);
       if (err.code === 'ACTION_REJECTED') {
-        showToast('warning', 'Save cancelled - you can save later from DID settings.');
+        showToast('warning', 'Save cancelled - you can save later from My ID token.');
       } else {
-        showToast('error', err.message || 'Failed to save to DID');
+        showToast('error', err.message || 'Failed to save to ID token');
       }
     } finally {
       setIsSavingToDid(false);
@@ -814,7 +814,7 @@ export default function ChatWidget() {
             </div>
             <div className="space-y-4">
               <p className="text-sm text-body">
-                Your wallet is verified! Now create your <strong>Safe ID Token (DID)</strong> to:
+                Your wallet is verified! Now create your <strong>ID token</strong> to:
               </p>
               <ul className="space-y-2 text-sm text-body">
                 <li className="flex items-start gap-2">
@@ -933,7 +933,7 @@ export default function ChatWidget() {
           <div className="mt-4 flex justify-center">
             <button
               onClick={handleSaveToDid}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
               title="Save this conversation to your Safe ID Token on-chain"
             >
               <CheckCircle className="w-4 h-4" />
@@ -947,7 +947,7 @@ export default function ChatWidget() {
           <div className="mt-4 flex justify-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-300 font-medium">
               <CheckCircle className="w-4 h-4" />
-              <span>Chat saved to DID</span>
+              <span>Chat saved to ID token</span>
             </div>
           </div>
         )}
@@ -957,7 +957,7 @@ export default function ChatWidget() {
           <div className="mt-4 flex justify-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
               <AlertCircle className="w-4 h-4" />
-              <span>Save cancelled - you can save later from DID settings</span>
+              <span>Save cancelled - you can save later from My ID token</span>
             </div>
           </div>
         )}
@@ -977,7 +977,7 @@ export default function ChatWidget() {
           <div className="mt-4 flex justify-center">
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm text-gray-600 dark:text-gray-300">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Saving to DID...</span>
+              <span>Saving chat in ID token...</span>
             </div>
           </div>
         )}

@@ -31,9 +31,9 @@ Back up your **wallet seed phrase**, not a separate SafePsy password. A hardware
 Think of two locks:
 
 1. **Chat lock (DEK):** A random secret encrypts your full conversation before it is saved.
-2. **Wallet lock (KEK):** That random secret is itself encrypted using material derived from a **one-time wallet signature**, then stored on your DID on-chain.
+2. **Wallet lock (KEK):** That random secret is itself encrypted using material derived from a **one-time wallet signature**, then stored on your ID token on-chain.
 
-Saved chats live in SafePsy’s database as **ciphertext only**. The wrapped chat key lives in your DID’s **`encryptedKeyMetadata`** on-chain. Only your browser (or the mobile app) can unwrap the key and read the chat.
+Saved chats live in SafePsy’s database as **ciphertext only**. The wrapped chat key lives in your ID token’s **`encryptedKeyMetadata`** on-chain. Only your browser (or the mobile app) can unwrap the key and read the chat.
 
 When you talk to Dr. Safe, your device sends **readable message text** to our API over HTTPS so the AI can reply. That is separate from storage: we are **not** opening your saved ciphertext on the server to run the model.
 
@@ -103,7 +103,7 @@ So: **strong encryption at rest**, but **the server and LLM provider see message
 ### In plain terms
 
 - **Guest:** Try Dr. Safe without saving an encrypted history to your account. Messages disappear on refresh (in-memory only).
-- **Authenticated:** Connect wallet, sign in (SIWE), create or use a DID, then chat is encrypted and persisted.
+- **Authenticated:** Connect wallet, sign in (SIWE), create or use an ID token, then chat is encrypted and persisted.
 
 ### Technical detail
 
@@ -192,7 +192,7 @@ Inner `ivHex:ciphertextHex` is AES-256-GCM over the raw 32-byte DEK.
 
 1. Connect wallet on **Sepolia** (as required by the app today).
 2. Sign in (SIWE) to get a session.
-3. If you already have a DID with key metadata, the app loads and unwraps your DEK (using the signature stored on-chain).
+3. If you already have an ID token with key metadata, the app loads and unwraps your DEK (using the signature stored on-chain).
 4. If you are new, you sign the chat encryption message once when the DEK is created.
 5. Load: API returns ciphertext → browser decrypts → you see history.
 6. Chat: browser sends plaintext to AI → browser encrypts → save ciphertext.
@@ -256,11 +256,11 @@ If enabled in deployment, SafePsy can cache **AI reply text** in Redis keyed by 
 
 ---
 
-## 11. DID revocation: what it does and does not do
+## 11. ID token revocation: what it does and does not do
 
 ### In plain terms
 
-Revoking your DID is an **on-chain** action. It marks your identity token as revoked and is intended to stop **future** platform use tied to that DID. It does **not** erase ciphertext already in our database or bytes already on-chain.
+Revoking your ID token is an **on-chain** action. It marks your identity token as revoked and is intended to stop **future** platform use tied to that ID token. It does **not** erase ciphertext already in our database or bytes already on-chain.
 
 **Important:** Today, encrypted chat **save/load** endpoints authenticate your **wallet session** and do not automatically block revoked DIDs. Revocation is not a cryptographic wipe of stored chats. Export or delete chat data separately if you need off-chain removal. On-chain hashes and metadata remain immutable.
 
@@ -276,7 +276,7 @@ Revoking your DID is an **on-chain** action. It marks your identity token as rev
 
 ### In plain terms
 
-Use any device with your wallet. Each device loads the same wrapped DEK from your DID on-chain after you sign in. There is no SafePsy “key sync service”; the blockchain metadata is the sync point.
+Use any device with your wallet. Each device loads the same wrapped DEK from your ID token on-chain after you sign in. There is no SafePsy “key sync service”; the blockchain metadata is the sync point.
 
 ### Technical detail
 
@@ -320,7 +320,7 @@ Protect your seed phrase, prefer a hardware wallet, lock your device, sign out o
 
 **Sepolia testnet** today (`11155111`). The app prompts you to switch if needed.
 
-### What happens if I revoke my DID?
+### What happens if I revoke my ID token?
 
 On-chain revocation is permanent for that identity. Off-chain encrypted blobs may still exist until you delete them; chat APIs may still allow session-authenticated access until product policy adds explicit revocation gates.
 
@@ -379,7 +379,7 @@ Message roles and content (and system prompt). Not wallet or DID in `buildSaniti
 ### In plain terms
 
 1. **Wallet = access** to your encrypted history; no SafePsy recovery without it.
-2. **Saved chats** are ciphertext in our DB; **keys** are wallet-wrapped on your DID.
+2. **Saved chats** are ciphertext in our DB; **keys** are wallet-wrapped on your ID token.
 3. **Dr. Safe** needs plaintext each turn: your browser sends it; we do not decrypt the DB blob for AI.
 4. **Guests** do not get persistent encrypted storage.
 5. **Revocation** is on-chain identity lifecycle, not automatic deletion of off-chain ciphertext.

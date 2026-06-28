@@ -14,7 +14,11 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'Why is it different?',
-    a: 'SafePsy is different because identity is native to the experience, not an add-on.\n\nMost AI apps:\n• reset context\n• depend on centralized accounts\n• treat users as sessions\n\nSafePsy treats users as persistent entities.\n\nKey differentiators:\n• wallet-native identity\n• portable DID layer\n• persistent interactions\n• user-owned identity graph\n• AI experiences tied to identity, not accounts',
+    a: 'SafePsy is different because identity is native to the experience, not an add-on.\n\nMost AI apps:\n• reset context\n• depend on centralized accounts\n• treat users as sessions\n\nSafePsy treats users as persistent entities.\n\nKey differentiators:\n• wallet-native identity\n• portable ID token layer\n• persistent interactions\n• user-owned identity graph\n• AI experiences tied to identity, not accounts',
+  },
+  {
+    q: 'What is My ID token?',
+    a: 'My ID token is your SafePsy profile page (/profile). It shows your on-chain ID token (a soulbound record tied to your wallet), encrypted chat references, session history, and tools to export chat data or rotate encryption keys.\n\nAfter connecting your wallet and creating your Safe ID Token, open My ID token to view token details, manage encrypted data, and export or revoke chat references.',
   },
   {
     q: 'Can I try SafePsy without connecting a wallet?',

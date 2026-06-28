@@ -260,7 +260,7 @@ export default function AboutMe() {
       const encKeyStr = onchainMetadataToEncryptedChatKey(profile.encryptedKeyMetadata);
       if (!encKeyStr) {
         throw new Error(
-          'No chat encryption key on your DID. Save the chat once from the main chat screen so your key is stored on-chain.',
+          'No chat encryption key on your ID token. Save the chat once from the main chat screen so your key is stored on-chain.',
         );
       }
 
@@ -316,7 +316,7 @@ export default function AboutMe() {
       return;
     }
 
-    if (!confirm('Are you sure you want to revoke the chat data reference? This will clear the pointer from your DID profile. The encrypted data will remain in the database but will no longer be linked to your DID.')) {
+    if (!confirm('Are you sure you want to revoke the chat data reference? This will clear the pointer from your ID token profile. The encrypted data will remain in the database but will no longer be linked to your ID token.')) {
       return;
     }
 
@@ -355,7 +355,7 @@ export default function AboutMe() {
                   <AlertCircle className="w-6 h-6" />
                   <div>
                     <h3 className="text-lg font-semibold mb-1">Wallet Not Verified</h3>
-                    <p className="text-sm">Please connect and verify your wallet to view your DID profile.</p>
+                    <p className="text-sm">Please connect and verify your wallet to view My ID token.</p>
                   </div>
                 </div>
               </div>
@@ -379,11 +379,11 @@ export default function AboutMe() {
             <div className="text-center mb-12 sm:mb-16 px-4 fade-in">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl text-heading leading-tight mb-4 sm:mb-6">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent text-[1.2em] font-bold stagger-item">
-                  My DID Profile
+                  My ID token
                 </span>
               </h1>
               <p className="text-base sm:text-lg lg:text-xl text-body leading-relaxed max-w-3xl mx-auto">
-                View your decentralized identity information and profile details
+                View your ID token, encrypted chat references, and profile details
               </p>
             </div>
 
@@ -439,8 +439,8 @@ export default function AboutMe() {
                   <div className="flex items-center gap-3 text-yellow-800 dark:text-yellow-200">
                     <AlertCircle className="w-6 h-6" />
                     <div>
-                      <h3 className="text-lg font-semibold mb-1">No DID Found</h3>
-                      <p className="text-sm">You don't have a DID identity yet. Create one to get started.</p>
+                      <h3 className="text-lg font-semibold mb-1">No ID token found</h3>
+                      <p className="text-sm">You do not have an ID token yet. Create one to get started.</p>
                     </div>
                   </div>
                 </div>
@@ -629,7 +629,7 @@ export default function AboutMe() {
                         ) : (
                           <div className="mt-2">
                             <p className="text-sm text-body italic mb-2">
-                              No encrypted metadata found in your DID profile
+                              No encrypted metadata found in your ID token profile
                             </p>
                             <button
                               onClick={loadAndDecryptMetadata}
@@ -648,7 +648,7 @@ export default function AboutMe() {
                   {didInfo.tokenId && (
                     <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
                       <p className="text-xs text-body">
-                        <span className="font-semibold">DID Token ID:</span>{' '}
+                        <span className="font-semibold">ID Token ID:</span>{' '}
                         <span className="font-mono">{didInfo.tokenId}</span>
                       </p>
                     </div>

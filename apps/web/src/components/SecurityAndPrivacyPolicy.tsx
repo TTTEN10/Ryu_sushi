@@ -552,27 +552,27 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
               </div>
             </div>
 
-            {/* Decentralized Identity (DID) */}
+            {/* ID token */}
             <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
               <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                  Decentralized Identity (DID)
+                  ID token
                 </span>
               </h2>
               
               <div className="space-y-8">
                 <div className="space-y-4">
-                  <h3 className="text-2xl text-heading mb-4">What is DID?</h3>
+                  <h3 className="text-2xl text-heading mb-4">What is an ID token?</h3>
                   <p className="text-body leading-relaxed">
-                    SafePsy uses Decentralized Identity (DID) technology to give you complete control over your digital identity. 
-                    Your DID is a unique identifier stored on the blockchain that you own and control through your cryptocurrency wallet. 
-                    Unlike traditional identity systems, your DID is controlled by your wallet keys. Some lifecycle operations (e.g. revocation) are enforced by the smart contract rules and are recorded on-chain.
+                    SafePsy gives you complete control over your digital identity through an on-chain ID token (also called a Safe ID Token).
+                    Your ID token is a unique record stored on the blockchain that you own and control through your cryptocurrency wallet.
+                    Unlike traditional identity systems, your ID token is controlled by your wallet keys. Some lifecycle operations (e.g. revocation) are enforced by the smart contract rules and are recorded on-chain.
                   </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <h4 className="text-xl text-heading">DID Benefits</h4>
+                    <h4 className="text-xl text-heading">ID token benefits</h4>
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
@@ -599,41 +599,41 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                         <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Portable Identity</p>
-                          <p className="text-sm text-body">Use your DID across different platforms and services</p>
+                          <p className="text-sm text-body">Use your ID token across different platforms and services</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h4 className="text-xl text-heading">DID Management</h4>
+                    <h4 className="text-xl text-heading">ID token management</h4>
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <Lock className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Blockchain Storage</p>
-                          <p className="text-sm text-body">Your DID is stored on Ethereum blockchain, ensuring immutability and transparency</p>
+                          <p className="text-sm text-body">Your ID token is stored on Ethereum blockchain, ensuring immutability and transparency</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <Shield className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Wallet Control</p>
-                          <p className="text-sm text-body">Only you can manage your DID through your wallet's private keys</p>
+                          <p className="text-sm text-body">Only you can manage your ID token through your wallet's private keys</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <Eye className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Revocation Rights</p>
-                          <p className="text-sm text-body">You can revoke your DID. Revocation is an on-chain lifecycle event and does not erase blockchain history.</p>
+                          <p className="text-sm text-body">You can revoke your ID token. Revocation is an on-chain lifecycle event and does not erase blockchain history.</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <FileText className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                         <div>
                           <p className="text-body font-medium">Update Capability</p>
-                          <p className="text-sm text-body">Update your DID information while maintaining cryptographic integrity</p>
+                          <p className="text-sm text-body">Update your ID token information while maintaining cryptographic integrity</p>
                         </div>
                       </div>
                     </div>
@@ -643,12 +643,12 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
                   <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
                     <Lock className="w-5 h-5 text-blue-600" />
-                    DID Privacy & Security
+                    ID token privacy & security
                   </h4>
                   <p className="text-body text-sm leading-relaxed">
-                    Your DID is cryptographically linked to your wallet address. SafePsy never stores your private keys and cannot 
-                    access or modify your DID without your explicit cryptographic signature. All DID operations are recorded on the 
-                    blockchain, providing a transparent and auditable identity management system. Your DID data can be encrypted and 
+                    Your ID token is cryptographically linked to your wallet address. SafePsy never stores your private keys and cannot 
+                    access or modify your ID token without your explicit cryptographic signature. All ID token operations are recorded on the 
+                    blockchain, providing a transparent and auditable identity management system. Your ID token data can be encrypted and 
                     stored securely, with only you holding the decryption keys.
                   </p>
                 </div>

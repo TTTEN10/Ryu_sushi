@@ -137,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         if (!result.success) {
-          throw new Error(result.message || 'Failed to check DID status');
+          throw new Error(result.message || 'Failed to check ID token status');
         }
 
         let hasDid = result.data.hasDid;

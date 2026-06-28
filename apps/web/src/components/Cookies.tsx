@@ -164,7 +164,7 @@ const Cookies: React.FC = () => {
                           <ul className="space-y-1 text-body">
                             <li>• First landing session and return-within-24h (anonymous session timing)</li>
                             <li>• Wallet connect funnel milestones (click, connected address, verified session)</li>
-                            <li>• DID detected on-chain (timestamp only)</li>
+                            <li>• ID token detected on-chain (timestamp only)</li>
                             <li>• First message sent and first assistant reply received (timestamps only)</li>
                             <li>• Performance and stability signals may be added alongside third-party tools when enabled</li>
                           </ul>

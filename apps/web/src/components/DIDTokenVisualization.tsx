@@ -68,7 +68,7 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
       }
     } catch (err: any) {
       console.error('Error loading DID data:', err);
-      setError(err.message || 'Failed to load DID data');
+      setError(err.message || 'Failed to load ID token data');
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +91,7 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
   if (!authState.didInfo?.hasDid) {
     const message = !wallet?.address
       ? 'Connect Wallet to start'
-      : 'No DID token found. Create your identity to get started.';
+      : 'No ID token found. Create your identity to get started.';
     return (
       <div className={`p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 ${className}`}>
         <div className="text-center py-8">
@@ -121,7 +121,7 @@ export default function DIDTokenVisualization({ className = '' }: DIDTokenVisual
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">SafePsy DID Token</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">SafePsy ID Token</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Token ID: #{displayTokenId}</p>
               </div>
             </div>

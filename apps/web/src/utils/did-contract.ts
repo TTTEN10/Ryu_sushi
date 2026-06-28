@@ -138,7 +138,7 @@ export async function updateChatReference(
   // Verify network
   const network = await signer.provider.getNetwork();
   if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
-    throw new Error('Please switch to Sepolia Testnet to update DID data');
+    throw new Error('Please switch to Sepolia Testnet to update ID token data');
   }
 
   // Get wallet address
@@ -153,7 +153,7 @@ export async function updateChatReference(
   
   const hasDid = await contract.hasDid(walletAddress);
   if (!hasDid) {
-    throw new Error('Wallet does not have a DID. Please create one first.');
+    throw new Error('Wallet does not have an ID token. Please create one first.');
   }
 
   // Convert encrypted key metadata to bytes if needed
@@ -196,7 +196,7 @@ export async function updateEncryptedKeyMetadata(
   // Verify network
   const network = await signer.provider.getNetwork();
   if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
-    throw new Error('Please switch to Sepolia Testnet to update DID data');
+    throw new Error('Please switch to Sepolia Testnet to update ID token data');
   }
 
   // Get wallet address
@@ -211,7 +211,7 @@ export async function updateEncryptedKeyMetadata(
   
   const hasDid = await contract.hasDid(walletAddress);
   if (!hasDid) {
-    throw new Error('Wallet does not have a DID. Please create one first.');
+    throw new Error('Wallet does not have an ID token. Please create one first.');
   }
 
   // Convert encrypted key metadata to bytes if needed
@@ -252,7 +252,7 @@ export async function updateChatDataReference(
   // Verify network
   const network = await signer.provider.getNetwork();
   if (Number(network.chainId) !== SUPPORTED_CHAIN_ID) {
-    throw new Error('Please switch to Sepolia Testnet to update DID data');
+    throw new Error('Please switch to Sepolia Testnet to update ID token data');
   }
 
   // Get wallet address
@@ -267,7 +267,7 @@ export async function updateChatDataReference(
   
   const hasDid = await contract.hasDid(walletAddress);
   if (!hasDid) {
-    throw new Error('Wallet does not have a DID. Please create one first.');
+    throw new Error('Wallet does not have an ID token. Please create one first.');
   }
 
   const contractWithSigner = contract.connect(signer) as DIDIdentityTokenWritable;
