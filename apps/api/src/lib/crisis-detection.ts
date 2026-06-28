@@ -1,6 +1,7 @@
 /**
  * Crisis signal detection for multilingual content (10 languages).
- * Ported from the former FastAPI chatbot service 
+ * Ported from the former FastAPI chatbot service.
+ */
 
 const CRISIS_KEYWORDS = [
   // === ENGLISH (1.5B speakers) ===
