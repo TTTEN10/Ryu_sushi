@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
-import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -95,7 +95,7 @@ export default function ChatWidget() {
   // Manual save state: track pending save after AI response
   const [pendingDidSave, setPendingDidSave] = useState<{
     visible: boolean;
-    saveResult: 'success' | 'cancelled' | 'error' | null;
+    saveResult: null;
   }>({ visible: false, saveResult: null });
   const [isSavingToDid, setIsSavingToDid] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -255,7 +255,7 @@ export default function ChatWidget() {
   // Handle manual save to DID - user clicks "Save history chat on DID" button
   const handleSaveToDid = useCallback(async () => {
     if (!signer || !wallet || !encryptedKey) {
-      setPendingDidSave({ visible: true, saveResult: 'error' });
+      showToast('error', 'Wallet not connected or encryption not ready');
       return;
     }
 
@@ -292,20 +292,20 @@ export default function ChatWidget() {
       showToast('info', 'Saving to DID contract...');
       const receipt = await updateChatReference(signer, chatRef, metaBytes);
 
+      showToast('success', 'Session saved to ID token!');
       console.log(
         'DID updated successfully:',
         (receipt as { hash?: string }).hash ||
           (receipt as { transactionHash?: string }).transactionHash,
       );
 
-      // Show success state - replaces button with green message
-      setPendingDidSave({ visible: true, saveResult: 'success' });
+      setPendingDidSave({ visible: false, saveResult: null });
     } catch (err: any) {
       console.error('Error saving to DID:', err);
       if (err.code === 'ACTION_REJECTED') {
-        setPendingDidSave({ visible: true, saveResult: 'cancelled' });
+        showToast('warning', 'Save cancelled - you can save later from DID settings.');
       } else {
-        setPendingDidSave({ visible: true, saveResult: 'error' });
+        showToast('error', err.message || 'Failed to save to DID');
       }
     } finally {
       setIsSavingToDid(false);
@@ -564,32 +564,16 @@ export default function ChatWidget() {
       };
 
       const persistAfterStream = async () => {
-        // Synchronous guard to prevent race condition when both [DONE] and event:done arrive
         if (streamFinalized) return;
         streamFinalized = true;
-
         setIsStreaming(false);
         setSendPhase('idle');
         if (assistantMessage.content.trim().length > 0) {
           recordFirstReplyReceived();
         }
-        // Message is already being added during streaming via delta.content updates.
-        // Just ensure the final message is in state with complete content.
-        // Use a single atomic update to prevent duplicates.
-        setMessages((prev) => {
-          // First, check if this exact message already exists anywhere in the array
-          const existingIndex = prev.findIndex(
-            (m) => m.id === assistantMessage.id && m.role === 'assistant'
-          );
-          if (existingIndex !== -1) {
-            // Update the existing one in place - this is the normal path
-            const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
-            return updated;
-          }
-          // Fallback: add if somehow missing (shouldn't happen in normal flow)
-          return [...prev, { ...assistantMessage, encrypted: false }];
-        });
+        // CRITICAL FIX: Message is ALREADY in state from streaming updates.
+        // Do NOT add/update here - removing this setMessages call prevents duplicates.
+        // Just show the save button.
 
         // Show manual save button after 3 seconds (for authenticated users with DID)
         if (!isGuest && signer && wallet && encryptedKey) {
@@ -625,40 +609,34 @@ export default function ChatWidget() {
               if (delta?.content && !currentEvent) {
                 assistantMessage.content += delta.content;
                 setMessages((prev) => {
-                  // Find the assistant message ANYWHERE in the array (not just last position)
+                  // Find the assistant message ANYWHERE in the array to prevent duplicates
                   const existingIndex = prev.findIndex(
                     (m) => m.id === assistantMessage.id && m.role === 'assistant'
                   );
                   if (existingIndex !== -1) {
-                    // Update existing message in place
                     const updated = [...prev];
                     updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
                     return updated;
                   }
-                  // First chunk - add the message
-                  return [...prev, { ...assistantMessage, encrypted: false }];
+                  return [...prev, assistantMessage];
                 });
               }
               // Don't call persistAfterStream on finish_reason - it will be called on [DONE] or event:done
-              // Calling it here causes duplication since message is already being streamed
 
               if (currentEvent === 'token') {
                 // Legacy event format: event: token with data.token
-                // Note: This is mutually exclusive with the delta.content path above
                 assistantMessage.content += data.token;
                 setMessages((prev) => {
-                  // Find the assistant message ANYWHERE in the array (not just last position)
+                  // Find the assistant message ANYWHERE in the array to prevent duplicates
                   const existingIndex = prev.findIndex(
                     (m) => m.id === assistantMessage.id && m.role === 'assistant'
                   );
                   if (existingIndex !== -1) {
-                    // Update existing message in place
                     const updated = [...prev];
                     updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
                     return updated;
                   }
-                  // First chunk - add the message
-                  return [...prev, { ...assistantMessage, encrypted: false }];
+                  return [...prev, assistantMessage];
                 });
               } else if (currentEvent === 'metadata') {
                 // Local mock stream advertises itself via metadata.
@@ -877,7 +855,7 @@ export default function ChatWidget() {
         )}
 
         {/* Manual Save to DID Button - appears 3 seconds after AI response */}
-        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === null && (
+        {pendingDidSave.visible && !isSavingToDid && (
           <div className="mt-4 flex justify-center">
             <button
               onClick={handleSaveToDid}
@@ -887,36 +865,6 @@ export default function ChatWidget() {
               <CheckCircle className="w-4 h-4" />
               <span>Save session in ID token</span>
             </button>
-          </div>
-        )}
-
-        {/* Save Success Message - replaces button after successful save */}
-        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === 'success' && (
-          <div className="mt-4 flex justify-center">
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-300 font-medium">
-              <CheckCircle className="w-4 h-4" />
-              <span>Chat saved successfully</span>
-            </div>
-          </div>
-        )}
-
-        {/* Save Cancelled Message */}
-        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === 'cancelled' && (
-          <div className="mt-4 flex justify-center">
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
-              <AlertCircle className="w-4 h-4" />
-              <span>Save cancelled - you can save later from DID settings</span>
-            </div>
-          </div>
-        )}
-
-        {/* Save Error Message */}
-        {pendingDidSave.visible && !isSavingToDid && pendingDidSave.saveResult === 'error' && (
-          <div className="mt-4 flex justify-center">
-            <div className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300">
-              <AlertCircle className="w-4 h-4" />
-              <span>Failed to save - please try again</span>
-            </div>
           </div>
         )}
 
