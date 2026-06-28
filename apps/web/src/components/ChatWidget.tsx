@@ -177,31 +177,25 @@ export default function ChatWidget() {
     });
   }, []);
 
-  // Deduplicate messages: keep only the last occurrence of each assistant message ID
+  // Deduplicate messages: remove consecutive assistant messages with identical content
   const deduplicatedMessages = useMemo(() => {
-    const result = [];
-    const seenAssistantIds = new Map<string, number>();
+    if (messages.length === 0) return [];
 
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
-      if (msg.role === 'assistant') {
-        // Track the last index for each assistant message ID
-        seenAssistantIds.set(msg.id, i);
-      }
-    }
+    const result = [messages[0]];
 
-    for (let i = 0; i < messages.length; i++) {
+    for (let i = 1; i < messages.length; i++) {
       const msg = messages[i];
-      if (msg.role === 'assistant') {
-        // Only include if this is the last occurrence of this ID
-        if (seenAssistantIds.get(msg.id) === i) {
-          result.push(msg);
-        } else {
-          console.log('[ChatWidget] Filtered out duplicate assistant message:', msg.id);
-        }
-      } else {
-        result.push(msg);
+      const prevMsg = result[result.length - 1];
+
+      // Skip if this is an assistant message with same content as previous assistant message
+      if (msg.role === 'assistant' &&
+          prevMsg?.role === 'assistant' &&
+          msg.content === prevMsg.content) {
+        console.log('[ChatWidget] Dedup: skipping duplicate assistant message');
+        continue;
       }
+
+      result.push(msg);
     }
 
     return result;
@@ -292,8 +286,8 @@ export default function ChatWidget() {
     setIsSavingToDid(true);
 
     try {
-      // Step 1: Save encrypted chat to backend first
-      const updatedMessages = [...messages];
+      // Step 1: Save encrypted chat to backend first (use deduplicated messages)
+      const updatedMessages = [...deduplicatedMessages];
       const saveResult = await saveChat(
         updatedMessages.map((msg) => ({
           id: msg.id,
@@ -340,7 +334,7 @@ export default function ChatWidget() {
     } finally {
       setIsSavingToDid(false);
     }
-  }, [messages, signer, wallet, encryptedKey, saveChat, showToast]);
+  }, [deduplicatedMessages, signer, wallet, encryptedKey, saveChat, showToast]);
 
   // After the 5th guest message is sent, show conversion modal once streaming finishes.
   useEffect(() => {
@@ -417,8 +411,22 @@ export default function ChatWidget() {
       loadChat()
         .then((loadedMessages) => {
           const raw = loadedMessages ?? [];
+
+          // DEDUP: Remove consecutive duplicate assistant messages with identical content
+          const deduped: any[] = [];
+          for (let i = 0; i < raw.length; i++) {
+            const msg = raw[i];
+            const prev = deduped[deduped.length - 1];
+            // Skip if this is an assistant message with same content as previous
+            if (msg.role === 'assistant' && prev?.role === 'assistant' && msg.content === prev.content) {
+              console.log('[ChatWidget] Removing duplicate from loaded history:', msg.content.substring(0, 50));
+              continue;
+            }
+            deduped.push(msg);
+          }
+
           setMessages(
-            raw.map((msg: any) => ({
+            deduped.map((msg: any) => ({
               id: msg.id || `msg-${Date.now()}-${Math.random()}`,
               role: msg.role,
               content: msg.content,
