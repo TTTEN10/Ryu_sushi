@@ -122,7 +122,7 @@ const CRISIS_KEYWORDS = [
 ] as const;
 
 const CRISIS_PREPEND =
-  "I'm really glad you shared this… you don't have to go through this alone…\n\n";
+  "Thank you for sharing… you don't have to go through this alone…\n\n";
 
 export interface CrisisDetectionResult {
   isCrisis: boolean;
