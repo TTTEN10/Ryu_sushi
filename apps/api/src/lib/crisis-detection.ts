@@ -142,17 +142,27 @@ export function detectCrisisSignals(text: string): boolean {
 }
 
 /**
- * Check all user messages for crisis signals.
+ * Check the current user turn for crisis signals.
+ *
+ * Only the most recent user message is scanned. Scanning the full history
+ * would re-trigger the crisis prepend on every subsequent turn once a crisis
+ * keyword appeared anywhere in the thread, even for unrelated follow-ups
+ * (e.g. an earlier "suicide" turn making a later "what should I do about my
+ * depression" turn look like a crisis).
  */
 export function detectCrisisInMessages(
   messages: Array<{ role: string; content: string }>
 ): CrisisDetectionResult {
-  const userText = messages
-    .filter((m) => m.role === 'user')
-    .map((m) => m.content)
-    .join('\n');
+  let latestUserContent = '';
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === 'user') {
+      latestUserContent = m.content ?? '';
+      break;
+    }
+  }
 
-  const isCrisis = detectCrisisSignals(userText);
+  const isCrisis = detectCrisisSignals(latestUserContent);
 
   return {
     isCrisis,
