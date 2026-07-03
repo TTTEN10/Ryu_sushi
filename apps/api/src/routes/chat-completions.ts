@@ -7,6 +7,7 @@ import { aiGatewayService, ChatCompletionRequest } from '../lib/ai-gateway.servi
 import { chatRateLimitMiddleware, guestChatMinuteRateLimitMiddleware } from '../lib/ratelimit';
 import { optionalQuotaMiddleware } from '../middleware/quota';
 import { guestChatQuotaMiddleware } from '../middleware/guest-quota';
+import { guestDeviceCookieMiddleware } from '../middleware/guest-device-cookie';
 import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { priceOracleService } from '../lib/price-oracle.service';
 import { enhanceWithRAG } from '../lib/chat-rag-context';
@@ -41,6 +42,7 @@ export function mountChatCompletions(router: Router, path: string = '/completion
     path,
     chatRateLimitMiddleware,
     optionalAuthenticateWallet,
+    guestDeviceCookieMiddleware,
     guestChatMinuteRateLimitMiddleware,
     guestChatQuotaMiddleware,
     chatConcurrencyMiddleware,

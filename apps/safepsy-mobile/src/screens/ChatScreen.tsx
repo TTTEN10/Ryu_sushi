@@ -23,10 +23,20 @@ import {
 import { clearEncryptedDek, getWalletSessionToken } from '../services/secureToken';
 import { triggerDidUpdateAfterSave, type SaveChatApiData } from '../services/didService';
 import { streamChatCompletion, type ChatApiMessage, type StreamPhase } from '../services/chatStream';
+import {
+  clearGuestPromptCount,
+  readGuestPromptCount,
+  writeGuestPromptCount,
+} from '../services/guestPromptStore';
 import { useAuthStore } from '../store/authStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
+/**
+ * Guest mode: max user messages per UTC day (must match server-side
+ * GUEST_CHAT_DAILY_LIMIT). Persisted via guestPromptStore so a hard app
+ * relaunch does not silently reset the counter.
+ */
 const GUEST_PROMPT_LIMIT = 5;
 
 const FIRST_MESSAGE_SUGGESTIONS = [
@@ -241,11 +251,28 @@ export function ChatScreen(_props: Props) {
     if (isVerified && !prevVerified.current) {
       setMessages([]);
       guestSends.current = 0;
+      void clearGuestPromptCount();
       activationMsgRef.current = { first: false, m3: false };
       walletNudgeTrackedRef.current = false;
     }
     prevVerified.current = isVerified;
   }, [isVerified]);
+
+  // Rehydrate the guest counter across app relaunches. Runs once on mount; when
+  // the user is a guest (no token) we adopt any stored count from today.
+  useEffect(() => {
+    if (token) return;
+    let cancelled = false;
+    void (async () => {
+      const stored = await readGuestPromptCount();
+      if (!cancelled && stored > guestSends.current) {
+        guestSends.current = stored;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const finishFreshWithoutHistory = useCallback(
     async (wallet: string, wcSigner: NonNullable<typeof signer>) => {
@@ -473,6 +500,7 @@ export function ChatScreen(_props: Props) {
       }
       if (isGuest) {
         guestSends.current += 1;
+        void writeGuestPromptCount(guestSends.current);
       }
 
       const assistantId = `asst-${Date.now()}`;
@@ -514,6 +542,26 @@ export function ChatScreen(_props: Props) {
                 setIsTyping(false);
                 setStreamPhase('idle');
                 schedulePersist();
+              },
+              onGuestQuotaExceeded: (info) => {
+                setIsTyping(false);
+                setStreamPhase('idle');
+                setMessages((cur) => cur.filter((m) => m._id !== assistantId));
+                // Sync local counter to what the server reported so refreshers see the real state.
+                const capped = Math.max(info.dailyUsed, info.dailyLimit, GUEST_PROMPT_LIMIT);
+                guestSends.current = capped;
+                void writeGuestPromptCount(capped);
+                trackActivation('on_wallet_prompt_limit');
+                Alert.alert(
+                  'This space can stay yours',
+                  info.reason === 'ip'
+                    ? 'Too many guest chats from this network today. Create your private space to keep coming back — same warmth, with encryption you control.'
+                    : `You've reached the guest try limit (${GUEST_PROMPT_LIMIT} messages today). Create your private space to keep coming back — same warmth, with encryption you control.`,
+                  [
+                    { text: 'Not now', style: 'cancel' },
+                    { text: 'Create your private space', onPress: () => navigation.navigate('Wallet') },
+                  ],
+                );
               },
               onError: (err) => {
                 setIsTyping(false);

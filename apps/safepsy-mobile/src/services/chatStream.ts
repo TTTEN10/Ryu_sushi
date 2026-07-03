@@ -4,6 +4,13 @@ export type ChatApiMessage = { role: ChatApiRole; content: string };
 
 export type StreamPhase = 'idle' | 'connecting' | 'streaming' | 'retrying' | 'error';
 
+export type GuestQuotaExceededInfo = {
+  dailyUsed: number;
+  dailyLimit: number;
+  reason?: 'device' | 'ip' | string;
+  message?: string;
+};
+
 export type StreamChatOptions = {
   baseUrl: string;
   messages: ChatApiMessage[];
@@ -13,6 +20,12 @@ export type StreamChatOptions = {
   onDelta: (text: string) => void;
   onFinish: () => void;
   onError: (err: Error) => void;
+  /**
+   * Called when the server returns 429 GUEST_QUOTA_EXCEEDED. When provided,
+   * the stream helper will not call `onError` for this case, leaving the
+   * caller free to show the conversion modal instead of a generic error.
+   */
+  onGuestQuotaExceeded?: (info: GuestQuotaExceededInfo) => void;
   connectRetries?: number;
   /** Throttle UI commits (ms) while streaming. */
   flushIntervalMs?: number;
@@ -76,6 +89,7 @@ export async function streamChatCompletion(options: StreamChatOptions): Promise<
     onDelta,
     onFinish,
     onError,
+    onGuestQuotaExceeded,
     connectRetries = 2,
     flushIntervalMs = 80,
     onPhase,
@@ -142,12 +156,34 @@ export async function streamChatCompletion(options: StreamChatOptions): Promise<
     if (!response.ok) {
       const text = await response.text();
       let message = text || response.statusText;
+      let errorCode: string | undefined;
+      let quota: { dailyUsed?: number; dailyLimit?: number; reason?: string } | undefined;
       try {
-        const j = JSON.parse(text) as { message?: string; error?: string };
+        const j = JSON.parse(text) as {
+          message?: string;
+          error?: string;
+          quota?: { dailyUsed?: number; dailyLimit?: number; reason?: string };
+        };
         if (j.message) message = j.message;
         else if (j.error) message = j.error;
+        errorCode = j.error;
+        quota = j.quota;
       } catch {
         /* keep raw */
+      }
+      if (
+        response.status === 429 &&
+        errorCode === 'GUEST_QUOTA_EXCEEDED' &&
+        typeof onGuestQuotaExceeded === 'function'
+      ) {
+        onGuestQuotaExceeded({
+          dailyUsed: typeof quota?.dailyUsed === 'number' ? quota.dailyUsed : 0,
+          dailyLimit: typeof quota?.dailyLimit === 'number' ? quota.dailyLimit : 0,
+          reason: quota?.reason,
+          message,
+        });
+        onPhase?.('idle');
+        return;
       }
       throw new Error(message);
     }

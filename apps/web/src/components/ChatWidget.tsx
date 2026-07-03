@@ -14,6 +14,11 @@ import { apiFetch, apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
+import {
+  clearGuestPromptCount,
+  readGuestPromptCount,
+  writeGuestPromptCount,
+} from '../utils/guestPromptStore';
 
 interface Message {
   id: string;
@@ -45,7 +50,12 @@ interface PaywallData {
 }
 
 const MAX_MESSAGE_LENGTH = 2000;
-/** Guest mode: max user messages per browser session (in-memory only; resets on refresh). */
+/**
+ * Guest mode: max user messages per UTC day (must match server-side
+ * GUEST_CHAT_DAILY_LIMIT). Persisted in localStorage (guestPromptStore) so a
+ * hard refresh does not silently reset the client counter; the server enforces
+ * the same limit via signed device cookie + IP hard cap, so this is UX only.
+ */
 const GUEST_PROMPT_LIMIT = 5;
 
 const FIRST_MESSAGE_SUGGESTIONS = [
@@ -88,7 +98,7 @@ export default function ChatWidget() {
   const [paywallData, setPaywallData] = useState<PaywallData | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [requestInProgress, setRequestInProgress] = useState(false);
-  const [guestPromptCount, setGuestPromptCount] = useState(0);
+  const [guestPromptCount, setGuestPromptCount] = useState<number>(() => readGuestPromptCount());
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [isMockMode, setIsMockMode] = useState(false);
   const [widgetVisible, setWidgetVisible] = useState(true);
@@ -119,9 +129,19 @@ export default function ChatWidget() {
   useEffect(() => {
     if (authState.isVerified) {
       setGuestPromptCount(0);
+      clearGuestPromptCount();
       setShowGuestLimitModal(false);
     }
   }, [authState.isVerified]);
+
+  // Rehydrate the counter on mount so a hard refresh does not silently reset guests' quota.
+  // Runs once on mount; wallet-verified case is handled by the effect above.
+  useEffect(() => {
+    setGuestPromptCount((current) => {
+      const stored = readGuestPromptCount();
+      return stored > current ? stored : current;
+    });
+  }, []);
 
   // Show DID creation prompt only after check completes and no token exists for this wallet.
   useEffect(() => {
@@ -508,7 +528,11 @@ export default function ChatWidget() {
       };
 
       if (isGuest) {
-        setGuestPromptCount((c) => c + 1);
+        setGuestPromptCount((c) => {
+          const next = c + 1;
+          writeGuestPromptCount(next);
+          return next;
+        });
       }
 
       setMessages((prev) => [...prev, userMessage]);
@@ -581,6 +605,26 @@ export default function ChatWidget() {
             paymentRecipient: errorData.paywall.paymentRecipient,
           });
           setShowPaywall(true);
+          setIsStreaming(false);
+          return;
+        }
+
+        // Server-side guest quota (per signed device cookie / IP hard cap): sync the
+        // client counter to the reported value so refreshers see the real state and
+        // open the guest modal instead of a generic error toast.
+        if (response.status === 429 && errorData.error === 'GUEST_QUOTA_EXCEEDED') {
+          const dailyUsed =
+            typeof errorData?.quota?.dailyUsed === 'number'
+              ? errorData.quota.dailyUsed
+              : GUEST_PROMPT_LIMIT;
+          const dailyLimit =
+            typeof errorData?.quota?.dailyLimit === 'number'
+              ? errorData.quota.dailyLimit
+              : GUEST_PROMPT_LIMIT;
+          const capped = Math.max(dailyUsed, dailyLimit);
+          setGuestPromptCount(capped);
+          writeGuestPromptCount(capped);
+          setShowGuestLimitModal(true);
           setIsStreaming(false);
           return;
         }

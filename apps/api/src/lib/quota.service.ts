@@ -2,6 +2,7 @@ import Redis from 'ioredis';
 import logger from './logger';
 import { DIDService } from './did.service';
 import { subscriptionService, SUBSCRIPTION_LIMITS } from './subscription.service';
+import { isUnrestrictedWallet } from './unrestricted-wallets';
 
 /**
  * Quota Service Configuration
@@ -175,6 +176,23 @@ export class QuotaService {
    * In development, falls back to allowing all requests
    */
   async getQuotaStatus(did: string, walletAddress?: string): Promise<QuotaStatus> {
+    // Check if wallet is unrestricted (bypasses all quotas)
+    if (walletAddress && isUnrestrictedWallet(walletAddress)) {
+      logger.debug(`Unrestricted wallet detected: ${walletAddress}, bypassing quotas`);
+      return {
+        did,
+        dailyUsed: 0,
+        dailyLimit: Number.MAX_SAFE_INTEGER,
+        monthlyUsed: 0,
+        monthlyLimit: Number.MAX_SAFE_INTEGER,
+        dailyRemaining: Number.MAX_SAFE_INTEGER,
+        monthlyRemaining: Number.MAX_SAFE_INTEGER,
+        canUse: true,
+        resetDailyAt: this.getNextDayReset(),
+        resetMonthlyAt: this.getNextMonthReset(),
+      };
+    }
+
     // Get subscription limits if wallet address is provided
     let subscriptionLimits = { dailyLimit: this.dailyLimit, monthlyLimit: this.monthlyLimit };
     if (walletAddress) {

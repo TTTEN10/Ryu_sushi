@@ -291,9 +291,23 @@ data: {"finishReason":"stop","usage":{"totalTokens":50}}
 ```
 
 **Guest Mode Limits:**
-- Max 5 user messages per browser session
-- No persistence (in-memory only)
-- No quota increment
+- Max `GUEST_CHAT_DAILY_LIMIT` (default 5) user messages per anonymous device per UTC day
+- Tracked via signed `sp_gid` HttpOnly cookie issued on first request (see `apps/api/src/lib/guest-device-cookie.ts`)
+- Per-IP hard cap `GUEST_CHAT_IP_HARD_CAP` (default 25 = 5x device limit) catches cookie-clearing abuse
+- Client mirrors the device counter in `localStorage` / `AsyncStorage` so hard refresh does not visually reset it
+- Server persistence: none (no chat blob written for guest mode)
+- No premium quota increment
+
+**Guest quota response (429):**
+```json
+{
+  "success": false,
+  "error": "GUEST_QUOTA_EXCEEDED",
+  "message": "Guest chat daily limit reached. Connect a wallet to continue.",
+  "quota": { "dailyUsed": 6, "dailyLimit": 5, "reason": "device" }
+}
+```
+`reason` is `"device"` when the device counter is exceeded or `"ip"` when the shared-IP hard cap is hit.
 
 ---
 

@@ -23,7 +23,11 @@ export async function guestChatQuotaMiddleware(
     }
 
     const clientIp = req.ip || 'unknown';
-    const result = await consumeGuestChatQuota(clientIp);
+    const result = await consumeGuestChatQuota({
+      clientIp,
+      deviceId: req.guestDeviceId ?? null,
+      walletAddress: req.wallet?.walletAddress ?? null,
+    });
 
     if (result.unavailable) {
       logger.error('Guest chat quota unavailable (Redis required in production)');
@@ -36,14 +40,22 @@ export async function guestChatQuotaMiddleware(
     }
 
     if (!result.allowed) {
-      logger.warn(`Guest chat quota exceeded for IP ${clientIp}: ${result.used}/${result.limit}`);
+      logger.warn(
+        `Guest chat quota exceeded (reason=${result.reason ?? 'unknown'}) for IP ${clientIp}${
+          req.guestDeviceId ? ` device=${req.guestDeviceId.slice(0, 6)}…` : ''
+        }: ${result.used}/${result.limit}`,
+      );
       res.status(429).json({
         success: false,
         error: 'GUEST_QUOTA_EXCEEDED',
-        message: 'Guest chat daily limit reached. Sign in with your wallet to continue.',
+        message:
+          result.reason === 'ip'
+            ? 'Too many guest chats from this network today. Connect a wallet to continue.'
+            : 'Guest chat daily limit reached. Connect a wallet to continue.',
         quota: {
           dailyUsed: result.used,
           dailyLimit: result.limit,
+          reason: result.reason ?? 'device',
         },
       });
       return;

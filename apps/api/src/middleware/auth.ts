@@ -8,6 +8,11 @@ import { SUPPORTED_CHAIN_ID } from '../lib/constants';
  */
 export interface AuthenticatedRequest extends Request {
   wallet?: WalletSessionPayload;
+  /**
+   * Signed anonymous guest device id, populated by guestDeviceCookieMiddleware.
+   * Used by the guest chat quota to key counters per-browser rather than per-IP alone.
+   */
+  guestDeviceId?: string;
 }
 
 /**
