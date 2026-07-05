@@ -5,10 +5,8 @@ import WhyChooseUs from "../components/sections/WhyChooseUs";
 import Methodology from "../components/sections/Methodology";
 import CaseStudies from "../components/sections/CaseStudies";
 import Testimonials from "../components/sections/Testimonials";
-import Faq from "../components/sections/Faq";
 import ContactCta from "../components/sections/ContactCta";
 import { SITE } from "../constants/site";
-import { FAQS } from "../constants/content";
 
 /** Marketing home page — composes every section in the prescribed order. */
 export default function Home() {
@@ -47,7 +45,6 @@ export default function Home() {
       <Methodology />
       <CaseStudies />
       <Testimonials />
-      <Faq />
       <ContactCta />
     </>
   );
