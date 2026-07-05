@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F5F7F3"/>
+      <stop offset="1" stop-color="#E8EEE6"/>
+    </linearGradient>
+    <radialGradient id="blob1" cx="20%" cy="20%" r="60%">
+      <stop offset="0" stop-color="#04724D" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#04724D" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blob2" cx="90%" cy="80%" r="60%">
+      <stop offset="0" stop-color="#7C809B" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#7C809B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#blob1)"/>
+  <rect width="1200" height="630" fill="url(#blob2)"/>
+  <g font-family="Georgia, 'Times New Roman', serif" fill="#241924">
+    <circle cx="96" cy="90" r="30" fill="#04724D"/>
+    <text x="96" y="90" dy=".35em" text-anchor="middle" font-size="34" font-weight="700" fill="#F5F7F3">T</text>
+    <text x="148" y="100" font-size="34" font-weight="700">Tenenbaum</text>
+    <text x="80" y="330" font-size="76" font-weight="700">Clarity that moves</text>
+    <text x="80" y="420" font-size="76" font-weight="700" fill="#04724D">ambition to impact.</text>
+    <text x="80" y="500" font-size="30" fill="#241924" opacity="0.7">Boutique strategy consulting for Fortune 500 leaders</text>
+  </g>
+</svg>

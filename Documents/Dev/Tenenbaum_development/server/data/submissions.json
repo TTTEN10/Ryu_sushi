@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1783103474466-43f4g0",
+    "createdAt": "2026-07-03T18:31:14.466Z",
+    "name": "Jane Executive",
+    "company": "Acme",
+    "email": "jane@acme.com",
+    "phone": "123",
+    "subject": "New engagement",
+    "message": "We need help with strategy soon.",
+    "consent": true,
+    "ip": "::1"
+  }
+]

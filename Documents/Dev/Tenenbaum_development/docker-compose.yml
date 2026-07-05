@@ -1,0 +1,102 @@
+services:
+  # =============================================================================
+  # Main Application Service
+  # =============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tenenbaum-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # Email configuration (set in .env or docker-compose.override.yml)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM=${MAIL_FROM:-"Tenenbaum Website <no-reply@tenenbaum.example.com>"}
+      - MAIL_TO=${MAIL_TO:-hello@tenenbaum.example.com}
+    volumes:
+      # Persist form submissions and subscriber data
+      - app-data:/app/server/data
+    networks:
+      - tenenbaum-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.tenenbaum.app=tenenbaum-development"
+
+  # =============================================================================
+  # Caddy Reverse Proxy (Automatic HTTPS)
+  # =============================================================================
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: tenenbaum-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - tenenbaum-network
+    depends_on:
+      - app
+    labels:
+      - "com.tenenbaum.proxy=caddy"
+
+  # =============================================================================
+  # Development Service (override for dev)
+  # =============================================================================
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: tenenbaum-dev
+    profiles:
+      - dev
+    ports:
+      - "5173:5173"
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - dev-data:/app/server/data
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_HOST=0.0.0.0
+    networks:
+      - tenenbaum-network
+
+networks:
+  tenenbaum-network:
+    driver: bridge
+
+volumes:
+  # Application data (form submissions, subscribers)
+  app-data:
+    driver: local
+  # Caddy SSL certificates and site data
+  caddy-data:
+    driver: local
+  # Caddy configuration
+  caddy-config:
+    driver: local
+  # Development node_modules overlay
+  dev-data:
+    driver: local

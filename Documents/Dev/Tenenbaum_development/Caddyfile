@@ -1,0 +1,113 @@
+# Caddyfile for Tenenbaum Development
+# Automatic HTTPS with Let's Encrypt
+# Replace tenenbaum.example.com with your actual domain
+
+# =============================================================================
+# Production HTTPS Configuration
+# =============================================================================
+tenenbaum.example.com {
+    # Log configuration
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+
+    # Error logging
+    errors {
+        log file /var/log/caddy/error.log
+    }
+
+    # Security headers
+    header {
+        # HSTS (max-age=2 years, includeSubDomains, preload)
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Content Security Policy (adjust as needed)
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.tenenbaum.example.com;"
+
+        # Frame Options (prevent clickjacking)
+        X-Frame-Options "DENY"
+
+        # Permissions Policy
+        Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+
+        # Remove Server header
+        -Server
+    }
+
+    # Gzip compression
+    encode gzip
+
+    # Reverse proxy to application
+    reverse_proxy app:3001 {
+        # Health check
+        health_check {
+            uri /api/health
+            interval 30s
+            timeout 10s
+            fail_threshold 3
+        }
+
+        # Pass through headers
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+
+    # TLS configuration
+    tls {
+        # Use Cloudflare DNS challenge (optional - remove if using HTTP challenge)
+        # dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+
+        # Email for expiration notifications
+        email admin@tenenbaum.example.com
+
+        # Production CA (default)
+        # ca https://acme-v02.api.letsencrypt.org/directory
+    }
+
+    # Rate limiting at proxy level (additional protection)
+    @ratelimit {
+        path /api/*
+    }
+    respond @ratelimit 429 {
+        # Handled by application
+    }
+}
+
+# =============================================================================
+# HTTP Redirect (automatic)
+# =============================================================================
+# Caddy automatically redirects HTTP to HTTPS
+
+# =============================================================================
+# Development / Staging (uncomment and modify for staging)
+# =============================================================================
+# staging.tenenbaum.example.com {
+#     encode gzip
+#
+#     reverse_proxy app:3001
+#
+#     tls {
+#         env CLOUDFLARE_API_TOKEN
+#         dns cloudflare
+#     }
+# }
+
+# =============================================================================
+# Alternative: IP-based access for testing (no domain)
+# =============================================================================
+# :80 {
+#     reverse_proxy app:3001
+# }

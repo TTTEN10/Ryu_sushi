@@ -1,0 +1,71 @@
+/* ==========================================================================
+   Keyframe animations for ambient / non-Framer motion (background layers).
+   Framer Motion drives entrance + interaction animation in components.
+   ========================================================================== */
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -40px, 0) scale(1.06);
+  }
+}
+
+@keyframes float-slower {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(30px, 30px, 0) scale(1.08);
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-120vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%) rotate(-12deg);
+  }
+  100% {
+    transform: translateX(120%) rotate(-12deg);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.anim-float {
+  animation: float-slow 14s var(--ease) infinite;
+}
+
+.anim-float-alt {
+  animation: float-slower 18s var(--ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-float,
+  .anim-float-alt {
+    animation: none;
+  }
+}
