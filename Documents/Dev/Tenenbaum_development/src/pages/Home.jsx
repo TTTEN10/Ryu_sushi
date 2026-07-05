@@ -3,7 +3,6 @@ import Hero from "../components/sections/Hero";
 import Services from "../components/sections/Services";
 import WhyChooseUs from "../components/sections/WhyChooseUs";
 import Methodology from "../components/sections/Methodology";
-import Industries from "../components/sections/Industries";
 import CaseStudies from "../components/sections/CaseStudies";
 import Testimonials from "../components/sections/Testimonials";
 import Faq from "../components/sections/Faq";
@@ -46,7 +45,6 @@ export default function Home() {
       <Services />
       <WhyChooseUs />
       <Methodology />
-      <Industries />
       <CaseStudies />
       <Testimonials />
       <Faq />

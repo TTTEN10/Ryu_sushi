@@ -228,7 +228,15 @@
 }
 .hero__title .line {
   display: block;
-  overflow: hidden;
+  overflow: visible !important;
+}
+.hero__title .text-gradient,
+.hero__title span.text-gradient {
+  white-space: nowrap;
+  display: inline-block;
+  overflow: visible !important;
+  line-height: 1.2;
+  padding-bottom: 0.1em;
 }
 .hero__subtitle {
   max-width: 620px;

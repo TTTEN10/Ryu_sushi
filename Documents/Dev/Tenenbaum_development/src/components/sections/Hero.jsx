@@ -6,7 +6,7 @@ import { EASE, maskChild, staggerContainer } from "../../animations/variants";
 import { ArrowRight } from "../../icons/Icons";
 import { HERO_STATS } from "../../constants/content";
 
-const TITLE_LINES = ["Tenenbaum Development", "Clarity. Momentum. Impact."];
+const TITLE_LINES = ["Clarity. Momentum. Impact."];
 
 /** Full-viewport hero: masked headline, glass CTA, aurora backdrop, stats. */
 export default function Hero() {
@@ -22,7 +22,7 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: EASE }}
           >
-            For independent professionals who refuse to choose between excellence and fulfillment
+            Refuse to choose either excellence or fulfillment
           </motion.span>
 
           <motion.h1
@@ -33,8 +33,8 @@ export default function Hero() {
           >
             {TITLE_LINES.map((line, i) => (
               <span className="line" key={i}>
-                <motion.span style={{ display: "block" }} variants={maskChild}>
-                  {i === 1 ? <span className="text-gradient">{line}</span> : line}
+                <motion.span style={{ display: "block", overflow: "visible" }} variants={maskChild}>
+                  <span className="text-gradient">{line}</span>
                 </motion.span>
               </span>
             ))}
@@ -46,8 +46,7 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7, duration: 0.7, ease: EASE }}
           >
-            Transform your practice, amplify your impact.
-            We help high-earning independent professionals—psychologists, ergonomists, consultants, and coaches—sharpen their strategy, scale their influence, and design a career that aligns with their ambitions and values.
+            We lead ambitious individuals sharpen their strategy, scale their skills and balance their personal life.
           </motion.p>
 
           <motion.div
@@ -79,27 +78,6 @@ export default function Hero() {
             ))}
           </motion.div>
 
-          <motion.div
-            className="hero__experience"
-            initial="hidden"
-            animate="show"
-            variants={staggerContainer(0.1, 1.2)}
-          >
-            {[
-              ["30+", "Years combined experience in psychology, ergonomics, and executive coaching"],
-              ["12", "Specialized disciplines for independents"],
-              ["40+", "Countries served"],
-            ].map(([n, l]) => (
-              <motion.div
-                key={l}
-                className="hero__exp-item"
-                variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
-              >
-                <div className="num">{n}</div>
-                <div className="text">{l}</div>
-              </motion.div>
-            ))}
-          </motion.div>
         </div>
       </div>
 

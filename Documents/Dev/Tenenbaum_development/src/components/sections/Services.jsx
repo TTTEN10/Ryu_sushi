@@ -12,7 +12,7 @@ export default function Services() {
       <SectionHeading
         eyebrow="What We Do"
         title="Four pillars. One focus: Your success."
-        subtitle="Every engagement is designed to help you—the independent professional—achieve clarity, growth, and sustainability in your practice."
+        subtitle="Every engagement is tailored design for you : achieve clarity, skills and growth."
       />
 
       <motion.div

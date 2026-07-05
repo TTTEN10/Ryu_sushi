@@ -5,37 +5,37 @@
 
 export const HERO_STATS = [
   {
-    stat: "+€250K",
-    label: "average income growth for clients",
+    stat: "8",
+    label: "specialized disciplines",
   },
   {
-    stat: "94%",
+    stat: "+95%",
     label: "client retention",
   },
   {
-    stat: "90 days",
-    label: "to see results",
+    stat: "15 hours",
+    label: "to see first results",
   },
 ];
 
 export const SERVICES = [
   {
     id: "strategy",
-    title: "Career & Practice Strategy",
+    title: "Career Strategy",
     description: "For those ready to pivot, scale, or redefine their path.",
     points: [
-      "Niche refinement (e.g., transitioning from corporate ergonomics to private consulting)",
-      "Business model design (pricing, packaging, and positioning for premium clients)",
-      "Exit or transition planning (selling a practice, moving into coaching, or retiring with impact)",
+      "Psychometric and behavioral assessments",
+      "Transition support",
+      "Change management",
     ],
   },
   {
     id: "performance",
     title: "Performance & Resilience Coaching",
-    description: "For high achievers who want to sustain their edge without burnout.",
+    description: "For those who want to sustain their edge without burnout.",
     points: [
-      "Cognitive load management (tools to reduce mental fatigue while maintaining output)",
-      "Peak performance psychology (applying sports psychology principles to knowledge work)",
+      "Time management",
+      "Performance psychotherapy and coaching",
       "Decision-making under pressure (avoiding analysis paralysis in solo practice)",
     ],
   },
@@ -51,12 +51,12 @@ export const SERVICES = [
   },
   {
     id: "acquisition",
-    title: "Client Acquisition & Retention",
-    description: "For experts who want to attract the right clients—without selling their soul.",
+    title: "Skills Development",
+    description: "For professionals who want to expand their capabilities and stay competitive.",
     points: [
-      "Authority-building (thought leadership for psychologists/ergonomists)",
-      "High-ticket sales systems (closing €10K–€50K engagements with confidence)",
-      "Referral engine design (turning past clients into your best marketers)",
+      "Executive communication and presentation skills",
+      "Strategic thinking and decision-making frameworks",
+      "Leadership presence and influence building",
     ],
   },
 ];

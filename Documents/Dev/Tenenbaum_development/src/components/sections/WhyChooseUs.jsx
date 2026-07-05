@@ -10,8 +10,8 @@ export default function WhyChooseUs() {
     <Section id="why">
       <SectionHeading
         eyebrow="Why Tenenbaum"
-        title="The senior guidance you need—without the corporate fluff."
-        subtitle="We're former practitioners (psychologists, ergonomists, and executives) who've built and sold our own practices. Now, we help others do the same—faster, with fewer missteps."
+        title="The guidance you need, without the corporate fluff."
+        subtitle="We're former psychologists, ergonomists, consultants and executives who've built and delivered value to world-class companies and industry leaders."
       />
 
       <motion.div

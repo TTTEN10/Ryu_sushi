@@ -14,7 +14,7 @@ export default function ContactCta() {
         </Reveal>
         <Reveal variant="blur" delay={0.05}>
           <h2 className="t-h2 text-balance" style={{ marginTop: 12, maxWidth: 720, marginInline: "auto" }}>
-            The best time to redesign your career was last year. The next best time is now.
+            The best time to improve your activity was last year. The next best time is now.
           </h2>
         </Reveal>
         <Reveal variant="up" delay={0.15}>
