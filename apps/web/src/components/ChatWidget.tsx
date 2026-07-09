@@ -14,6 +14,8 @@ import { apiFetch, apiUrl } from '../config/api';
 import Paywall from './Paywall';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
+import SafetyModal from './SafetyModal';
+import { useCrisisDetection } from '../hooks/useCrisisDetection';
 import {
   clearGuestPromptCount,
   readGuestPromptCount,
@@ -124,6 +126,29 @@ export default function ChatWidget() {
 
   // Track if we should show DID creation prompt
   const [showDidCreatePrompt, setShowDidCreatePrompt] = useState(false);
+
+  // Crisis detection & Safety Net
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [crisisHotline, setCrisisHotline] = useState<{
+    name: string;
+    phone: string;
+    website: string;
+    availability: string;
+  } | null>(null);
+  const [detectedLanguage, setDetectedLanguage] = useState('en');
+
+  const {
+    checkMessage,
+    registerSafetyNet,
+    dismissModal,
+  } = useCrisisDetection({
+    enabled: true,
+    onCrisisDetected: (result) => {
+      setShowSafetyModal(true);
+      setCrisisHotline(result.hotline);
+      setDetectedLanguage(result.language || 'en');
+    },
+  });
 
   // Wallet verified mid-session: reset guest limit and allow persistence path (load replaces thread).
   useEffect(() => {
@@ -484,6 +509,10 @@ export default function ChatWidget() {
   const handleSend = async (contentOverride?: string) => {
     const trimmed = (typeof contentOverride === 'string' ? contentOverride : input).trim();
     if (!trimmed || isStreaming || isSending || trimmed.length > MAX_MESSAGE_LENGTH || requestInProgress) return;
+
+    // Crisis detection: check message before sending (client-side only)
+    checkMessage(trimmed);
+    // Note: crisis detection is non-blocking - message still sends
 
     // Authenticated users: require encryption to be ready
     if (!isGuest) {
@@ -1150,6 +1179,20 @@ export default function ChatWidget() {
       </div>
       </div>
       <ToastContainer />
+
+      {/* Safety Net Modal - Crisis Support */}
+      <SafetyModal
+        isOpen={showSafetyModal}
+        onClose={() => {
+          dismissModal();
+          setShowSafetyModal(false);
+        }}
+        onOptIn={async (data) => {
+          await registerSafetyNet(data);
+        }}
+        detectedLanguage={detectedLanguage}
+        hotline={crisisHotline}
+      />
     </>
   );
 }

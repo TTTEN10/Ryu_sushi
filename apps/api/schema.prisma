@@ -122,6 +122,27 @@ model RAGAuditLog {
   @@map("rag_audit_logs")
 }
 
+/**
+ * Crisis Safety Net - Opt-in PII storage for users who voluntarily
+ * provide contact info for crisis follow-up. Auto-purged after 30 days.
+ */
+model CrisisOptIn {
+  id                String    @id @default(cuid())
+  walletAddress     String    @unique // Pseudonymous link to user (unique - one per wallet)
+  email             String?   // Encrypted at rest via application layer
+  fullName          String?   // Encrypted at rest via application layer
+  emergencyContact  String?   // Encrypted at rest via application layer
+  language          String    // Detected language code (en, zh, hi, etc.)
+  consentHash       String    // Hash of consent data for audit/proof
+  createdAt         DateTime  @default(now())
+  expiresAt         DateTime  // Auto-purge target (created + 30 days)
+  lastCrisisTrigger DateTime? // Last time crisis was detected
+  triggerCount      Int       @default(0) // Number of crisis detections
+
+  @@index([expiresAt])
+  @@map("crisis_opt_in")
+}
+
 model SecurityAuditLog {
   id        String   @id @default(cuid())
   eventType String

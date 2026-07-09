@@ -150,6 +150,9 @@ cat > "${LOCAL_STACK_DIR}/Caddyfile" <<EOF
   handle /beta/chat/completions* {
     reverse_proxy node-api:3001
   }
+  handle /api/crisis/* {
+    reverse_proxy node-api:3001
+  }
   handle /api/admin/* {
     reverse_proxy node-api:3001
   }

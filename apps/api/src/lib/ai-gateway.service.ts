@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 import { resolveDrSafeSystemPrompt } from './dr-safe-system-prompt';
 import { registerUpstreamUrls, isUpstreamHealthy } from './llm-upstream-health';
 import { shouldUseScalewayDirect } from './llm-routing';
-import { detectCrisisInMessages, CRISIS_PREPEND_TEXT } from './crisis-detection';
+import { detectCrisisInMessages, CRISIS_PREPEND_TEXT, CRISIS_RESOURCES } from './crisis-detection';
 import { getCachedResponse, cacheResponse, isResponseCacheEnabled } from './response-cache';
 import { logScalewayUsage, createUsageRecord } from './scaleway-metrics';
 import { Config } from './config';
@@ -653,6 +653,7 @@ class AIGatewayService {
           model,
           temperature,
           maxTokens,
+          crisisResources: crisisResult.resources || undefined,
         }),
       };
 
