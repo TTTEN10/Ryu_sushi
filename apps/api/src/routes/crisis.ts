@@ -129,11 +129,12 @@ const CRISIS_HOTLINES: Record<string, CrisisHotline> = {
 type LanguageCode = string;
 
 /**
- * Rate limiting for crisis endpoints (generous limits - this is safety-critical)
+ * Rate limiting for crisis opt-in endpoint (PII endpoint - strict limits)
+ * Pattern from apps/api/src/lib/ratelimit.ts
  */
 const crisisOptInRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 requests per 15 minutes
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // 5 requests per minute
   message: {
     success: false,
     message: 'Too many requests. Please wait before trying again.',
