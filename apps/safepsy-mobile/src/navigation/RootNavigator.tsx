@@ -6,6 +6,9 @@ import { ChatScreen } from '../screens/ChatScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SafetyDisclaimerScreen } from '../screens/SafetyDisclaimerScreen';
 import { WalletAuthScreen } from '../screens/WalletAuthScreen';
+import { TermsPrivacyConsentScreen } from '../screens/TermsPrivacyConsentScreen';
+import { HealthDataConsentScreen } from '../screens/HealthDataConsentScreen';
+import { PrivacySettingsScreen } from '../screens/PrivacySettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -26,6 +29,21 @@ export function RootNavigator() {
           name="Safety"
           component={SafetyDisclaimerScreen}
           options={{ title: 'Safety' }}
+        />
+        <Stack.Screen 
+          name="TermsPrivacyConsent" 
+          component={TermsPrivacyConsentScreen} 
+          options={{ title: 'Terms & Privacy' }} 
+        />
+        <Stack.Screen 
+          name="HealthDataConsent" 
+          component={HealthDataConsentScreen} 
+          options={{ title: 'Health Data Consent' }} 
+        />
+        <Stack.Screen 
+          name="PrivacySettings" 
+          component={PrivacySettingsScreen} 
+          options={{ title: 'Privacy Settings' }} 
         />
         <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Dr.Safe' }} />
         <Stack.Screen name="Wallet" component={WalletAuthScreen} options={{ title: 'Your private space' }} />

@@ -43,6 +43,19 @@ export function SafetyDisclaimerScreen({ navigation }: Props) {
         inappropriate for your situation. Always verify important information with a qualified professional.
       </Text>
 
+      <Text style={styles.section}>Onboarding & Consent</Text>
+      <Text style={styles.p}>
+        SafePsy is an AI reflection assistant designed to help you organize and reflect on your thoughts using AI.
+        Before using the AI assistant features, you must provide explicit consent to the processing of any health-related information you voluntarily provide.
+      </Text>
+      <Text style={styles.p}>
+        This consent is required to use the AI assistant features and covers:
+      </Text>
+      <Text style={styles.bullet}>• How your health data is processed</Text>
+      <Text style={styles.bullet}>• Your rights regarding health data</Text>
+      <Text style={styles.bullet}>• Data handling with our AI provider (Scaleway)</Text>
+      <Text style={styles.bullet}>• How we protect your privacy</Text>
+
       <Text style={styles.section}>Wallet & data (summary)</Text>
       <Text style={styles.p}>
         Your wallet address is used to authenticate you and to associate usage with your account. Chat
@@ -62,8 +75,8 @@ export function SafetyDisclaimerScreen({ navigation }: Props) {
         Continue only if you understand this is a beta software experience and not clinical treatment.
       </Text>
 
-      <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('Chat')}>
-        <Text style={styles.primaryBtnText}>I understand — open chat</Text>
+      <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('TermsPrivacyConsent')}>
+        <Text style={styles.primaryBtnText}>I understand — proceed to consent</Text>
       </Pressable>
     </ScrollView>
   );
@@ -74,6 +87,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
   section: { fontSize: 17, fontWeight: '700', marginTop: 18, marginBottom: 8, color: '#111' },
   p: { fontSize: 16, lineHeight: 24, marginBottom: 12, color: '#222' },
+  bullet: { fontSize: 16, lineHeight: 24, marginBottom: 6, color: '#222', paddingLeft: 10 },
   crisisBox: {
     backgroundColor: '#f4f8fb',
     borderRadius: 10,

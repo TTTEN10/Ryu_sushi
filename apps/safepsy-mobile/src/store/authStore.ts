@@ -14,6 +14,11 @@ type AuthState = {
   chainId: number | null;
   isVerified: boolean;
   restoreError: string | null;
+  /** New consent fields */
+  termsAccepted: boolean;
+  healthDataConsent: boolean;
+  /** Combined consent status */
+  consentsGiven: boolean;
   hydrate: () => Promise<void>;
   /** Validates stored JWT with GET /api/auth/me; clears on 401. */
   restoreSession: () => Promise<void>;
@@ -24,6 +29,11 @@ type AuthState = {
   }) => Promise<void>;
   /** Clears token and in-memory session fields (caller disconnects WC + chat crypto). */
   clearSession: () => Promise<void>;
+  /** Sets consent status */
+  setConsents: (consents: {
+    termsAccepted?: boolean;
+    healthDataConsent?: boolean;
+  }) => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -33,6 +43,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   chainId: null,
   isVerified: false,
   restoreError: null,
+  /** New consent fields */
+  termsAccepted: false,
+  healthDataConsent: false,
+  consentsGiven: false,
 
   hydrate: async () => {
     const token = await getWalletSessionToken();
@@ -50,6 +64,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         walletAddress: null,
         chainId: null,
         restoreError: null,
+        termsAccepted: false,
+        healthDataConsent: false,
+        consentsGiven: false,
       });
       return;
     }
@@ -63,6 +80,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           walletAddress: me.data.walletAddress.toLowerCase(),
           chainId: me.data.chainId ?? null,
           restoreError: null,
+          termsAccepted: me.data.termsAccepted ?? false,
+          healthDataConsent: me.data.healthDataConsent ?? false,
+          consentsGiven: me.data.termsAccepted && me.data.healthDataConsent,
         });
       } else {
         await clearWalletSessionToken();
@@ -72,6 +92,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           walletAddress: null,
           chainId: null,
           restoreError: 'Session invalid. Please sign in again.',
+          termsAccepted: false,
+          healthDataConsent: false,
+          consentsGiven: false,
         });
       }
     } catch {
@@ -82,6 +105,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         walletAddress: null,
         chainId: null,
         restoreError: 'Session expired. Please sign in again.',
+        termsAccepted: false,
+        healthDataConsent: false,
+        consentsGiven: false,
       });
     }
   },
@@ -94,6 +120,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       chainId,
       isVerified: true,
       restoreError: null,
+      termsAccepted: false, // Reset consents when new session is established
+      healthDataConsent: false,
+      consentsGiven: false,
     });
   },
 
@@ -105,6 +134,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       chainId: null,
       isVerified: false,
       restoreError: null,
+      termsAccepted: false,
+      healthDataConsent: false,
+      consentsGiven: false,
+    });
+  },
+
+  setConsents: async (consents) => {
+    set((state) => {
+      const updatedState = { ...state, ...consents };
+      updatedState.consentsGiven = updatedState.termsAccepted && updatedState.healthDataConsent;
+      return updatedState;
     });
   },
 }));

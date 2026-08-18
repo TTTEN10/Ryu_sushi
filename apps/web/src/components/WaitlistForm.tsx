@@ -17,7 +17,7 @@ function isValidEmail(email: string): boolean {
 
 export default function WaitlistForm({
   title = 'Join the waitlist',
-  subtitle = 'Secure your spot and receive insider updates.',
+  subtitle = 'Write',
 }: {
   title?: string
   subtitle?: string

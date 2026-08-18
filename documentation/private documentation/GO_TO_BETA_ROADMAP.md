@@ -39,7 +39,7 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 | **UX/Accessibility** | Crisis modal English-only (10 languages supported elsewhere) | Medium | No (beta) | 1 day | P2 |
 | **UX/Accessibility** | No WCAG 2.1 AA audit completed | Medium | Yes | 4 hours | P2 |
 | **Features** | No password reset (wallet-auth only) | Low | Document | 1 hour | P3 |
-| **Features** | No account deletion UI in frontend | High | Yes | 2 hours | P1 |
+| **Features** | No account deletion UI in frontend | ✅ FIXED | No longer required | N/A | P3 |
 
 ---
 
@@ -65,7 +65,6 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 |--------|-------|----------|--------------|------|
 | :red_circle: **Remove/replace default JWT_SECRET marker** | You | T-28 days | None | 30 min |
 | ✅ **Add rate limiting to `/api/crisis/opt-in`** | You | Done | None | Done |
-| :red_circle: **Add account deletion endpoint + UI** | You | T-14 days | None | 4 hours |
 | :red_circle: **Set up error monitoring (Sentry)** | You | T-14 days | Sentry account | Free tier |
 | :red_circle: **Configure database backups** | You | T-10 days | Hosting access | €20/month |
 | :red_circle: **Add database index on `expiresAt` (CrisisOptIn)** | You | T-14 days | None | 30 min |
@@ -175,9 +174,13 @@ Week 1 (T-28 to T-22)          Week 2 (T-21 to T-15)          Week 3 (T-14 to T-
 |-----------|------|--------|
 | ✅ .env file audited | July 8, 2026 | ✅ Complete |
 | ✅ DPIA completed | July 8, 2026 | ✅ Complete |
+| ✅ Production deployment | July 9, 2026 | ✅ Complete |
+| ✅ Rate limiting (crisis opt-in) | July 9, 2026 | ✅ Complete |
+| ✅ Beta tester guide | July 9, 2026 | ✅ Complete |
+| ✅ Social media content | July 9, 2026 | ✅ Complete |
 | ⏳ Privacy Policy & Terms drafted | July 17, 2026 | ⏳ Pending |
 | ⏳ Business registered | July 17, 2026 | ⏳ Pending |
-| ⏳ CNIL registration submitted | July 24, 2026 | ⏳ Pending |
+| ⏳ GDPR compliance documentation | July 24, 2026 | ⏳ Pending |
 | ⏳ Consent checkbox live | July 24, 2026 | ⏳ Pending |
 | ⏳ Stripe account approved | July 28, 2026 | ⏳ Pending |
 | ⏳ Beta testers recruited (50-100) | August 1, 2026 | ⏳ Pending |
@@ -250,37 +253,41 @@ Assuming 100 beta users, 10% conversion to paid (€29/month):
 
 ## 7. Next Steps (This Week)
 
-### Top 5 Actions to Take This Week
+### Top 5 Actions to Take Today (July 9, 2026)
 
-1. **:red_circle: Start Estonian OÜ registration via e-Residency** — Business entity setup:
-   - If you don't have e-Residency: apply at [e-estonia.com/e-residents/apply](https://www.e-estonia.com/e-residents/apply) (€100-120, 3-4 weeks)
-   - If you have e-Residency: register OÜ at [äriregister.rik.ee](https://ariregister.rik.ee)
-   - Required: share capital €2,500 (can be deferred), legal address service (~€10/month)
-   - Estimated: 1-2 days for application, 3-5 days for approval
+Given today's progress (production deployed ✅, rate limiting shipped ✅, beta guide + social content created ✅), here are the **5 highest-impact actions for today**:
 
-2. **:red_circle: Add explicit consent checkbox for health data** — GDPR Art. 9 compliance:
-   - Add checkbox in frontend (crisis opt-in form, signup)
-   - Copy: "I consent to processing my health data for crisis support"
-   - Log consent timestamp in database
-   - Estimated: 4 hours
+1. **:red_circle: Post first LinkedIn teaser** — Launch visibility campaign:
+   - Use **Post 2: Founder Story** from `SOCIAL_MEDIA_PR_CONTENT.md`
+   - Why first: Builds personal narrative before beta announcement
+   - Time: 10 minutes (copy/paste + personalize)
+   - CTA: "DM me if you care about data ownership in mental health"
 
-3. **:red_circle: Add account deletion endpoint + UI** — GDPR Art. 17 compliance:
-   - Create DELETE `/api/user/account` endpoint
-   - Add "Delete My Account" button in user settings
-   - Cascade delete all user data (subscriptions, chats, crisis opt-in)
-   - Estimated: 4 hours
+2. **:red_circle: Post first Twitter thread** — Cross-platform presence:
+   - Use **Thread 1: What Is SafePsy?** from `SOCIAL_MEDIA_PR_CONTENT.md`
+   - Post all 7 tweets as a thread
+   - Time: 15 minutes
+   - Pin the thread to your profile
 
-4. **:red_circle: Set up error monitoring (Sentry)** — Production visibility:
-   - Create free Sentry account at [sentry.io](https://sentry.io)
-   - Install `@sentry/node` in API, `@sentry/react` in frontend
-   - Estimated: 2 hours
+3. **:red_circle: Send 5 personalized beta invites** — Start recruitment early:
+   - Use email template from `BETA_TESTER_GUIDE.md` (Appendix)
+   - Target: 2 friends in tech, 2 in mental health, 1 with Web3 experience
+   - Time: 30 minutes
+   - Goal: Secure 5 committed beta testers today (10% of target)
 
-5. **:red_circle: Begin beta tester recruitment campaign** — Target 50-100 testers:
-   - Launch landing page with email signup (use template in `docs/BETA_TESTER_GUIDE.md`)
-   - Post in mental health communities (Reddit, French forums, LinkedIn)
-   - Reach out to personal network via email/LinkedIn
-   - Offer: 6 months free premium for beta feedback
-   - Estimated: 2-4 hours setup, ongoing outreach
+4. **:red_circle: Create Discord feedback server** — Infrastructure for beta:
+   - Server name: "SafePsy Beta"
+   - Channels: `#welcome`, `#bug-reports`, `#feature-requests`, `#general`, `#announcements`
+   - Add beta tester guide link to welcome channel
+   - Time: 20 minutes
+   - Invite link: Add to beta landing page later
+
+5. **:red_circle: Set up GA4 analytics** — Track beta metrics:
+   - Create GA4 property for `polinapsycho.com`
+   - Install tracking code in `apps/web`
+   - Define conversion event: "activation" = DID created + first chat
+   - Time: 45 minutes
+   - Why today: Need baseline before beta traffic arrives
 
 ### People to Contact
 
@@ -382,12 +389,53 @@ Define "beta-ready" as meeting ALL of the following:
 | GDPR Art. 20 (Data portability) | ❌ Missing | No data export workflow |
 | CNIL Registration | ⏳ Pending | Ready to submit |
 | DPIA | ✅ Complete | Completed |
+| Estonian Data Protection | ⏳ Pending | Starting registration process |
+| WCAG 2.1 AA | ⏳ Pending | Audit scheduled |
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** July 8, 2026  
-**Next Review:** July 15, 2026
+**Document Version:** 1.1  
+**Last Updated:** July 9, 2026  
+**Next Review:** July 16, 2026
+
+---
+
+## 11. Latest Changes (July 9, 2026)
+
+### ✅ Completed Today
+| Item | Status | Notes |
+|------|--------|-------|
+| Production deployment | ✅ Success | All containers running, HTTPS verified |
+| Rate limiting `/api/crisis/opt-in` | ✅ Complete | 5 req/min, strict PII protection |
+| Beta tester guide | ✅ Complete | `docs/BETA_TESTER_GUIDE.md` with email templates |
+| Social media content | ✅ Complete | `SOCIAL_MEDIA_PR_CONTENT.md` with LinkedIn/Twitter posts |
+| Crisis partner outreach | 🟡 In Progress | Templates ready, contacts being researched |
+| Estonian OÜ registration | 🟡 In Progress | Will start soon |
+
+### Updated Gap Analysis
+| Category | Gap | Status | Notes |
+|----------|-----|--------|-------|
+| **Security** | Rate limiting on `/api/crisis/opt-in` | ✅ Complete | Shipped July 9 |
+| **Infrastructure** | Production deployment | ✅ Complete | Verified: all HTTPS checks pass |
+| **Documentation** | Beta tester onboarding | ✅ Complete | Email templates in `BETA_TESTER_GUIDE.md` |
+| **Marketing** | Social media content | ✅ Complete | Ready-to-post content in `SOCIAL_MEDIA_PR_CONTENT.md` |
+
+---
+
+## 12. 🎯 Your 5 Actions for Today (July 9, 2026)
+
+**Focus: Business, compliance, and beta preparation (no coding required)**
+
+| # | Action | Time | Why Today |
+|---|--------|------|-----------|
+| **1** | **Start Estonian OÜ registration** | 45 min | Longest lead time (3-4 weeks). If you have e-Residency, register at [äriregister.rik.ee](https://ariregister.rik.ee). If not, apply for e-Residency first. |
+| **2** | **Send 3 crisis partner outreach emails** | 30 min | Use template in `CRISIS_PARTNER_OUTREACH.md`. Target: SOS Amitié, 3114, 988 Lifeline. Endorsements validate safety before beta. |
+| **3** | **Draft Privacy Policy outline for lawyer** | 1 hour | List all data flows (wallet, DID, chat, crisis opt-in), retention periods, user rights. Reduces legal bill from €1,500 → €800. |
+| **4** | **Create beta landing page** | 2 hours | Use Carrd/Tally/Framer. Include: value prop, beta details, email signup. Use copy from `SOCIAL_MEDIA_PR_CONTENT.md` (Post 5). |
+| **5** | **Send first 5 beta tester invites** | 30 min | Use email template in `BETA_TESTER_GUIDE.md`. Target: 2 tech friends, 2 mental health professionals, 1 Web3 person. Goal: 5 committed testers today. |
+
+**Total time:** ~5 hours  
+**Expected outcome:** Business registration started, 3 partnership emails sent, privacy policy outline ready, landing page live, 5 beta testers committed
 
 ---
 

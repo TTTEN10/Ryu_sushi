@@ -6,6 +6,14 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../store/authStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Wallet'>;
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useWalletConnect } from '../contexts/WalletConnectContext';
+import { RootStackParamList } from '../navigation/types';
+import { useAuthStore } from '../store/authStore';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Wallet'>;
 
 export function WalletAuthScreen(_props: Props) {
   const {

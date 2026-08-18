@@ -34,7 +34,10 @@ export default function Landing() {
               </h1>
               <div className="mt-6 max-w-3xl mx-auto space-y-4 text-base sm:text-lg text-body leading-relaxed whitespace-normal break-words [text-wrap:pretty]">
                 <p>
-                  SafePsy is a privacy-first AI therapist offering secure support with Dr. Safe. Chat instantly with no sign-in, or use decentralized identity for fully encrypted conversations you control.
+                  SafePsy is a privacy-first AI therapist offering secure support with Dr. Safe.
+                </p>
+                <p>
+                  Chat instantly with no sign-in, or use decentralized identity for fully encrypted conversations you control.
                 </p>
                 <p>
                   With decentralized identity, chats stay in your browser and encrypted history is stored as unreadable data your keys, your control. We never train on your data.
@@ -71,10 +74,7 @@ export default function Landing() {
                 <p className="text-body text-sm sm:text-base"><strong className="text-heading">Transparency:</strong> Decentralized Identity relies on blockchain; on-chain metadata is public, while chat content is off-chain and encrypted.</p>
               </div>
             </div>
-            <p className="max-w-4xl mx-auto text-center text-body mt-6 text-xs sm:text-sm opacity-90">
-              Important: SafePsy encrypts saved chat at rest, but it is not strict end-to-end encryption: your browser sends message text over HTTPS on each AI request.
-            </p>
-          </section>
+                      </section>
 
           <section className="scroll-reveal" data-reveal>
             <WaitlistForm />

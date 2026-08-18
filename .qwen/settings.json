@@ -1,0 +1,25 @@
+{
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "Devstral2-123B",
+        "name": "Devstral",
+        "baseUrl": "https://iliad.codix.scw.eu/v1",
+        "description": "Devstral2 via codiX (pinned)",
+        "envKey": "2f40f98c-ac99-4fd4-97c4-f1bd429becd9"
+      }
+    ]
+  },
+  "env": {
+    "CODIX_API_KEY": "2f40f98c-ac99-4fd4-97c4-f1bd429becd9"
+  },
+  "security": {
+    "auth": {
+      "selectedType": "openai"
+    }
+  },
+  "model": {
+    "name": "codiX-agent"
+  },
+  "$version": 3
+}

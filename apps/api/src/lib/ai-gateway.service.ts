@@ -321,6 +321,26 @@ class AIGatewayService {
     return false;
   }
 
+  /**
+   * Extract text content from a message that may have content as string or content blocks array.
+   * Some LLM providers return content as [{type: "text", text: "..."}, ...] instead of plain string.
+   */
+  private extractTextContent(content: unknown): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      // Content blocks format: [{type: "text", text: "..."}, ...]
+      return content
+        .filter((block): block is { type: string; text: string } =>
+          typeof block === 'object' && block !== null && block.type === 'text' && typeof block.text === 'string'
+        )
+        .map((block) => block.text)
+        .join('');
+    }
+    return '';
+  }
+
   private buildSanitizedMessages(
     request: ChatCompletionRequest
   ): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
@@ -421,10 +441,22 @@ class AIGatewayService {
             const data = JSON.parse(dataStr);
             const choice = data.choices?.[0];
 
-            if (choice?.delta?.content) {
-              const token = choice.delta.content;
-              fullContent += token;
-              tokenQueue.push(token);
+            if (choice?.delta) {
+              // Handle both string content and content blocks array
+              const delta = choice.delta as { content?: string | Array<{ type: string; text: string }> };
+              let tokenText = '';
+              if (typeof delta.content === 'string') {
+                tokenText = delta.content;
+              } else if (Array.isArray(delta.content)) {
+                tokenText = delta.content
+                  .filter((block) => block.type === 'text')
+                  .map((block) => block.text)
+                  .join('');
+              }
+              if (tokenText) {
+                fullContent += tokenText;
+                tokenQueue.push(tokenText);
+              }
             }
 
             if (choice?.finish_reason) {
@@ -449,10 +481,21 @@ class AIGatewayService {
             try {
               const data = JSON.parse(dataStr);
               const choice = data.choices?.[0];
-              if (choice?.delta?.content) {
-                const token = choice.delta.content;
-                fullContent += token;
-                tokenQueue.push(token);
+              if (choice?.delta) {
+                const delta = choice.delta as { content?: string | Array<{ type: string; text: string }> };
+                let tokenText = '';
+                if (typeof delta.content === 'string') {
+                  tokenText = delta.content;
+                } else if (Array.isArray(delta.content)) {
+                  tokenText = delta.content
+                    .filter((block) => block.type === 'text')
+                    .map((block) => block.text)
+                    .join('');
+                }
+                if (tokenText) {
+                  fullContent += tokenText;
+                  tokenQueue.push(tokenText);
+                }
               }
               if (choice?.finish_reason) {
                 finishReason = choice.finish_reason;
@@ -535,6 +578,9 @@ class AIGatewayService {
       throw new Error('No response from upstream');
     }
 
+    // Extract text content from message (handle both string and content blocks array)
+    const content = this.extractTextContent(choice.message.content);
+
     return {
       id: completion.id || `upstream-${Date.now()}`,
       model: completion.model || model,
@@ -543,7 +589,7 @@ class AIGatewayService {
           index: 0,
           message: {
             role: choice.message.role as 'assistant',
-            content: choice.message.content || '',
+            content,
             timestamp: new Date(),
           },
           finishReason: choice.finish_reason || 'stop',
@@ -693,10 +739,21 @@ class AIGatewayService {
             try {
               const data = JSON.parse(dataStr);
               const choice = data.choices?.[0];
-              if (choice?.delta?.content) {
-                const token = choice.delta.content;
-                fullContent += token;
-                tokenQueue.push(token);
+              if (choice?.delta) {
+                const delta = choice.delta as { content?: string | Array<{ type: string; text: string }> };
+                let tokenText = '';
+                if (typeof delta.content === 'string') {
+                  tokenText = delta.content;
+                } else if (Array.isArray(delta.content)) {
+                  tokenText = delta.content
+                    .filter((block) => block.type === 'text')
+                    .map((block) => block.text)
+                    .join('');
+                }
+                if (tokenText) {
+                  fullContent += tokenText;
+                  tokenQueue.push(tokenText);
+                }
               }
               if (choice?.finish_reason) {
                 finishReason = choice.finish_reason;
@@ -720,10 +777,21 @@ class AIGatewayService {
               try {
                 const data = JSON.parse(dataStr);
                 const choice = data.choices?.[0];
-                if (choice?.delta?.content) {
-                  const token = choice.delta.content;
-                  fullContent += token;
-                  tokenQueue.push(token);
+                if (choice?.delta) {
+                  const delta = choice.delta as { content?: string | Array<{ type: string; text: string }> };
+                  let tokenText = '';
+                  if (typeof delta.content === 'string') {
+                    tokenText = delta.content;
+                  } else if (Array.isArray(delta.content)) {
+                    tokenText = delta.content
+                      .filter((block) => block.type === 'text')
+                      .map((block) => block.text)
+                      .join('');
+                  }
+                  if (tokenText) {
+                    fullContent += tokenText;
+                    tokenQueue.push(tokenText);
+                  }
                 }
                 if (choice?.finish_reason) {
                   finishReason = choice.finish_reason;
@@ -876,7 +944,7 @@ class AIGatewayService {
       throw new Error('No response from Scaleway');
     }
 
-    let content = choice.message.content || '';
+    let content = this.extractTextContent(choice.message.content);
     if (crisisResult.isCrisis) {
       content = crisisResult.prependText + content;
     }

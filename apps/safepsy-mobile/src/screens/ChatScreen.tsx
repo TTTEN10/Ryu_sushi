@@ -677,6 +677,18 @@ export function ChatScreen(_props: Props) {
           isTyping={isTyping}
           streamLocked={streamLocked}
           persistLocked={persistLocked}
+        <View style={styles.chatColumn}>
+          <GiftedChatPane
+            messages={messages}
+            isTyping={isTyping}
+            streamLocked={streamLocked}
+            persistLocked={persistLocked}
+            onSend={onSend}
+          />
+          <View style={styles.retentionFooter}>
+            <Text style={styles.retentionLine}>This space will be here when you return.</Text>
+          </View>
+        </View>
           onSend={onSend}
         />
         <View style={styles.retentionFooter}>
@@ -744,6 +756,27 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#bcd',
+  retryBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginRight: 10,
+    marginBottom: 5,
+  },
+  exportButton: {
+    backgroundColor: '#1a5f7a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  exportButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});
   },
   persistText: { fontSize: 14, color: '#0d3d4d', lineHeight: 20 },
   persistSub: { fontSize: 12, color: '#3d5c66', lineHeight: 17, marginTop: 4 },

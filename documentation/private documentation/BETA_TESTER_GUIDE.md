@@ -327,3 +327,33 @@ Founder, SafePsy
 **Thank You (Beta Close, Day 14):**
 
 > Hi [First Name], the SafePsy beta just wrapped — thank you for being part of this journey. Your feedback [specific mention if possible] was incredibly helpful. We're now working on [next steps: fixes, features, launch timeline]. You'll hear from us again before public launch. As promised, your 6 months of Premium is locked in. Stay tuned! 🎉
+
+---
+
+## 📊 Beta Invite Tracker (Today's 5 Invites)
+
+Use this table to track your first 5 beta tester invites. Goal: **Send 5 today**.
+
+| # | Name | Category | Email | Sent? | Response? | Joined? | Notes |
+|---|------|----------|-------|-------|-----------|---------|-------|
+| 1 | | Tech friend | | ☐ | ☐ | ☐ | |
+| 2 | | Tech friend | | ☐ | ☐ | ☐ | |
+| 3 | | Mental health | | ☐ | ☐ | ☐ | |
+| 4 | | Mental health | | ☐ | ☐ | ☐ | |
+| 5 | | Web3 person | | ☐ | ☐ | ☐ | |
+
+**Categories key:**
+- **Tech friend:** Someone who understands software, can give technical feedback
+- **Mental health:** Therapist, counselor, or someone currently in therapy
+- **Web3 person:** Crypto/Web3 native, can validate wallet/DID flow
+
+### Quick Copy/Paste for Personalization
+
+**For tech friends:**
+> "Hey [Name], I'm building something privacy-first in mental health. You're one of the few people I trust to give honest technical feedback. Want to try the beta?"
+
+**For mental health folks:**
+> "Hey [Name], I'm building SafePsy — an AI assistant for between-therapy support (not a replacement for therapy). Would love your perspective on whether this feels helpful vs. potentially harmful."
+
+**For Web3 people:**
+> "Hey [Name], building something with actual Web3 utility — wallet auth + on-chain identity (DID) for mental wellness. No gas fees, just sovereignty. Want to kick the tires?"

@@ -563,4 +563,25 @@ Founder, SafePsy
 
 ---
 
+## ⚡ Quick Actions (Today's Tasks)
+
+### Action 1: Post Twitter Thread (15 min)
+**Thread 1: "What Is SafePsy?"** — Copy/paste ready (lines 162-220):
+
+1. Copy tweets 1-7 from the thread above
+2. Post as a thread on Twitter/X
+3. Pin to your profile
+4. Cross-post link on LinkedIn with note: "Full thread on what we're building → [link]"
+
+### Action 2: Send 5 Beta Invites (30 min)
+**Email template:** See `BETA_TESTER_GUIDE.md` (Appendix + Tracker section)
+
+1. Open `BETA_TESTER_GUIDE.md` → Beta Invite Tracker
+2. Fill in 5 names (2 tech, 2 mental health, 1 Web3)
+3. Personalize using the quick copy/paste templates
+4. Send via email or LinkedIn DM
+5. Track responses in the table
+
+---
+
 *Last updated: 2026-07-09*

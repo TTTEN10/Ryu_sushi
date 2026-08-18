@@ -16,15 +16,24 @@ export interface WalletSessionPayload {
 /**
  * Session configuration
  */
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-use-strong-random-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'; // 7 days default
+
+// Validate JWT_SECRET in production
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  } else {
+    console.warn('WARNING: JWT_SECRET not set. Using default for development only.');
+  }
+}
 
 /**
  * Generate a JWT token for wallet session
  */
 export function generateWalletToken(payload: Omit<WalletSessionPayload, 'iat' | 'exp'>): string {
-  if (!JWT_SECRET || JWT_SECRET === 'change-me-in-production-use-strong-random-secret') {
-    logger.warn('WARNING: Using default JWT_SECRET. This is insecure for production!');
+  if (!JWT_SECRET) {
+    logger.warn('WARNING: JWT_SECRET not set. This is insecure for production!');
   }
 
   const tokenPayload: WalletSessionPayload = {
@@ -43,8 +52,8 @@ export function generateWalletToken(payload: Omit<WalletSessionPayload, 'iat' | 
  */
 export function verifyWalletToken(token: string): WalletSessionPayload | null {
   try {
-    if (!JWT_SECRET || JWT_SECRET === 'change-me-in-production-use-strong-random-secret') {
-      logger.warn('WARNING: Using default JWT_SECRET. This is insecure for production!');
+    if (!JWT_SECRET) {
+      logger.warn('WARNING: JWT_SECRET not set. This is insecure for production!');
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as WalletSessionPayload;

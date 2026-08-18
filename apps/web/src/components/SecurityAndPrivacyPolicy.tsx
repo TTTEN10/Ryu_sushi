@@ -1,11 +1,16 @@
 import React from 'react'
-import { Shield, Lock, Eye, Users, FileText, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Shield, Lock, Eye, Users, FileText, CheckCircle, AlertTriangle, Key, Database, Server, Trash, Download, RefreshCw, WifiOff, Hash, Layers, ExternalLink } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
 
 const SecurityAndPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate()
+
+  const lastUpdated = 'July 27, 2026'
+  const effectiveDate = 'July 27, 2026'
+  const version = '3.0'
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -22,9 +27,41 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                   Privacy Policy
                 </span>
               </h1>
-              <p className="text-base sm:text-lg lg:text-xl text-body leading-relaxed max-w-3xl mx-auto">
+              <p className="text-base sm:text-lg lg:text-xl text-body leading-relaxed max-w-3xl mx-auto mb-4">
                 Comprehensive data protection and security measures for your mental health journey
               </p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                Last Updated: {lastUpdated} | Version: {version}
+              </p>
+            </div>
+
+            {/* Introduction */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 xl:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-12 sm:mb-16">
+              <h2 className="text-2xl sm:text-3xl text-heading mb-6">Introduction</h2>
+              <p className="text-base sm:text-lg text-body leading-relaxed mb-4">
+                SafePsy ("we," "us," "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mental wellness platform.
+              </p>
+              <p className="text-base sm:text-lg text-body leading-relaxed mb-6">
+                <strong>SafePsy is a privacy-first mental wellness platform</strong> that helps people get private support between therapy sessions without giving up control of their data. We combine wallet-based identity, client-side encryption, and ethical AI to provide a confidential space for reflection and support.
+              </p>
+
+              <div className="grid md:grid-cols-3 gap-6 mt-8">
+                <div className="text-center p-6 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
+                  <Lock className="w-12 h-12 mx-auto text-primary-600 dark:text-primary-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-heading mb-2">User-Controlled Encryption</h3>
+                  <p className="text-sm text-body">Your encryption keys are derived from your wallet, not stored on our servers</p>
+                </div>
+                <div className="text-center p-6 rounded-xl bg-secondary-50 dark:bg-secondary-900/20 border border-secondary-200 dark:border-secondary-800">
+                  <Shield className="w-12 h-12 mx-auto text-secondary-600 dark:text-secondary-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-heading mb-2">No Training on Your Data</h3>
+                  <p className="text-sm text-body">Your conversations are never used to train AI models</p>
+                </div>
+                <div className="text-center p-6 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800">
+                  <Eye className="w-12 h-12 mx-auto text-accent-600 dark:text-accent-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-heading mb-2">Transparent Processing</h3>
+                  <p className="text-sm text-body">This policy clearly explains what data is collected and why</p>
+                </div>
+              </div>
             </div>
 
             {/* Security Overview */}
@@ -839,6 +876,732 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       </tr>
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy by Design - IP Address Handling */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Privacy by Design: IP Address Handling
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading mb-4">Default OFF for Maximum Privacy</h3>
+                  <p className="text-body leading-relaxed">
+                    SafePsy follows privacy by design principles with IP address handling. By default, IP hashing is **disabled** to ensure maximum privacy protection.
+                    IP hashing must be explicitly enabled via environment variables if needed for abuse prevention.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading flex items-center gap-2">
+                      <WifiOff className="w-6 h-6 text-green-600" />
+                      When IP Hashing is OFF (Default)
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">No SHA-256 hash computed</p>
+                          <p className="text-sm text-body">IP addresses are not stored in any form</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Raw IPs not written to database</p>
+                          <p className="text-sm text-body">Database columns store null/undefined</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Logs redacted in production</p>
+                          <p className="text-sm text-body">IP field replaced with &lt;REDACTED: ip&gt;</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading flex items-center gap-2">
+                      <Hash className="w-6 h-6 text-primary-600" />
+                      When IP Hashing is ON (Opt-in)
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Lock className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">SHA-256 with configurable salt</p>
+                          <p className="text-sm text-body">Hash computed as SHA-256(ip + IP_SALT)</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Salt must be ≥32 characters</p>
+                          <p className="text-sm text-body">Validated at startup; hashing refused if invalid</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Database className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="text-body font-medium">Stored in database for abuse prevention</p>
+                          <p className="text-sm text-body">Enables correlation without exposing raw IPs</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-blue-600" />
+                    Environment Configuration
+                  </h4>
+                  <div className="space-y-2 text-sm text-body">
+                    <p className="font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded">IP_HASHING_ENABLED=false  # Default: OFF for maximum privacy</p>
+                    <p className="font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded">IP_SALT=your-secure-salt-here  # Must be ≥32 characters (use: openssl rand -hex 32)</p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    Security Considerations
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4">
+                    <li>Use a strong, unique salt in production (generate with: <code className="font-mono">openssl rand -hex 32</code>)</li>
+                    <li>Rotate salt regularly for enhanced security</li>
+                    <li>Rate limiting remains effective with or without IP hashing</li>
+                    <li>Default OFF ensures maximum privacy protection</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Blockchain and On-Chain Data */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Blockchain and On-Chain Data
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading mb-4">What Is Stored On-Chain</h3>
+                  <p className="text-body leading-relaxed">
+                    SafePsy uses blockchain (Ethereum Sepolia testnet) to store Decentralized Identifiers (DIDs) and related metadata.
+                    Understanding what is stored on-chain helps you make informed decisions about your privacy.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-neutral-100 dark:bg-neutral-800">
+                      <tr>
+                        <th className="px-6 py-3">Data Type</th>
+                        <th className="px-6 py-3">Public?</th>
+                        <th className="px-6 py-3">Immutable?</th>
+                        <th className="px-6 py-3">Can Be Deleted?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">DID Token ID</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4 text-red-600">No (permanent)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Wallet Address</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4 text-red-600">No (permanent)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Service Endpoint URLs</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4 text-red-600">No (permanent)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Authorization Events</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4 text-red-600">No (permanent)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Chat Blob Hashes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4 text-red-600">No (permanent)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Encrypted Key Metadata</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4">Yes</td>
+                        <td className="px-6 py-4 text-red-600">No (permanent)</td>
+                      </tr>
+                      <tr className="bg-green-50 dark:bg-green-900/20">
+                        <td className="px-6 py-4 font-medium">Chat Message Content</td>
+                        <td className="px-6 py-4 text-green-600">No</td>
+                        <td className="px-6 py-4 text-green-600">No</td>
+                        <td className="px-6 py-4 text-green-600">N/A (not stored on-chain)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    Privacy Implications
+                  </h4>
+                  <ul className="list-disc list-inside space-y-2 text-sm text-body ml-4">
+                    <li><strong>Public metadata:</strong> Someone who knows your wallet address can see that you have a DID token</li>
+                    <li><strong>Permanent record:</strong> On-chain data cannot be deleted due to blockchain immutability</li>
+                    <li><strong>Content remains private:</strong> Only hashes and references are on-chain, not message content</li>
+                    <li><strong>Linkage possible:</strong> Events indexed by tokenId can be linked to the same DID across time</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xl text-heading">Revocation</h4>
+                  <p className="text-body leading-relaxed">
+                    You can revoke your DID token from your profile page. Revocation is permanent and cannot be undone.
+                    Revoked addresses cannot mint a new DID token. Revocation is recorded on-chain as permanent metadata,
+                    but off-chain data (encrypted chat) can still be deleted.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading flex items-center gap-2">
+                      <Shield className="w-6 h-6 text-primary-600" />
+                      Content Privacy
+                    </h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4">
+                      <li>User content encrypted before off-chain storage (AES-256-GCM)</li>
+                      <li>Key material on-chain in DID profile field (encryptedKeyMetadata)</li>
+                      <li>On-chain references use cryptographic hashes only (not content)</li>
+                      <li>Completions use separate plaintext-over-TLS path for AI processing</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-xl text-heading flex items-center gap-2">
+                      <Layers className="w-6 h-6 text-secondary-600" />
+                      Off-Chain Data
+                    </h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4">
+                      <li>Encrypted content payloads (chat messages, summaries)</li>
+                      <li>Message bodies (encrypted and stored off-chain)</li>
+                      <li>Private user attributes (encrypted before storage)</li>
+                      <li>Application-level analytics (not stored on-chain)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Crisis Safety Net Feature */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Crisis Safety Net Feature
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading mb-4">What It Is</h3>
+                  <p className="text-body leading-relaxed">
+                    The Crisis Safety Net is an <strong>optional, opt-in feature</strong> that allows users in crisis to voluntarily
+                    provide contact information for follow-up support. This feature is designed to provide additional support
+                    during difficult moments while maintaining strict privacy protections.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-neutral-100 dark:bg-neutral-800">
+                      <tr>
+                        <th className="px-6 py-3">Data Type</th>
+                        <th className="px-6 py-3">Encryption</th>
+                        <th className="px-6 py-3">Retention</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4">Email address</td>
+                        <td className="px-6 py-4">AES-256-GCM (application layer)</td>
+                        <td className="px-6 py-4">30 days</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4">Full name</td>
+                        <td className="px-6 py-4">AES-256-GCM (application layer)</td>
+                        <td className="px-6 py-4">30 days</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4">Emergency contact (optional)</td>
+                        <td className="px-6 py-4">AES-256-GCM (application layer)</td>
+                        <td className="px-6 py-4">30 days</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4">Language code</td>
+                        <td className="px-6 py-4">Plaintext</td>
+                        <td className="px-6 py-4">30 days</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4">Wallet address (pseudonymous link)</td>
+                        <td className="px-6 py-4">Database (plaintext)</td>
+                        <td className="px-6 py-4">30 days</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4">Consent hash</td>
+                        <td className="px-6 py-4">Plaintext (audit trail)</td>
+                        <td className="px-6 py-4">30 days</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    Data NOT Collected
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4">
+                    <li>Chat message content</li>
+                    <li>Crisis keywords that triggered detection</li>
+                    <li>Session data or browsing history</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xl text-heading">How to Withdraw</h4>
+                  <ul className="list-disc list-inside space-y-1 text-body ml-4">
+                    <li><strong>Automatic:</strong> Data deleted after 30 days (no action required)</li>
+                    <li><strong>Manual:</strong> Go to <code className="font-mono">/profile</code> → Crisis Safety Net → Withdraw</li>
+                    <li><strong>Immediate:</strong> Email privacy@polinapsycho.com</li>
+                  </ul>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    Rate Limiting Protection
+                  </h4>
+                  <p className="text-body text-sm">
+                    The crisis opt-in endpoint is rate limited to <strong>5 requests per minute</strong> to protect against abuse
+                    and ensure fair access to this critical support feature.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Data Retention Schedule */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Data Retention Schedule
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-neutral-100 dark:bg-neutral-800">
+                      <tr>
+                        <th className="px-6 py-3">Data Type</th>
+                        <th className="px-6 py-3">Retention Period</th>
+                        <th className="px-6 py-3">Deletion Method</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Encrypted chat blobs</td>
+                        <td className="px-6 py-4">Indefinite (until user deletes)</td>
+                        <td className="px-6 py-4">User-initiated deletion from profile</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Crisis opt-in PII</td>
+                        <td className="px-6 py-4">30 days from registration</td>
+                        <td className="px-6 py-4">Automatic purge (daily cron job)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Wallet address</td>
+                        <td className="px-6 py-4">Indefinite (account lifetime)</td>
+                        <td className="px-6 py-4">Account deletion removes association</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">DID token</td>
+                        <td className="px-6 py-4">Permanent (on-chain)</td>
+                        <td className="px-6 py-4">Can be revoked (metadata remains on-chain)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Email subscriptions</td>
+                        <td className="px-6 py-4">Until unsubscribe</td>
+                        <td className="px-6 py-4">User-initiated unsubscribe link</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Contact messages</td>
+                        <td className="px-6 py-4">2 years from submission</td>
+                        <td className="px-6 py-4">Automatic deletion</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Security audit logs</td>
+                        <td className="px-6 py-4">1 year from event</td>
+                        <td className="px-6 py-4">Automatic deletion</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Analytics events (anonymized)</td>
+                        <td className="px-6 py-4">14 months</td>
+                        <td className="px-6 py-4">Automatic deletion</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Session cookies</td>
+                        <td className="px-6 py-4">400 days</td>
+                        <td className="px-6 py-4">Automatic expiration</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Guest chat sessions</td>
+                        <td className="px-6 py-4">Browser session only</td>
+                        <td className="px-6 py-4">Cleared when browser session ends (in-memory only)</td>
+                      </tr>
+                      <tr className="border-b dark:border-neutral-700">
+                        <td className="px-6 py-4 font-medium">Failed authentication attempts</td>
+                        <td className="px-6 py-4">24 hours</td>
+                        <td className="px-6 py-4">Automatic deletion</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 text-blue-600" />
+                    Automatic Deletion
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4">
+                    <li>Crisis opt-in data automatically deleted 30 days after registration via daily database purge</li>
+                    <li>Guest chat sessions cleared when browser session ends (in-memory only)</li>
+                    <li>Failed authentication attempts deleted after 24 hours</li>
+                  </ul>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <Trash className="w-5 h-5 text-green-600" />
+                    User-Initiated Deletion
+                  </h4>
+                  <p className="text-body text-sm">
+                    You can delete the following at any time from your profile settings (<code className="font-mono">/profile</code>):
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4 mt-2">
+                    <li>Encrypted chat history</li>
+                    <li>Crisis Safety Net registration</li>
+                    <li>Email subscription</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Your Privacy Rights (GDPR & CCPA) */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Your Privacy Rights
+                </span>
+              </h2>
+
+              <div className="space-y-12">
+                {/* GDPR Rights */}
+                <div>
+                  <h3 className="text-2xl text-heading mb-6 flex items-center gap-2">
+                    <Shield className="w-6 h-6 text-primary-600" />
+                    GDPR Rights (EU/EEA/UK Users)
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs uppercase bg-neutral-100 dark:bg-neutral-800">
+                        <tr>
+                          <th className="px-6 py-3">Right</th>
+                          <th className="px-6 py-3">How to Exercise</th>
+                          <th className="px-6 py-3">Timeline</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Access</td>
+                          <td className="px-6 py-4">Email privacy@polinapsycho.com or use Export feature in /profile</td>
+                          <td className="px-6 py-4">30 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Rectification</td>
+                          <td className="px-6 py-4">Update directly in /profile or email us</td>
+                          <td className="px-6 py-4">30 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Erasure ("Right to be Forgotten")</td>
+                          <td className="px-6 py-4">Use Delete feature in /profile or email us</td>
+                          <td className="px-6 py-4">30 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Restrict Processing</td>
+                          <td className="px-6 py-4">Email privacy@polinapsycho.com</td>
+                          <td className="px-6 py-4">30 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Data Portability</td>
+                          <td className="px-6 py-4">Download JSON export from /profile</td>
+                          <td className="px-6 py-4">30 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Object</td>
+                          <td className="px-6 py-4">Email privacy@polinapsycho.com</td>
+                          <td className="px-6 py-4">30 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Withdraw Consent</td>
+                          <td className="px-6 py-4">Unsubscribe link (email) or delete crisis opt-in in /profile</td>
+                          <td className="px-6 py-4">Immediate</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* CCPA Rights */}
+                <div>
+                  <h3 className="text-2xl text-heading mb-6 flex items-center gap-2">
+                    <FileText className="w-6 h-6 text-secondary-600" />
+                    CCPA/CPRA Rights (California Users)
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs uppercase bg-neutral-100 dark:bg-neutral-800">
+                        <tr>
+                          <th className="px-6 py-3">Right</th>
+                          <th className="px-6 py-3">How to Exercise</th>
+                          <th className="px-6 py-3">Timeline</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Know</td>
+                          <td className="px-6 py-4">Email privacy@polinapsycho.com</td>
+                          <td className="px-6 py-4">45 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Delete</td>
+                          <td className="px-6 py-4">Use Delete feature in /profile or email us</td>
+                          <td className="px-6 py-4">45 days</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Opt-Out of Sale</td>
+                          <td className="px-6 py-4">N/A (we do not sell personal information)</td>
+                          <td className="px-6 py-4">N/A</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Right to Non-Discrimination</td>
+                          <td className="px-6 py-4">N/A (built into policy)</td>
+                          <td className="px-6 py-4">N/A</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* How to Submit */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    How to Submit a Request
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-1 text-body ml-4">
+                    <li><strong>Email:</strong> privacy@polinapsycho.com</li>
+                    <li><strong>In-app:</strong> Go to <code className="font-mono">/profile</code> → Privacy Settings</li>
+                    <li><strong>Mail:</strong> [Insert mailing address]</li>
+                  </ol>
+                  <p className="text-sm text-body mt-3">
+                    We will verify your identity using your wallet signature before processing requests.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* How We Share Your Information */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  How We Share Your Information
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl text-heading mb-6">Third-Party Service Providers</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs uppercase bg-neutral-100 dark:bg-neutral-800">
+                        <tr>
+                          <th className="px-6 py-3">Provider</th>
+                          <th className="px-6 py-3">Role</th>
+                          <th className="px-6 py-3">Data Shared</th>
+                          <th className="px-6 py-3">Your Rights</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Scaleway Generative API</td>
+                          <td className="px-6 py-4">AI chat completions</td>
+                          <td className="px-6 py-4">Message content (plaintext, transient)</td>
+                          <td className="px-6 py-4">Review their privacy policy; opt-out by not using chat</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Stripe</td>
+                          <td className="px-6 py-4">Payment processing</td>
+                          <td className="px-6 py-4">Payment info, email (for receipts)</td>
+                          <td className="px-6 py-4">Stripe privacy policy applies; you can request data deletion</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Hosting provider (Scaleway, AWS, or self-hosted)</td>
+                          <td className="px-6 py-4">Encrypted data storage</td>
+                          <td className="px-6 py-4">Ciphertext only (no plaintext access)</td>
+                          <td className="px-6 py-4">Data Processing Agreement in place</td>
+                        </tr>
+                        <tr className="border-b dark:border-neutral-700">
+                          <td className="px-6 py-4 font-medium">Sentry (if configured)</td>
+                          <td className="px-6 py-4">Error monitoring</td>
+                          <td className="px-6 py-4">Redacted error logs (no PII, no message content)</td>
+                          <td className="px-6 py-4">Opt-out via browser settings</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-red-600" />
+                    We Do NOT Share Your Data With
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-body ml-4">
+                    <li>Data brokers or advertisers</li>
+                    <li>Social media platforms (unless you choose to share)</li>
+                    <li>Employers or insurance companies</li>
+                    <li>Family members or emergency contacts (unless you explicitly request during crisis opt-in)</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xl text-heading">Legal Disclosures</h4>
+                  <p className="text-body leading-relaxed">
+                    We may disclose your information if legally required:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-body ml-4">
+                    <li>In response to a court order or subpoena</li>
+                    <li>To comply with legal obligations</li>
+                    <li>To protect our rights or the safety of users</li>
+                    <li>In connection with a merger, acquisition, or sale of assets (with notice to you)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Us & Complaints */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Contact Us & Complaints
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h3 className="text-xl text-heading flex items-center gap-2">
+                      <FileText className="w-6 h-6 text-primary-600" />
+                      Data Controller
+                    </h3>
+                    <div className="space-y-2 text-body">
+                      <p className="font-medium">SafePsy</p>
+                      <p>[Insert legal entity name once Estonian OÜ is registered]</p>
+                      <p>[Insert registered address]</p>
+                      <p>Email: [Insert email]</p>
+                      <p>Phone: [Insert phone]</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xl text-heading flex items-center gap-2">
+                      <Shield className="w-6 h-6 text-secondary-600" />
+                      Data Protection Officer
+                    </h3>
+                    <div className="space-y-2 text-body">
+                      <p>Email: dpo@polinapsycho.com (or privacy@polinapsycho.com)</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="text-lg text-heading mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    Privacy Requests
+                  </h4>
+                  <ul className="list-disc list-inside space-y-1 text-body ml-4">
+                    <li><strong>Email:</strong> privacy@polinapsycho.com</li>
+                    <li><strong>In-app:</strong> <code className="font-mono">/profile</code> → Privacy Settings</li>
+                    <li><strong>Response time:</strong> 30 days (GDPR), 45 days (CCPA)</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xl text-heading">Complaints</h4>
+                  <p className="text-body leading-relaxed">
+                    If you are not satisfied with our response, you have the right to lodge a complaint with your local data protection authority:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-body ml-4">
+                    <li><strong>France:</strong> CNIL (cnil.fr)</li>
+                    <li><strong>Estonia:</strong> Andmekaitse Inspektsioon (aki.ee)</li>
+                    <li><strong>EU:</strong> Your national DPA (see edpb.europa.eu)</li>
+                    <li><strong>California:</strong> California Attorney General</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Research Reference */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Research & References
+                </span>
+              </h2>
+
+              <div className="space-y-4">
+                <p className="text-body leading-relaxed text-center max-w-4xl mx-auto">
+                  SafePsy's privacy and security implementations are informed by academic research in telepsychology,
+                  data security, and ethical considerations for mental health platforms.
+                </p>
+                <div className="flex justify-center">
+                  <a
+                    href="/documentation/public documentation/Data security in psychotherapeutic telepractice - methodological, ethical and ergonomic considerations.md"
+                    className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    <span>View Academic Research Paper (Université Paris-Nanterre, 2023-2024)</span>
+                  </a>
                 </div>
               </div>
             </div>

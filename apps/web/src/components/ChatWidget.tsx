@@ -61,8 +61,8 @@ const MAX_MESSAGE_LENGTH = 2000;
 const GUEST_PROMPT_LIMIT = 5;
 
 const FIRST_MESSAGE_SUGGESTIONS = [
-  "Hello Dr. Safe, I'd like to talk through something I'm experiencing and get your guidance.",
-  "Hi, I'm reaching out because I need a calm, structured perspective on something personal.",
+  "I'd like to talk through something I'm experiencing and get your guidance.",
+  "I'm reaching out because I need a calm, structured perspective on something personal.",
 ];
 
 function TypingDots({ className = '' }: { className?: string }) {
@@ -966,7 +966,7 @@ export default function ChatWidget() {
               title="Start in one tap"
               description={
                 isGuest
-                  ? 'No login. Pick a first line or write your own — Dr.Safe meets you where you are.'
+                  ? 'Dr.Safe meets you where you are.'
                   : 'Send a message to begin. All messages are encrypted with AES-256-GCM and stored securely in your wallet.'
               }
             />

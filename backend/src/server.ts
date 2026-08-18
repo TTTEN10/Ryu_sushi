@@ -349,18 +349,18 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 3001
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully...')
+  console.info('SIGINT received, shutting down gracefully...')
   server.close(() => {
-    console.log('Server closed')
+    console.info('Server closed')
   })
   await prisma.$disconnect()
   process.exit(0)
 })
 
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully...')
+  console.info('SIGTERM received, shutting down gracefully...')
   server.close(() => {
-    console.log('Server closed')
+    console.info('Server closed')
   })
   await prisma.$disconnect()
   process.exit(0)
@@ -378,8 +378,8 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`🚀 SafePsy backend server running on port ${PORT}`)
-  console.log(`📊 Health check: http://localhost:${PORT}/health`)
+  console.info(`🚀 SafePsy backend server running on port ${PORT}`)
+  console.info(`📊 Health check: http://localhost:${PORT}/health`)
 })
 
 export default app

@@ -10,6 +10,7 @@ export function HomeScreen({ navigation }: Props) {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
   const isVerified = useAuthStore((s) => s.isVerified);
+  const consentsGiven = useAuthStore((s) => s.consentsGiven);
 
   return (
     <View style={styles.outer}>
@@ -24,11 +25,24 @@ export function HomeScreen({ navigation }: Props) {
           Session: {!hydrated ? '…' : token ? 'saved & verified (wallet)' : 'guest (nothing saved yet)'}
         </Text>
 
-        <Pressable style={styles.btn} onPress={() => navigation.navigate('Chat')}>
+        <Pressable 
+          style={[styles.btn, !consentsGiven && styles.btnDisabled]} 
+          onPress={() => {
+            if (consentsGiven) {
+              navigation.navigate('Chat');
+            } else {
+              navigation.navigate('TermsPrivacyConsent');
+            }
+          }}
+          disabled={!consentsGiven}
+        >
           <Text style={styles.btnText}>Start talking (no login)</Text>
         </Pressable>
         <Pressable style={styles.btnSecondary} onPress={() => navigation.navigate('Wallet')}>
           <Text style={styles.btnSecondaryText}>Create your private space</Text>
+        </Pressable>
+        <Pressable style={styles.btnGhost} onPress={() => navigation.navigate('PrivacySettings')}>
+          <Text style={styles.btnGhostText}>Privacy & Data</Text>
         </Pressable>
         <Pressable style={styles.btnGhost} onPress={() => navigation.navigate('Safety')}>
           <Text style={styles.btnGhostText}>Safety & disclaimers</Text>
@@ -65,6 +79,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 8,
+  },
+  btnDisabled: {
+    opacity: 0.5
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   btnSecondary: {
