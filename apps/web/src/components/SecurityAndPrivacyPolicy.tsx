@@ -1,5 +1,5 @@
 import React from 'react'
-import { Shield, Lock, Eye, Users, FileText, CheckCircle, AlertTriangle, Key, Database, Server, Trash, Download, RefreshCw, WifiOff, Hash, Layers, ExternalLink } from 'lucide-react'
+import { Shield, Lock, Eye, Users, FileText, CheckCircle, AlertTriangle, Database, Trash, RefreshCw, WifiOff, Hash, Layers, ExternalLink } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
@@ -7,9 +7,8 @@ import Footer from './Footer'
 const SecurityAndPrivacyPolicy: React.FC = () => {
   const navigate = useNavigate()
 
-  const lastUpdated = 'July 27, 2026'
-  const effectiveDate = 'July 27, 2026'
-  const version = '3.0'
+  const lastUpdated = 'August 19, 2026'
+  const version = '4.0'
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -876,6 +875,95 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       </tr>
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Explicit Health Data Consent - GDPR Article 9 */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-6 sm:p-8 lg:p-12 xl:p-16 shadow-lg border border-amber-200 dark:border-amber-800 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-6 sm:mb-8 text-center px-2">
+                <span className="bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                  Explicit Consent for Health Data Processing (GDPR Article 9)
+                </span>
+              </h2>
+
+              <div className="space-y-6 sm:space-y-8 max-w-4xl mx-auto">
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+                  <p className="text-body text-sm sm:text-base leading-relaxed">
+                    SafePsy processes health-related information you voluntarily share during your conversations with our AI assistant. 
+                    Under the General Data Protection Regulation (GDPR), health data is classified as a <strong>special category of personal data</strong> 
+                    under <strong>Article 9</strong>, which requires <strong>explicit consent</strong> for processing.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl text-heading mb-3">What This Consent Covers</h3>
+                  <p className="text-body text-sm sm:text-base leading-relaxed mb-3">
+                    By providing consent for health data processing, you agree to the following:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 text-body text-sm sm:text-base ml-4">
+                    <li>Your mental health-related messages and reflections are processed by our AI assistant to generate supportive responses</li>
+                    <li>Your conversations are transmitted securely to our AI service provider (Scaleway) for real-time processing</li>
+                    <li>Your health data is used <strong>solely</strong> for generating AI-powered reflection responses within this platform</li>
+                    <li>Your conversations are <strong>not</strong> used to train AI models, sold to third parties, or shared for advertising purposes</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-xl text-heading mb-3">Legal Basis</h3>
+                  <div className="space-y-3">
+                    <div className="border border-neutral-200 dark:border-neutral-700 rounded-xl p-4">
+                      <h4 className="font-semibold text-heading text-sm sm:text-base mb-1">Article 6(1)(a) — Consent (General Data)</h4>
+                      <p className="text-body text-sm sm:text-base">
+                        Your explicit consent forms the lawful basis for processing personal data through our platform, including identity verification and platform functionality.
+                      </p>
+                    </div>
+                    <div className="border border-amber-200 dark:border-amber-800 rounded-xl p-4 bg-amber-50/50 dark:bg-amber-900/10">
+                      <h4 className="font-semibold text-heading text-sm sm:text-base mb-1">Article 9(2)(a) — Explicit Consent (Health Data)</h4>
+                      <p className="text-body text-sm sm:text-base">
+                        Your <strong>explicit, informed, and unambiguous consent</strong> is required before any health-related information you provide is processed. This consent is obtained through a dedicated consent flow that clearly explains what health data is processed, why it is needed, and your rights.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl text-heading mb-3">How Consent Is Obtained and Managed</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-semibold text-heading text-sm sm:text-base">Explicit Consent Flow</h4>
+                        <p className="text-body text-sm sm:text-base">
+                          Before using the AI assistant, you must expressly check a dedicated consent checkbox confirming you understand and agree to health data processing. Consent is recorded with a timestamp for audit purposes.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-semibold text-heading text-sm sm:text-base">Granular Control</h4>
+                        <p className="text-body text-sm sm:text-base">
+                          Health data consent is separate from cookie consent. You can withdraw health data processing consent at any time through your privacy settings, which will not affect the processing of non-health data.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-semibold text-heading text-sm sm:text-base">Right to Withdraw</h4>
+                        <p className="text-body text-sm sm:text-base">
+                          You may withdraw your consent for health data processing at any time, for any reason. Withdrawal is immediate and does not affect the lawfulness of processing based on consent before its withdrawal. Upon withdrawal, your health data will no longer be processed by the AI assistant.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                  <p className="text-body text-sm sm:text-base leading-relaxed">
+                    <strong>Important:</strong> Health data consent is required to use the AI assistant features. Without this consent, you may still browse the platform, but the AI-powered reflection functionality will not be available. Your data is encrypted in transit and processed through Scaleway's Zero Data Retention generative APIs, which do not retain or use prompts to train models.
+                  </p>
                 </div>
               </div>
             </div>

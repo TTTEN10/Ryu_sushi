@@ -9,6 +9,7 @@ export interface CookiePreferences {
   essential: boolean
   functional: boolean
   analytics: boolean
+  healthData: boolean
 }
 
 export interface CookieConsentData {
@@ -22,7 +23,8 @@ export const useCookieConsent = () => {
     preferences: {
       essential: true, // Always true
       functional: false,
-      analytics: false
+      analytics: false,
+      healthData: false
     },
     consentDate: null,
     hasConsented: false
@@ -86,7 +88,8 @@ export const useCookieConsent = () => {
       preferences: {
         essential: true,
         functional: false,
-        analytics: false
+        analytics: false,
+        healthData: false
       },
       consentDate: null,
       hasConsented: false

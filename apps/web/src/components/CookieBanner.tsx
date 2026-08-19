@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Cookie, Settings, X, CheckCircle, Shield } from 'lucide-react'
+import { Cookie, Settings, X, CheckCircle, Shield, HeartPulse, ExternalLink } from 'lucide-react'
 import { useCookieConsent, CookiePreferences } from '../hooks/useCookieConsent'
 
 interface CookieBannerProps {
@@ -15,10 +15,12 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
   })
   
   const [showDetails, setShowDetails] = useState(false)
+  const [healthDataConsent, setHealthDataConsent] = useState(false)
   const [preferences, setPreferences] = useState<CookiePreferences>({
     essential: true, // Always true - essential cookies cannot be disabled
     functional: false,
-    analytics: false
+    analytics: false,
+    healthData: false
   })
 
   const { consentData, updateConsent } = useCookieConsent()
@@ -38,7 +40,8 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
     const newPreferences = {
       essential: true,
       functional: true,
-      analytics: true
+      analytics: true,
+      healthData: healthDataConsent
     }
     saveConsent(newPreferences)
   }
@@ -47,7 +50,8 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
     const newPreferences = {
       essential: true,
       functional: false,
-      analytics: false
+      analytics: false,
+      healthData: healthDataConsent
     }
     saveConsent(newPreferences)
   }
@@ -57,13 +61,17 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
   }
 
   const saveConsent = (consent: CookiePreferences) => {
-    updateConsent(consent)
+    const finalConsent: CookiePreferences = {
+      ...consent,
+      healthData: healthDataConsent
+    }
+    updateConsent(finalConsent)
     setIsVisible(false)
     setShowDetails(false)
     
     // Call the callback to notify parent components
     if (onConsentChange) {
-      onConsentChange(consent)
+      onConsentChange(finalConsent)
     }
   }
 
@@ -102,6 +110,36 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                       We use essential cookies to make our site work. We'd also like to set optional 
                       cookies to improve your experience and help us understand how you use our platform.
                     </p>
+                  </div>
+                </div>
+
+                {/* Health Data Consent (GDPR Art. 9) */}
+                <div className="border border-primary-200 dark:border-primary-800 rounded-xl p-4 bg-primary-50 dark:bg-primary-900/20">
+                  <div className="flex items-start gap-3">
+                    <HeartPulse className="w-5 h-5 text-primary-600 dark:text-primary-400 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-heading">
+                        Health Data Processing Consent (GDPR Article 9)
+                      </p>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={healthDataConsent}
+                          onChange={(e) => setHealthDataConsent(e.target.checked)}
+                          className="mt-1 w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-body leading-relaxed">
+                          I expressly consent to the processing of health-related information I voluntarily provide through this platform, solely for generating AI-powered reflection responses.{' '}
+                          <a
+                            href="/sap-policy"
+                            className="text-primary-600 dark:text-primary-400 underline hover:text-primary-700 dark:hover:text-primary-300 inline-flex items-center gap-1 font-medium"
+                          >
+                            Learn more in our Privacy Policy
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
                 
@@ -207,6 +245,31 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                         className={`w-12 h-6 rounded-full flex items-center transition-all duration-300 hover:scale-110 ${
                           preferences.analytics 
                             ? 'bg-primary-600 justify-end' 
+                            : 'bg-neutral-300 dark:bg-gray-600 justify-start'
+                        }`}
+                      >
+                        <div className="w-4 h-4 bg-white rounded-full mx-1 transition-transform duration-300"></div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Health Data Consent (GDPR Art. 9) */}
+                  <div className="border border-amber-200 rounded-xl p-4 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-start gap-3">
+                        <HeartPulse className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-1 flex-shrink-0" />
+                        <div>
+                          <h4 className="font-semibold text-heading">Health Data Processing (GDPR Art. 9)</h4>
+                          <p className="text-sm text-body">
+                            Explicit consent to process health-related information you voluntarily provide for AI-powered reflection responses only.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setHealthDataConsent(!healthDataConsent)}
+                        className={`w-12 h-6 rounded-full flex items-center transition-all duration-300 hover:scale-110 ${
+                          healthDataConsent 
+                            ? 'bg-amber-600 justify-end' 
                             : 'bg-neutral-300 dark:bg-gray-600 justify-start'
                         }`}
                       >

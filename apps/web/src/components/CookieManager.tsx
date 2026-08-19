@@ -31,7 +31,8 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
     const newPreferences = {
       essential: true,
       functional: true,
-      analytics: true
+      analytics: true,
+      healthData: preferences.healthData
     }
     setPreferences(newPreferences)
     updateConsent(newPreferences)
@@ -42,7 +43,8 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
     const newPreferences = {
       essential: true,
       functional: false,
-      analytics: false
+      analytics: false,
+      healthData: preferences.healthData
     }
     setPreferences(newPreferences)
     updateConsent(newPreferences)
