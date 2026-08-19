@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Settings, Cookie, Shield, CheckCircle, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Settings, Cookie, Shield, CheckCircle, X, HeartPulse, ExternalLink } from 'lucide-react'
 import { useCookieConsent, CookiePreferences } from '../hooks/useCookieConsent'
 
 interface CookieManagerProps {
@@ -10,11 +10,21 @@ interface CookieManagerProps {
 const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
   const { consentData, updateConsent } = useCookieConsent()
   const [preferences, setPreferences] = useState<CookiePreferences>(consentData.preferences)
+  const [consentHealthData, setConsentHealthData] = useState(consentData.preferences.healthData)
+
+  // Sync with consent data when it changes
+  useEffect(() => {
+    setPreferences(consentData.preferences)
+    setConsentHealthData(consentData.preferences.healthData)
+  }, [consentData])
+
+  const canProceed = consentHealthData
 
   if (!isOpen) return null
 
   const handleSave = () => {
-    updateConsent(preferences)
+    if (!canProceed) return
+    updateConsent({ ...preferences, healthData: consentHealthData })
     onClose()
   }
 
@@ -28,11 +38,12 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
   }
 
   const handleAcceptAll = () => {
+    if (!canProceed) return
     const newPreferences = {
       essential: true,
       functional: true,
       analytics: true,
-      healthData: preferences.healthData
+      healthData: consentHealthData
     }
     setPreferences(newPreferences)
     updateConsent(newPreferences)
@@ -40,11 +51,12 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
   }
 
   const handleEssentialOnly = () => {
+    if (!canProceed) return
     const newPreferences = {
       essential: true,
       functional: false,
       analytics: false,
-      healthData: preferences.healthData
+      healthData: consentHealthData
     }
     setPreferences(newPreferences)
     updateConsent(newPreferences)
@@ -169,6 +181,45 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
                   </button>
                 </div>
               </div>
+
+              {/* Health Data Consent (GDPR Art. 9) — MANDATORY */}
+              <div className="border-2 border-red-300 dark:border-red-800 rounded-xl p-4 bg-red-50 dark:bg-red-900/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <HeartPulse className="w-5 h-5 text-red-600 dark:text-red-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-heading flex items-center gap-1.5">
+                        Health Data Processing (GDPR Art. 9)
+                      </h3>
+                      <p className="text-sm text-body mt-0.5">
+                        Explicit consent to process health-related information you voluntarily provide for AI-powered reflection responses only.{' '}
+                        <a
+                          href="/sap-policy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 dark:text-primary-400 underline hover:text-primary-700 dark:hover:text-primary-300 font-medium inline-flex items-center gap-0.5"
+                        >
+                          Read the full policy
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </p>
+                      {!canProceed && (
+                        <span className="block text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+                          Required to use this platform
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setConsentHealthData(!consentHealthData)}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all duration-300 ${
+                      consentHealthData ? 'bg-red-600 justify-end' : 'bg-neutral-300 dark:bg-gray-600 justify-start'
+                    }`}
+                  >
+                    <div className="w-4 h-4 bg-white rounded-full mx-1 transition-transform duration-300"></div>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Consent Info */}
@@ -190,20 +241,29 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={handleEssentialOnly}
-                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors duration-200 min-h-[44px] text-sm sm:text-base"
-              >
+                disabled={!canProceed}
+                className={`flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors duration-200 min-h-[44px] text-sm sm:text-base ${
+                !canProceed ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                >
                 Essential only
-              </button>
-              <button
+                </button>
+                <button
                 onClick={handleSave}
-                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl min-h-[44px] text-sm sm:text-base"
-              >
+                disabled={!canProceed}
+                className={`flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl min-h-[44px] text-sm sm:text-base ${
+                !canProceed ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                >
                 Save preferences
-              </button>
-              <button
+                </button>
+                <button
                 onClick={handleAcceptAll}
-                className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-secondary-600 to-accent-600 hover:from-secondary-700 hover:to-accent-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl min-h-[44px] text-sm sm:text-base"
-              >
+                disabled={!canProceed}
+                className={`flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-secondary-600 to-accent-600 hover:from-secondary-700 hover:to-accent-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl min-h-[44px] text-sm sm:text-base ${
+                !canProceed ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                >
                 Accept all
               </button>
             </div>
