@@ -1,0 +1,83 @@
+:root {
+  /* Brand palette */
+  --prussian-blue: #07183cff;
+  --white: #ffffffff;
+  --floral-white: #fff8efff;
+  --honey-bronze: #dcaf54ff;
+
+  /* Semantic tokens */
+  --color-link: var(--honey-bronze);
+  --color-primary: var(--prussian-blue);
+  --color-secondary: var(--honey-bronze);
+  --color-bg: var(--floral-white);
+  --color-bg-alt: var(--white);
+  --color-text: var(--prussian-blue);
+  --color-text-light: rgba(7, 24, 60, 0.68);
+  --color-text-on-primary: #ffffff;
+  --color-border: rgba(7, 24, 60, 0.10);
+  --color-border-light: rgba(7, 24, 60, 0.06);
+
+  /* Glass */
+  --glass-bg: rgba(255, 248, 239, 0.92);
+  --glass-border: rgba(7, 24, 60, 0.06);
+
+  /* Typography */
+  --font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Georgia, serif;
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+
+  /* Spacing scale */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+  --space-3xl: 8rem;
+
+  /* Layout */
+  --container-max: 1200px;
+  --container-narrow: 800px;
+  --header-height: 80px;
+
+  /* Effects */
+  --shadow-sm: 0 2px 8px rgba(7, 24, 60, 0.06);
+  --shadow-md: 0 4px 24px rgba(7, 24, 60, 0.08);
+  --shadow-lg: 0 8px 40px rgba(7, 24, 60, 0.12);
+  --shadow-hover: 0 20px 60px rgba(7, 24, 60, 0.10);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 26px;
+  --transition: all 0.35s ease;
+
+  /* Gradients */
+  --gradient-hero: radial-gradient(circle at 78% 18%, rgba(220,175,84,.18), transparent 27%), radial-gradient(circle at 20% 85%, rgba(220,175,84,.09), transparent 22%), var(--floral-white);
+  --gradient-cta: radial-gradient(circle at 50% 120%, rgba(220,175,84,.20), transparent 34%), var(--floral-white);
+  --gradient-subtle: linear-gradient(180deg, var(--floral-white) 0%, rgba(255, 248, 239, 0) 100%);
+
+  /* Animation timing functions */
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-quad: cubic-bezier(0.45, 0, 0.55, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Animation durations */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 600ms;
+
+  /* Z-index scale */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-tooltip: 400;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-height: 70px;
+    --space-xl: 3rem;
+    --space-2xl: 4rem;
+    --space-3xl: 5rem;
+  }
+}

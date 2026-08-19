@@ -1,0 +1,265 @@
+/* Legal pages — Mentions légales & Confidentialité */
+
+.page-hero {
+  padding: calc(var(--header-height) + var(--space-2xl)) 0 var(--space-xl);
+  background: linear-gradient(135deg, var(--prussian-blue) 0%, var(--floral-white) 100%);
+  text-align: center;
+}
+
+.page-hero h1 {
+  color: var(--prussian-blue);
+  margin-bottom: var(--space-md);
+}
+
+.page-hero__subtitle {
+  color: rgba(7, 24, 60, 0.68);
+  font-size: 1.125rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.legal-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.legal-content h2 {
+  color: var(--prussian-blue);
+  font-size: var(--text-2xl);
+  margin-top: var(--space-2xl);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 2px solid var(--honey-bronze);
+}
+
+.legal-content h3 {
+  color: var(--prussian-blue);
+  font-size: var(--text-lg);
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-sm);
+}
+
+.legal-content h2:first-child,
+.legal-content h3:first-child {
+  margin-top: 0;
+}
+
+.legal-content p {
+  color: rgba(7, 24, 60, 0.75);
+  line-height: 1.7;
+  margin-bottom: var(--space-md);
+}
+
+.legal-content .lead {
+  font-size: 1.25rem;
+  color: var(--prussian-blue);
+  font-weight: 500;
+  margin-bottom: var(--space-xl);
+}
+
+.legal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-lg);
+}
+
+.legal-list li {
+  padding: var(--space-sm) 0;
+  padding-left: var(--space-md);
+  position: relative;
+  color: rgba(7, 24, 60, 0.75);
+  line-height: 1.6;
+}
+
+.legal-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--honey-bronze);
+  font-weight: bold;
+}
+
+.legal-content a {
+  color: var(--honey-bronze);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-content a:hover {
+  color: var(--prussian-blue);
+}
+
+.legal-content strong {
+  color: var(--prussian-blue);
+  font-weight: 600;
+}
+
+.legal-content em {
+  color: rgba(7, 24, 60, 0.6);
+  font-style: italic;
+}
+
+/* Footer styles for legal pages */
+.footer {
+  background: var(--floral-white);
+  padding: var(--space-2xl) 0 var(--space-lg);
+  margin-top: var(--space-2xl);
+}
+
+.footer__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+
+.footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.footer__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.footer__logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--prussian-blue);
+  color: var(--honey-bronze);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.footer__logo-text {
+  font-weight: 700;
+  color: var(--prussian-blue);
+  font-size: 1.125rem;
+}
+
+.footer__tagline {
+  color: rgba(7, 24, 60, 0.6);
+  font-size: 0.875rem;
+}
+
+.footer__nav h4,
+.footer__contact h4 {
+  color: var(--prussian-blue);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-md);
+}
+
+.footer__nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.footer__nav a {
+  color: rgba(7, 24, 60, 0.65);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  transition: color 0.3s ease;
+}
+
+.footer__nav a:hover {
+  color: var(--honey-bronze);
+}
+
+.footer__contact address {
+  font-style: normal;
+}
+
+.footer__contact p {
+  color: rgba(7, 24, 60, 0.65);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.footer__contact a {
+  color: rgba(7, 24, 60, 0.65);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer__contact a:hover {
+  color: var(--honey-bronze);
+}
+
+.footer__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-lg);
+  border-top: 1px solid rgba(7, 24, 60, 0.1);
+}
+
+.footer__bottom p {
+  color: rgba(7, 24, 60, 0.5);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.footer__legal {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.footer__link {
+  color: rgba(7, 24, 60, 0.5);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer__link:hover {
+  color: var(--honey-bronze);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .footer__grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+  }
+
+  .footer__bottom {
+    flex-direction: column;
+    gap: var(--space-md);
+    text-align: center;
+  }
+
+  .legal-content h2 {
+    font-size: var(--text-xl);
+  }
+
+  .legal-content h3 {
+    font-size: var(--text-base);
+  }
+}
+
+@media (max-width: 480px) {
+  .page-hero {
+    padding: calc(var(--header-height) + var(--space-xl)) 0 var(--space-md);
+  }
+
+  .legal-content {
+    padding: 0 var(--space-sm);
+  }
+
+  .legal-list li {
+    padding-left: var(--space-sm);
+  }
+}
