@@ -32,6 +32,7 @@ if (!JWT_SECRET) {
  * Generate a JWT token for wallet session
  */
 export function generateWalletToken(payload: Omit<WalletSessionPayload, 'iat' | 'exp'>): string {
+  const secret = JWT_SECRET || 'dev-secret-insecure';
   if (!JWT_SECRET) {
     logger.warn('WARNING: JWT_SECRET not set. This is insecure for production!');
   }
@@ -42,7 +43,7 @@ export function generateWalletToken(payload: Omit<WalletSessionPayload, 'iat' | 
     isVerified: payload.isVerified,
   };
 
-  return jwt.sign(tokenPayload, JWT_SECRET, {
+  return jwt.sign(tokenPayload, secret, {
     expiresIn: JWT_EXPIRES_IN,
   } as SignOptions);
 }
@@ -52,11 +53,12 @@ export function generateWalletToken(payload: Omit<WalletSessionPayload, 'iat' | 
  */
 export function verifyWalletToken(token: string): WalletSessionPayload | null {
   try {
+    const secret = JWT_SECRET || 'dev-secret-insecure';
     if (!JWT_SECRET) {
       logger.warn('WARNING: JWT_SECRET not set. This is insecure for production!');
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as WalletSessionPayload;
+    const decoded = jwt.verify(token, secret) as jwt.JwtPayload & WalletSessionPayload;
     
     // Validate chain ID
     if (decoded.chainId !== SUPPORTED_CHAIN_ID) {

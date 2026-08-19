@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
-import { User, Calendar, Clock, MessageSquare, Loader2, AlertCircle, RefreshCw, Download, Trash2, CheckCircle, Key } from 'lucide-react';
+import { User, Calendar, Clock, MessageSquare, Loader2, AlertCircle, RefreshCw, Download, Trash2, CheckCircle, Key, ShieldAlert } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import DIDTokenVisualization from './DIDTokenVisualization';
@@ -33,7 +34,8 @@ interface DecryptedMetadata {
 }
 
 export default function AboutMe() {
-  const { authState } = useAuth();
+  const navigate = useNavigate();
+  const { authState, logout } = useAuth();
   const { wallet, signer } = useWallet();
   const [didInfo, setDidInfo] = useState<DIDInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +46,8 @@ export default function AboutMe() {
   const [decryptedMetadata, setDecryptedMetadata] = useState<DecryptedMetadata | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptionError, setDecryptionError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authState.isVerified && authState.walletAddress) {
@@ -340,6 +344,56 @@ export default function AboutMe() {
       setError(err.message || 'Failed to revoke chat reference');
     } finally {
       setIsRevoking(false);
+    }
+  };
+
+  /**
+   * Delete account — GDPR Art. 17 (Right to Erasure)
+   * Permanently removes all user data from SafePsy.
+   */
+  const handleDeleteAccount = async () => {
+    if (!confirm(
+      'DELETE MY ACCOUNT\n\n' +
+      'This is irreversible. All your data will be permanently removed:\n' +
+      '- Chat history and encryption keys\n' +
+      '- Subscription and billing records\n' +
+      '- Crisis Safety Net opt-in data\n' +
+      '- RAG audit logs\n\n' +
+      'On-chain DID metadata (hashes) cannot be removed from the blockchain.\n\n' +
+      'Type "DELETE MY ACCOUNT" in the next prompt to confirm.'
+    )) {
+      return;
+    }
+
+    const confirmation = prompt('Type "DELETE MY ACCOUNT" to confirm:');
+    if (confirmation !== 'DELETE MY ACCOUNT') {
+      setDeletionError('Deletion cancelled — confirmation did not match.');
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setDeletionError(null);
+
+      const response = await apiFetch('/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE_MY_ACCOUNT' }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to delete account');
+      }
+
+      setSuccessMessage('Account deleted successfully. Redirecting...');
+      await logout();
+      setTimeout(() => navigate('/'), 1500);
+    } catch (err: any) {
+      console.error('Deletion error:', err);
+      setDeletionError(err.message || 'Failed to delete account');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -653,6 +707,53 @@ export default function AboutMe() {
                       </p>
                     </div>
                   )}
+
+                  {/* Danger Zone — GDPR Art. 17: Right to Erasure */}
+                  <div className="bg-red-50/70 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-xl p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <ShieldAlert className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-red-800 dark:text-red-200 mb-1">
+                          Delete Account
+                        </h3>
+                        <p className="text-sm text-body mb-3">
+                          Permanently erase all your data from SafePsy. This action is <strong>irreversible</strong> and removes chat history, encryption keys, subscription records, crisis opt-in data, and audit logs. On-chain DID metadata cannot be removed from the blockchain.
+                        </p>
+
+                        {deletionError && (
+                          <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-3 mb-3">
+                            <p className="text-sm text-red-800 dark:text-red-200">{deletionError}</p>
+                          </div>
+                        )}
+
+                        {successMessage?.includes('deleted') && (
+                          <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg p-3 mb-3">
+                            <p className="text-sm text-green-800 dark:text-green-200">{successMessage}</p>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={handleDeleteAccount}
+                          disabled={isDeleting || isExporting || isRevoking}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium w-full sm:w-auto"
+                        >
+                          {isDeleting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Deleting…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete My Account</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
