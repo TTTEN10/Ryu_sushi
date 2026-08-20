@@ -1051,14 +1051,22 @@ export default function ChatWidget() {
         )}
 
         {/* Unsaved Changes Indicator */}
-        {!pendingDidSave.visible && messages.length > 0 && !chatIsSaved && !isGuest && authState.isVerified && (
-          <div className="mt-4 flex justify-center">
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
-              <AlertCircle className="w-4 h-4" />
-              <span>Unsaved changes - click "Save session in ID token" when response appears</span>
-            </div>
-          </div>
-        )}
+        {(() => {
+          const lastMsg = deduplicatedMessages[deduplicatedMessages.length - 1];
+          const isLastError = lastMsg?.role === 'assistant' && lastMsg.content.startsWith('I encountered an error:');
+          if (isLastError) return null;
+          if (!pendingDidSave.visible && messages.length > 0 && !chatIsSaved && !isGuest && authState.isVerified) {
+            return (
+              <div className="mt-4 flex justify-center">
+                <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Unsaved changes - click "Save session in ID token" when response appears</span>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         <div ref={messagesEndRef} />
       </div>
