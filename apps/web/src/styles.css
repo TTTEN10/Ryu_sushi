@@ -472,6 +472,42 @@ html {
     border-radius: 4px;
   }
 
+  /* Gradient button shimmer animation */
+  [class*="bg-gradient"][class*="text-white"] {
+    position: relative;
+    overflow: hidden;
+  }
+
+  [class*="bg-gradient"][class*="text-white"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 150%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.15) 40%,
+      rgba(255, 255, 255, 0.35) 50%,
+      rgba(255, 255, 255, 0.15) 60%,
+      transparent 100%
+    );
+    transform: skewX(-20deg);
+    animation: shimmer 3s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  @keyframes shimmer {
+    0% {
+      left: -150%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
+
   /* Prevent text overflow on mobile */
   @media (max-width: 640px) {
     * {

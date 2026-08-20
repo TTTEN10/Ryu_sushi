@@ -16,9 +16,9 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main id="main-content" className="flex-1" role="main" aria-label="Landing" tabIndex={-1}>
+      <main id="main-content" className="flex-1 relative overflow-hidden" role="main" aria-label="Landing" tabIndex={-1}>
+        <div className="pointer-events-none absolute top-0 left-0 w-96 h-96 rounded-full bg-primary-400/20 blur-3xl" style={{ animation: 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
         <div className="container-max section-padding py-8 lg:py-12 space-y-14 lg:space-y-20 relative overflow-hidden">
-          <div className="pointer-events-none absolute -top-28 -left-20 w-72 h-72 rounded-full bg-primary-400/20 blur-3xl animate-pulse" />
           <div className="pointer-events-none absolute top-64 -right-24 w-72 h-72 rounded-full bg-secondary-400/20 blur-3xl animate-pulse" />
 
           <section className="mb-6 scroll-reveal" data-reveal>
