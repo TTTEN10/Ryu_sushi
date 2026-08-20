@@ -8,10 +8,11 @@ import { updateChatReference, fetchOnChainDidStatus } from '../utils/did-contrac
 import { keyMetadataBytesForDidUpdate } from '../utils/did-key-metadata';
 import { useOffline } from '../hooks/useOffline';
 import { useToast } from '../hooks/useToast';
+import { useSubscription } from '../hooks/useSubscription';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 import { recordFirstMessageSent, recordFirstReplyReceived } from '../utils/conversionMetrics';
 import { apiFetch, apiUrl } from '../config/api';
-import Paywall from './Paywall';
+import SubscriptionTerminal from './SubscriptionTerminal';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
 import SafetyModal from './SafetyModal';
@@ -28,27 +29,6 @@ interface Message {
   content: string;
   timestamp: Date;
   encrypted?: boolean;
-}
-
-interface PaywallData {
-  quota: {
-    dailyUsed: number;
-    dailyLimit: number;
-    monthlyUsed: number;
-    monthlyLimit: number;
-    resetDailyAt: string;
-    resetMonthlyAt: string;
-  };
-  pricing: {
-    PREMIUM: {
-      crypto: {
-        ETH: string;
-        USDT: string;
-        USDC: string;
-      };
-    };
-  };
-  paymentRecipient: string | null;
 }
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -86,6 +66,42 @@ export default function ChatWidget() {
   const { symmetricKey, encryptedKey, loadChat, saveChat, isLoading: encryptionLoading, error: encryptionError } = useChatEncryption();
   const { isOffline } = useOffline();
   const { showToast, ToastContainer } = useToast();
+  const {
+    fetchPlans,
+    fetchSubscription,
+    fetchUsage,
+    fetchPaymentHistory,
+    subscription,
+    quotaStatus,
+    getUsagePercentage,
+  } = useSubscription();
+
+  // Auto-fetch subscription data when wallet is connected
+  const [hasShownInitialTerminal, setHasShownInitialTerminal] = useState(false);
+
+  useEffect(() => {
+    if (wallet?.address && authState.isVerified) {
+      fetchPlans();
+      fetchSubscription();
+      fetchUsage();
+      fetchPaymentHistory();
+    }
+  }, [wallet?.address, authState.isVerified, fetchPlans, fetchSubscription, fetchUsage, fetchPaymentHistory]);
+
+  // Show terminal right after wallet connect if user doesn't have an active paid subscription
+  useEffect(() => {
+    if (!wallet?.address || !authState.isVerified || hasShownInitialTerminal) return;
+    if (!subscription) return;
+
+    const hasActivePaidSubscription =
+      subscription.status === 'active' && subscription.plan !== 'free';
+
+    if (!hasActivePaidSubscription) {
+      setHasShownInitialTerminal(true);
+      setShowSubscriptionTerminal(true);
+      setSubscriptionTerminalForced(false);
+    }
+  }, [wallet?.address, authState.isVerified, subscription, hasShownInitialTerminal]);
 
   // Check if withContext query parameter is set
   const withContext = searchParams.get('withContext') === 'true';
@@ -96,8 +112,8 @@ export default function ChatWidget() {
   const [sendPhase, setSendPhase] = useState<
     'idle' | 'checking' | 'encrypting' | 'sending' | 'streaming' | 'saving' | 'error'
   >('idle');
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [paywallData, setPaywallData] = useState<PaywallData | null>(null);
+  const [showSubscriptionTerminal, setShowSubscriptionTerminal] = useState(false);
+  const [subscriptionTerminalForced, setSubscriptionTerminalForced] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [guestPromptCount, setGuestPromptCount] = useState<number>(() => readGuestPromptCount());
@@ -239,7 +255,6 @@ export default function ChatWidget() {
       if (msg.role === 'assistant' &&
           prevMsg?.role === 'assistant' &&
           msg.content === prevMsg.content) {
-        console.log('[ChatWidget] Dedup: skipping duplicate assistant message');
         continue;
       }
 
@@ -362,14 +377,9 @@ export default function ChatWidget() {
       }
 
       showToast('info', 'Saving chat in ID token');
-      const receipt = await updateChatReference(signer, chatRef, metaBytes);
+      await updateChatReference(signer, chatRef, metaBytes);
 
       showToast('success', 'Session saved to ID token!');
-      console.log(
-        'DID updated successfully:',
-        (receipt as { hash?: string }).hash ||
-          (receipt as { transactionHash?: string }).transactionHash,
-      );
 
       setPendingDidSave({ visible: false, saveResult: null });
       setChatIsSaved(true); // Mark chat as saved
@@ -468,7 +478,6 @@ export default function ChatWidget() {
             const prev = deduped[deduped.length - 1];
             // Skip if this is an assistant message with same content as previous
             if (msg.role === 'assistant' && prev?.role === 'assistant' && msg.content === prev.content) {
-              console.log('[ChatWidget] Removing duplicate from loaded history:', msg.content.substring(0, 50));
               continue;
             }
             deduped.push(msg);
@@ -521,7 +530,6 @@ export default function ChatWidget() {
         return;
       }
       if (!symmetricKey || encryptionLoading) {
-        console.log('Blocking send: encryption not ready', { hasSymmetricKey: !!symmetricKey, encryptionLoading });
         return;
       }
     }
@@ -627,13 +635,9 @@ export default function ChatWidget() {
         }
 
         // Check if it's a quota exceeded error
-        if (response.status === 429 && errorData.error === 'QUOTA_EXCEEDED' && errorData.paywall) {
-          setPaywallData({
-            quota: errorData.quota,
-            pricing: errorData.paywall.pricing,
-            paymentRecipient: errorData.paywall.paymentRecipient,
-          });
-          setShowPaywall(true);
+        if (response.status === 429 && errorData.error === 'QUOTA_EXCEEDED') {
+          setSubscriptionTerminalForced(true);
+          setShowSubscriptionTerminal(true);
           setIsStreaming(false);
           return;
         }
@@ -685,7 +689,6 @@ export default function ChatWidget() {
       const persistAfterStream = async () => {
         if (streamFinalized) return;
         streamFinalized = true;
-        console.log('[ChatWidget] persistAfterStream called, final content length:', assistantMessage.content.length);
         setIsStreaming(false);
         setSendPhase('idle');
         if (assistantMessage.content.trim().length > 0) {
@@ -718,7 +721,6 @@ export default function ChatWidget() {
             try {
               const raw = line.substring(6).trim();
               if (raw === '[DONE]') {
-                console.log('[ChatWidget] Received [DONE], finalizing stream');
                 await persistAfterStream();
                 continue;
               }
@@ -749,10 +751,8 @@ export default function ChatWidget() {
                   if (existingIndex !== -1) {
                     const updated = [...filtered];
                     updated[existingIndex] = { ...updated[existingIndex], content: assistantMessage.content };
-                    console.log('[ChatWidget] Updated streaming message, length:', assistantMessage.content.length);
                     return updated;
                   }
-                  console.log('[ChatWidget] Adding new streaming message');
                   return [...filtered, assistantMessage];
                 });
               }
@@ -795,13 +795,9 @@ export default function ChatWidget() {
                 await persistAfterStream();
               } else if (currentEvent === 'error') {
                 // Check if it's a quota exceeded error
-                if (data.error === 'QUOTA_EXCEEDED' && data.paywall) {
-                  setPaywallData({
-                    quota: data.quota,
-                    pricing: data.paywall.pricing,
-                    paymentRecipient: data.paywall.paymentRecipient,
-                  });
-                  setShowPaywall(true);
+                if (data.error === 'QUOTA_EXCEEDED') {
+                  setSubscriptionTerminalForced(true);
+                  setShowSubscriptionTerminal(true);
                   setIsStreaming(false);
                   return;
                 }
@@ -815,7 +811,6 @@ export default function ChatWidget() {
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('Request aborted');
       } else {
         const errorMsg = error instanceof Error 
           ? error.message 
@@ -862,19 +857,19 @@ export default function ChatWidget() {
         onClose={() => setShowGuestLimitModal(false)}
         onScrollToWallet={scrollToWalletConnect}
       />
-      {showPaywall && paywallData && (
-        <Paywall
-          quota={paywallData.quota}
-          pricing={paywallData.pricing}
-          paymentRecipient={paywallData.paymentRecipient}
-          onClose={() => {
-            setShowPaywall(false);
-            setPaywallData(null);
+      {showSubscriptionTerminal && (
+        <SubscriptionTerminal
+          forced={subscriptionTerminalForced}
+          onActivate={() => {
+            setSubscriptionTerminalForced(false);
+            setShowSubscriptionTerminal(false);
+            // Refresh data after activation
+            fetchSubscription();
+            fetchUsage();
+            fetchPaymentHistory();
           }}
-          onUpgradeSuccess={() => {
-            setShowPaywall(false);
-            setPaywallData(null);
-            // Optionally refresh quota or retry the request
+          onClose={() => {
+            setShowSubscriptionTerminal(false);
           }}
         />
       )}
@@ -1076,6 +1071,47 @@ export default function ChatWidget() {
             <WifiOff className="w-4 h-4" />
             <span>Offline - Messages cannot be sent</span>
           </div>
+        )}
+
+        {/* Quota Warning Banner — only for authenticated non-guest users */}
+        {!isGuest && quotaStatus && subscription?.status === 'active' && subscription.plan !== 'free' && (
+          <>
+            {quotaStatus.dailyLimit > 0 && !quotaStatus.canUse && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs font-medium text-red-700 dark:text-red-300" role="alert">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>Daily limit reached — upgrade to keep going.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSubscriptionTerminal(true)}
+                  className="ml-auto underline text-primary-600 dark:text-primary-400 hover:text-primary-700 whitespace-nowrap"
+                >
+                  Upgrade
+                </button>
+              </div>
+            )}
+            {quotaStatus.dailyLimit > 0 && quotaStatus.canUse && getUsagePercentage({ used: quotaStatus.dailyUsed, limit: quotaStatus.dailyLimit, remaining: quotaStatus.dailyLimit - quotaStatus.dailyUsed }) >= 90 && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs font-medium text-amber-700 dark:text-amber-300">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>
+                  {quotaStatus.dailyLimit - quotaStatus.dailyUsed} prompts remaining today ({quotaStatus.dailyUsed}/{quotaStatus.dailyLimit}).
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowSubscriptionTerminal(true)}
+                  className="ml-auto underline text-primary-600 dark:text-primary-400 hover:text-primary-700 whitespace-nowrap"
+                >
+                  Upgrade
+                </button>
+              </div>
+            )}
+            {quotaStatus.dailyLimit > 0 && quotaStatus.canUse && getUsagePercentage({ used: quotaStatus.dailyUsed, limit: quotaStatus.dailyLimit, remaining: quotaStatus.dailyLimit - quotaStatus.dailyUsed }) >= 80 && getUsagePercentage({ used: quotaStatus.dailyUsed, limit: quotaStatus.dailyLimit, remaining: quotaStatus.dailyLimit - quotaStatus.dailyUsed }) < 90 && (
+              <div className="mb-2 flex items-center gap-1.5 text-xs text-body opacity-70">
+                <span>{quotaStatus.dailyLimit - quotaStatus.dailyUsed} prompts left today</span>
+                <span className="opacity-50">·</span>
+                <span>{quotaStatus.dailyUsed}/{quotaStatus.dailyLimit}</span>
+              </div>
+            )}
+          </>
         )}
         {guestOneLeft && !guestAtLimit && (
           <p className="mb-2 text-xs text-amber-700 dark:text-amber-300" role="status">

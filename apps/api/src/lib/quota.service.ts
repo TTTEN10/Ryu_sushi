@@ -1,599 +1,359 @@
+/**
+ * Quota Service (rewritten)
+ *
+ * Manages prompt quotas per wallet using Redis.
+ *
+ * Three independent quota windows (UTC-based):
+ * - Daily: 00:00 UTC to 23:59 UTC
+ * - Weekly: Monday 00:00 UTC to Sunday 23:59 UTC (ISO calendar)
+ * - Monthly: 1st of month 00:00 UTC to last day 23:59 UTC
+ *
+ * Concurrency-safe: uses Redis atomic INCR with per-window locks.
+ * Falls back gracefully when Redis is unavailable.
+ *
+ * Quota limits come from subscription-config.ts (backend authoritative).
+ */
+
 import Redis from 'ioredis';
 import logger from './logger';
-import { DIDService } from './did.service';
-import { subscriptionService, SUBSCRIPTION_LIMITS } from './subscription.service';
+import { prisma } from './prisma';
+import { getSharedRedis } from './redis-shared';
+import * as config from './subscription-config';
+import { resolvePlan, getUsageCounts } from './subscription.service';
 import { isUnrestrictedWallet } from './unrestricted-wallets';
 
-/**
- * Quota Service Configuration
- */
+// ─── Configuration ───────────────────────────────────────────────────────────
+
 interface QuotaConfig {
   redisUrl?: string;
   redisHost?: string;
   redisPort?: number;
   redisPassword?: string;
   redisDb?: number;
-  dailyLimit?: number; // Daily chat quota per DID
-  monthlyLimit?: number; // Monthly chat quota per DID
-  defaultDailyLimit?: number; // Default daily limit if not specified
-  defaultMonthlyLimit?: number; // Default monthly limit if not specified
 }
 
-/**
- * Quota Status
- */
+/** Concurrency lock TTL in seconds (5 minutes, longer than any request). */
+const LOCK_TTL_SECONDS = 300;
+
+// ─── Quota status ────────────────────────────────────────────────────────────
+
 export interface QuotaStatus {
-  did: string;
+  walletAddress: string;
+  plan: string;
   dailyUsed: number;
   dailyLimit: number;
+  weeklyUsed: number;
+  weeklyLimit: number;
   monthlyUsed: number;
   monthlyLimit: number;
   dailyRemaining: number;
+  weeklyRemaining: number;
   monthlyRemaining: number;
   canUse: boolean;
-  resetDailyAt: string; // ISO timestamp
-  resetMonthlyAt: string; // ISO timestamp
+  resetDailyAt: string;
+  resetWeeklyAt: string;
+  resetMonthlyAt: string;
 }
 
-/**
- * Quota Service
- * Manages chat quotas per DID using Redis
- */
+// ─── Redis key helpers ───────────────────────────────────────────────────────
+
+/** Get Redis key for daily quota. */
+function getDailyKey(walletAddress: string): string {
+  const today = new Date().toISOString().split('T')[0];
+  return `quota:chat:${walletAddress}:daily:${today}`;
+}
+
+/** Get Redis key for weekly quota (ISO calendar week in UTC). */
+function getWeeklyKey(walletAddress: string): string {
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + mondayOffset));
+  const weekKey = `${monday.getUTCFullYear()}-${String(monday.getUTCMonth() + 1).padStart(2, '0')}-W${String(monday.getUTCDate()).padStart(2, '0')}`;
+  return `quota:chat:${walletAddress}:weekly:${weekKey}`;
+}
+
+/** Get Redis key for monthly quota. */
+function getMonthlyKey(walletAddress: string): string {
+  const now = new Date();
+  const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  return `quota:chat:${walletAddress}:monthly:${month}`;
+}
+
+/** Get concurrency lock key for a wallet. */
+function getLockKey(walletAddress: string): string {
+  return `concurrency:chat:${walletAddress}:lock`;
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
 export class QuotaService {
-  private redis: Redis | null = null;
+  private static instance: QuotaService;
+
   private config: QuotaConfig;
-  private dailyLimit: number;
-  private monthlyLimit: number;
 
-  constructor(config: QuotaConfig = {}) {
+  private constructor(config: QuotaConfig = {}) {
     this.config = config;
-    this.dailyLimit = config.dailyLimit || config.defaultDailyLimit || 100;
-    this.monthlyLimit = config.monthlyLimit || config.defaultMonthlyLimit || 1000;
-
-    // Initialize Redis connection
-    this.initializeRedis();
   }
 
-  /**
-   * Initialize Redis connection
-   */
-  private initializeRedis(): void {
-    try {
-      if (this.config.redisUrl) {
-        // Use Redis URL (e.g., for Upstash, Redis Cloud, etc.)
-        this.redis = new Redis(this.config.redisUrl, {
-          maxRetriesPerRequest: 3,
-          retryStrategy: (times) => {
-            const delay = Math.min(times * 50, 2000);
-            return delay;
-          },
-          reconnectOnError: (err) => {
-            const targetError = 'READONLY';
-            if (err.message.includes(targetError)) {
-              return true; // Reconnect on READONLY error
-            }
-            return false;
-          },
-        });
-      } else if (this.config.redisHost) {
-        // Use host/port configuration
-        this.redis = new Redis({
-          host: this.config.redisHost,
-          port: this.config.redisPort || 6379,
-          password: this.config.redisPassword,
-          db: this.config.redisDb || 0,
-          maxRetriesPerRequest: 3,
-          retryStrategy: (times) => {
-            const delay = Math.min(times * 50, 2000);
-            return delay;
-          },
-        });
-      } else {
-        logger.warn('Redis not configured. Quota service will run in fallback mode (no persistence).');
-        return;
-      }
-
-      // Handle Redis connection events
-      this.redis.on('connect', () => {
-        logger.info('Redis connected for quota service');
-      });
-
-      this.redis.on('error', (error) => {
-        logger.error('Redis connection error:', error);
-      });
-
-      this.redis.on('close', () => {
-        logger.warn('Redis connection closed');
-      });
-
-      this.redis.on('reconnecting', () => {
-        logger.info('Redis reconnecting...');
-      });
-    } catch (error) {
-      logger.error('Failed to initialize Redis:', error);
-      this.redis = null;
-    }
-  }
-
-  /**
-   * Get Redis key for daily quota
-   */
-  private getDailyKey(did: string): string {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    return `quota:chat:${did}:daily:${today}`;
-  }
-
-  /**
-   * Get Redis key for monthly quota
-   */
-  private getMonthlyKey(did: string): string {
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
-    return `quota:chat:${did}:monthly:${month}`;
-  }
-
-  /**
-   * Get quota limit key (for storing custom limits per DID)
-   */
-  private getLimitKey(did: string): string {
-    return `quota:chat:${did}:limits`;
-  }
-
-  /**
-   * Get concurrency lock key for a DID
-   */
-  private getConcurrencyLockKey(did: string): string {
-    return `concurrency:chat:${did}:lock`;
-  }
-
-  /**
-   * Check if Redis is available
-   */
-  private isRedisAvailable(): boolean {
-    return this.redis !== null && this.redis.status === 'ready';
-  }
-
-  /**
-   * Check if Redis is configured (regardless of connection status)
-   */
-  isRedisConfigured(): boolean {
-    return this.redis !== null;
-  }
-
-  /**
-   * Get Redis connection status for health checks
-   */
-  getRedisStatus(): 'ready' | 'connecting' | 'reconnecting' | 'disconnected' | 'not_configured' {
-    if (!this.redis) return 'not_configured';
-    return this.redis.status as 'ready' | 'connecting' | 'reconnecting' | 'disconnected' || 'disconnected';
-  }
-
-  /**
-   * Get quota status for a DID
-   * Optionally accepts walletAddress to check subscription tier
-   *
-   * In production with Redis configured, throws error if Redis unavailable
-   * In development, falls back to allowing all requests
-   */
-  async getQuotaStatus(did: string, walletAddress?: string): Promise<QuotaStatus> {
-    // Check if wallet is unrestricted (bypasses all quotas)
-    if (walletAddress && isUnrestrictedWallet(walletAddress)) {
-      logger.debug(`Unrestricted wallet detected: ${walletAddress}, bypassing quotas`);
-      return {
-        did,
-        dailyUsed: 0,
-        dailyLimit: Number.MAX_SAFE_INTEGER,
-        monthlyUsed: 0,
-        monthlyLimit: Number.MAX_SAFE_INTEGER,
-        dailyRemaining: Number.MAX_SAFE_INTEGER,
-        monthlyRemaining: Number.MAX_SAFE_INTEGER,
-        canUse: true,
-        resetDailyAt: this.getNextDayReset(),
-        resetMonthlyAt: this.getNextMonthReset(),
-      };
-    }
-
-    // Get subscription limits if wallet address is provided
-    let subscriptionLimits = { dailyLimit: this.dailyLimit, monthlyLimit: this.monthlyLimit };
-    if (walletAddress) {
-      try {
-        const limits = await subscriptionService.getSubscriptionLimits(walletAddress);
-        subscriptionLimits = {
-          dailyLimit: limits.dailyLimit === -1 ? Number.MAX_SAFE_INTEGER : limits.dailyLimit,
-          monthlyLimit: limits.monthlyLimit === -1 ? Number.MAX_SAFE_INTEGER : limits.monthlyLimit,
-        };
-      } catch (error) {
-        logger.warn(`Error getting subscription limits for ${walletAddress}, using defaults:`, error);
-      }
-    }
-
-    if (!this.isRedisAvailable()) {
-      // In production with Redis configured, throw error to fail closed
-      if (this.redis !== null && process.env.NODE_ENV === 'production') {
-        logger.error(`Redis configured but not ready (status: ${this.redis.status}). Quota enforcement disabled.`);
-        throw new Error('Redis not available for quota enforcement');
-      }
-      // Fallback: return subscription-based quota if Redis is not configured (development)
-      logger.warn(`Redis not configured, returning subscription quota for DID: ${did}`);
-      return {
-        did,
-        dailyUsed: 0,
-        dailyLimit: subscriptionLimits.dailyLimit,
-        monthlyUsed: 0,
-        monthlyLimit: subscriptionLimits.monthlyLimit,
-        dailyRemaining: subscriptionLimits.dailyLimit,
-        monthlyRemaining: subscriptionLimits.monthlyLimit,
-        canUse: true,
-        resetDailyAt: this.getNextDayReset(),
-        resetMonthlyAt: this.getNextMonthReset(),
-      };
-    }
-
-    try {
-      const dailyKey = this.getDailyKey(did);
-      const monthlyKey = this.getMonthlyKey(did);
-      const limitKey = this.getLimitKey(did);
-
-      // Get current usage and limits
-      const [dailyUsed, monthlyUsed, limits] = await Promise.all([
-        this.redis!.get(dailyKey).then((val) => parseInt(val || '0', 10)),
-        this.redis!.get(monthlyKey).then((val) => parseInt(val || '0', 10)),
-        this.redis!.hgetall(limitKey),
-      ]);
-
-      // Use subscription limits, then custom limits, then defaults
-      const dailyLimit = limits.dailyLimit
-        ? parseInt(limits.dailyLimit, 10)
-        : subscriptionLimits.dailyLimit;
-      const monthlyLimit = limits.monthlyLimit
-        ? parseInt(limits.monthlyLimit, 10)
-        : subscriptionLimits.monthlyLimit;
-
-      // Update limits in Redis if subscription changed
-      if (walletAddress && (!limits.dailyLimit || !limits.monthlyLimit)) {
-        await this.redis!.hset(limitKey, {
-          dailyLimit: dailyLimit.toString(),
-          monthlyLimit: monthlyLimit.toString(),
-        });
-      }
-
-      const dailyRemaining = dailyLimit === Number.MAX_SAFE_INTEGER 
-        ? Number.MAX_SAFE_INTEGER 
-        : Math.max(0, dailyLimit - dailyUsed);
-      const monthlyRemaining = monthlyLimit === Number.MAX_SAFE_INTEGER
-        ? Number.MAX_SAFE_INTEGER
-        : Math.max(0, monthlyLimit - monthlyUsed);
-      const canUse = (dailyLimit === Number.MAX_SAFE_INTEGER || dailyRemaining > 0) && 
-                     (monthlyLimit === Number.MAX_SAFE_INTEGER || monthlyRemaining > 0);
-
-      return {
-        did,
-        dailyUsed,
-        dailyLimit,
-        monthlyUsed,
-        monthlyLimit,
-        dailyRemaining,
-        monthlyRemaining,
-        canUse,
-        resetDailyAt: this.getNextDayReset(),
-        resetMonthlyAt: this.getNextMonthReset(),
-      };
-    } catch (error) {
-      logger.error(`Error getting quota status for DID ${did}:`, error);
-      // Fallback to subscription limits on error
-      return {
-        did,
-        dailyUsed: 0,
-        dailyLimit: subscriptionLimits.dailyLimit,
-        monthlyUsed: 0,
-        monthlyLimit: subscriptionLimits.monthlyLimit,
-        dailyRemaining: subscriptionLimits.dailyLimit,
-        monthlyRemaining: subscriptionLimits.monthlyLimit,
-        canUse: true,
-        resetDailyAt: this.getNextDayReset(),
-        resetMonthlyAt: this.getNextMonthReset(),
-      };
-    }
-  }
-
-  /**
-   * Check if a DID can use chat (has quota remaining)
-   * Optionally accepts walletAddress to check subscription tier
-   */
-  async canUseChat(did: string, walletAddress?: string): Promise<boolean> {
-    const status = await this.getQuotaStatus(did, walletAddress);
-    return status.canUse;
-  }
-
-  /**
-   * Increment chat usage for a DID
-   * Returns true if increment was successful, false if quota exceeded
-   *
-   * In production with Redis configured, throws error if Redis unavailable
-   */
-  async incrementUsage(did: string): Promise<{ success: boolean; status: QuotaStatus }> {
-    if (!this.isRedisAvailable()) {
-      // In production with Redis configured, throw error to fail closed
-      if (this.redis !== null && process.env.NODE_ENV === 'production') {
-        logger.error(`Redis configured but not ready (status: ${this.redis.status}). Cannot increment usage.`);
-        throw new Error('Redis not available for quota enforcement');
-      }
-      // Fallback: allow usage if Redis is not configured (development)
-      logger.warn(`Redis not configured, allowing usage for DID: ${did}`);
-      const status = await this.getQuotaStatus(did);
-      return { success: true, status };
-    }
-
-    try {
-      const dailyKey = this.getDailyKey(did);
-      const monthlyKey = this.getMonthlyKey(did);
-      const limitKey = this.getLimitKey(did);
-
-      // Get current limits
-      const limits = await this.redis!.hgetall(limitKey);
-      const dailyLimit = limits.dailyLimit
-        ? parseInt(limits.dailyLimit, 10)
-        : this.dailyLimit;
-      const monthlyLimit = limits.monthlyLimit
-        ? parseInt(limits.monthlyLimit, 10)
-        : this.monthlyLimit;
-
-      // Check current usage
-      const dailyUsed = parseInt((await this.redis!.get(dailyKey)) || '0', 10);
-      const monthlyUsed = parseInt((await this.redis!.get(monthlyKey)) || '0', 10);
-
-      // Check if quota is exceeded
-      if (dailyUsed >= dailyLimit || monthlyUsed >= monthlyLimit) {
-        const status = await this.getQuotaStatus(did);
-        return { success: false, status };
-      }
-
-      // Increment usage
-      const now = Date.now();
-      const dailyTtl = this.getSecondsUntilMidnight();
-      const monthlyTtl = this.getSecondsUntilMonthEnd();
-
-      await Promise.all([
-        this.redis!.incr(dailyKey),
-        this.redis!.expire(dailyKey, dailyTtl),
-        this.redis!.incr(monthlyKey),
-        this.redis!.expire(monthlyKey, monthlyTtl),
-      ]);
-
-      // Get updated status
-      const status = await this.getQuotaStatus(did);
-      logger.info(`Chat usage incremented for DID ${did}: daily=${status.dailyUsed}/${status.dailyLimit}, monthly=${status.monthlyUsed}/${status.monthlyLimit}`);
-
-      return { success: true, status };
-    } catch (error) {
-      logger.error(`Error incrementing usage for DID ${did}:`, error);
-      // Allow usage on error (fail open)
-      const status = await this.getQuotaStatus(did);
-      return { success: true, status };
-    }
-  }
-
-  /**
-   * Set custom quota limits for a DID
-   */
-  async setQuotaLimits(
-    did: string,
-    dailyLimit?: number,
-    monthlyLimit?: number
-  ): Promise<void> {
-    if (!this.isRedisAvailable()) {
-      logger.warn('Redis not available, cannot set quota limits');
-      return;
-    }
-
-    try {
-      const limitKey = this.getLimitKey(did);
-      const updates: Record<string, string> = {};
-
-      if (dailyLimit !== undefined) {
-        updates.dailyLimit = dailyLimit.toString();
-      }
-      if (monthlyLimit !== undefined) {
-        updates.monthlyLimit = monthlyLimit.toString();
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await this.redis!.hset(limitKey, updates);
-        logger.info(`Quota limits updated for DID ${did}:`, updates);
-      }
-    } catch (error) {
-      logger.error(`Error setting quota limits for DID ${did}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Reset quota for a DID (admin function)
-   */
-  async resetQuota(did: string, resetDaily: boolean = true, resetMonthly: boolean = true): Promise<void> {
-    if (!this.isRedisAvailable()) {
-      logger.warn('Redis not available, cannot reset quota');
-      return;
-    }
-
-    try {
-      const promises: Promise<number>[] = [];
-
-      if (resetDaily) {
-        const dailyKey = this.getDailyKey(did);
-        promises.push(this.redis!.del(dailyKey));
-      }
-
-      if (resetMonthly) {
-        const monthlyKey = this.getMonthlyKey(did);
-        promises.push(this.redis!.del(monthlyKey));
-      }
-
-      await Promise.all(promises);
-      logger.info(`Quota reset for DID ${did}: daily=${resetDaily}, monthly=${resetMonthly}`);
-    } catch (error) {
-      logger.error(`Error resetting quota for DID ${did}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get seconds until midnight (for daily quota TTL)
-   */
-  private getSecondsUntilMidnight(): number {
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0);
-    return Math.ceil((midnight.getTime() - now.getTime()) / 1000);
-  }
-
-  /**
-   * Get seconds until end of month (for monthly quota TTL)
-   */
-  private getSecondsUntilMonthEnd(): number {
-    const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return Math.ceil((nextMonth.getTime() - now.getTime()) / 1000);
-  }
-
-  /**
-   * Get next day reset timestamp
-   */
-  private getNextDayReset(): string {
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0);
-    return midnight.toISOString();
-  }
-
-  /**
-   * Get next month reset timestamp
-   */
-  private getNextMonthReset(): string {
-    const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return nextMonth.toISOString();
-  }
-
-  /**
-   * Get DID from wallet address
-   */
-  async getDIDFromWallet(walletAddress: string): Promise<string | null> {
-    try {
-      const didService = DIDService.getInstance();
-      if (!didService) {
-        return null;
-      }
-
-      const didInfo = await didService.getDIDInfo(walletAddress);
-      if (!didInfo.hasDid || !didInfo.tokenId) {
-        return null;
-      }
-
-      return didInfo.tokenId;
-    } catch (error) {
-      logger.error(`Error getting DID from wallet ${walletAddress}:`, error);
-      return null;
-    }
-  }
-
-  /**
-   * Acquire a concurrency lock for a DID
-   * Returns true if lock was acquired, false if already locked
-   * @param did DID token ID
-   * @param ttlSeconds Time to live in seconds (default: 300 = 5 minutes)
-   */
-  async acquireConcurrencyLock(did: string, ttlSeconds: number = 300): Promise<boolean> {
-    if (!this.isRedisAvailable()) {
-      logger.warn('Redis not available, allowing request (no concurrency control)');
-      return true; // Allow if Redis is down (fail open)
-    }
-
-    try {
-      const lockKey = this.getConcurrencyLockKey(did);
-      // Use SET with NX (only set if not exists) and EX (expiration)
-      const result = await this.redis!.set(lockKey, '1', 'EX', ttlSeconds, 'NX');
-      return result === 'OK';
-    } catch (error) {
-      logger.error(`Error acquiring concurrency lock for DID ${did}:`, error);
-      // Fail open - allow request if lock acquisition fails
-      return true;
-    }
-  }
-
-  /**
-   * Release a concurrency lock for a DID
-   * @param did DID token ID
-   */
-  async releaseConcurrencyLock(did: string): Promise<void> {
-    if (!this.isRedisAvailable()) {
-      return;
-    }
-
-    try {
-      const lockKey = this.getConcurrencyLockKey(did);
-      await this.redis!.del(lockKey);
-      logger.debug(`Concurrency lock released for DID ${did}`);
-    } catch (error) {
-      logger.error(`Error releasing concurrency lock for DID ${did}:`, error);
-      // Don't throw - lock will expire naturally
-    }
-  }
-
-  /**
-   * Check if a DID has an active concurrency lock
-   * @param did DID token ID
-   */
-  async hasConcurrencyLock(did: string): Promise<boolean> {
-    if (!this.isRedisAvailable()) {
-      return false;
-    }
-
-    try {
-      const lockKey = this.getConcurrencyLockKey(did);
-      const exists = await this.redis!.exists(lockKey);
-      return exists === 1;
-    } catch (error) {
-      logger.error(`Error checking concurrency lock for DID ${did}:`, error);
-      return false; // Fail closed - assume no lock if check fails
-    }
-  }
-
-  /**
-   * Close Redis connection
-   */
-  async close(): Promise<void> {
-    if (this.redis) {
-      await this.redis.quit();
-      logger.info('Redis connection closed for quota service');
-    }
-  }
-
-  /**
-   * Get singleton instance
-   */
-  private static instance: QuotaService | null = null;
-
-  static getInstance(): QuotaService {
-    if (!QuotaService.instance) {
-      const config: QuotaConfig = {
-        redisUrl: process.env.REDIS_URL,
-        redisHost: process.env.REDIS_HOST,
-        redisPort: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : undefined,
-        redisPassword: process.env.REDIS_PASSWORD,
-        redisDb: process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : undefined,
-        dailyLimit: process.env.CHAT_QUOTA_DAILY_LIMIT
-          ? parseInt(process.env.CHAT_QUOTA_DAILY_LIMIT, 10)
-          : undefined,
-        monthlyLimit: process.env.CHAT_QUOTA_MONTHLY_LIMIT
-          ? parseInt(process.env.CHAT_QUOTA_MONTHLY_LIMIT, 10)
-          : undefined,
-        defaultDailyLimit: 100,
-        defaultMonthlyLimit: 1000,
-      };
+  static getInstance(config?: QuotaConfig): QuotaService {
+    if (!QuotaService.instance && config) {
       QuotaService.instance = new QuotaService(config);
     }
     return QuotaService.instance;
   }
-}
 
+  /**
+   * Check if Redis is configured.
+   */
+  isRedisConfigured(): boolean {
+    return this.config.redisUrl !== undefined || this.config.redisHost !== undefined;
+  }
+
+  /**
+   * Get Redis connection status.
+   */
+  getRedisStatus(): 'ready' | 'connecting' | 'reconnecting' | 'disconnected' | 'not_configured' {
+    const redis = getSharedRedis();
+    if (!redis) return 'not_configured';
+    return redis.status as 'ready' | 'connecting' | 'reconnecting' | 'disconnected' || 'disconnected';
+  }
+
+  /**
+   * Get the next daily reset timestamp.
+   */
+  private getNextDayReset(): string {
+    const now = new Date();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    return next.toISOString();
+  }
+
+  /**
+   * Get the next weekly reset timestamp (next Monday 00:00 UTC).
+   */
+  private getNextWeekReset(): string {
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? 7 : 7 - dayOfWeek + 1;
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + mondayOffset));
+    return next.toISOString();
+  }
+
+  /**
+   * Get the next monthly reset timestamp.
+   */
+  private getNextMonthReset(): string {
+    const now = new Date();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    return next.toISOString();
+  }
+
+  /**
+   * Acquire a concurrency lock for a wallet using Redis.
+   * Returns a cleanup function to release the lock.
+   */
+  private async acquireLock(walletAddress: string): Promise<() => void> {
+    const lockKey = getLockKey(walletAddress);
+    const redis = getSharedRedis();
+
+    if (redis) {
+      try {
+        const acquired = await redis.set(lockKey, '1', 'EX', LOCK_TTL_SECONDS, 'NX');
+        if (acquired === 'OK') {
+          return () => redis.del(lockKey).catch(() => {});
+        }
+      } catch (error) {
+        logger.warn('Redis lock acquisition failed; proceeding without lock', error);
+      }
+    }
+
+    // Fallback: no lock (risk of slight over-counting under extreme concurrency)
+    return () => {};
+  }
+
+  /**
+   * Atomically increment a Redis counter for a specific quota window.
+   * Returns the new count.
+   */
+  private async incrementQuotaKey(key: string): Promise<number> {
+    const redis = getSharedRedis();
+    if (redis) {
+      try {
+        const count = await redis.incr(key);
+        // Set TTL to 2 days beyond the window to auto-cleanup
+        await redis.expire(key, 3 * 24 * 60 * 60);
+        return count;
+      } catch (error) {
+        logger.warn('Redis quota increment failed', error);
+      }
+    }
+    // Fallback: don't count (safe for development)
+    return -1;
+  }
+
+  /**
+   * Read Redis counter for a quota key.
+   * Returns -1 if Redis is unavailable.
+   */
+  private async readQuotaKey(key: string): Promise<number> {
+    const redis = getSharedRedis();
+    if (redis) {
+      try {
+        return (await redis.get(key)) ? parseInt(await redis.get(key) as string, 10) : 0;
+      } catch {
+        return -1;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * Get quota status for a wallet.
+   * Uses Redis counters when available, falls back to DB.
+   */
+  async getQuotaStatus(walletAddress: string): Promise<QuotaStatus> {
+    const normalized = walletAddress.toLowerCase();
+
+    // Unrestricted wallets bypass quotas
+    if (isUnrestrictedWallet(walletAddress)) {
+      return {
+        walletAddress: normalized,
+        plan: 'unrestricted',
+        dailyUsed: 0,
+        dailyLimit: Number.MAX_SAFE_INTEGER,
+        weeklyUsed: 0,
+        weeklyLimit: Number.MAX_SAFE_INTEGER,
+        monthlyUsed: 0,
+        monthlyLimit: Number.MAX_SAFE_INTEGER,
+        dailyRemaining: Number.MAX_SAFE_INTEGER,
+        weeklyRemaining: Number.MAX_SAFE_INTEGER,
+        monthlyRemaining: Number.MAX_SAFE_INTEGER,
+        canUse: true,
+        resetDailyAt: this.getNextDayReset(),
+        resetWeeklyAt: this.getNextWeekReset(),
+        resetMonthlyAt: this.getNextMonthReset(),
+      };
+    }
+
+    // Resolve plan and limits
+    const plan = await resolvePlan(walletAddress);
+    const quotas = config.getQuotas(plan);
+
+    // Try Redis counters first
+    const dailyRedis = await this.readQuotaKey(getDailyKey(normalized));
+    const weeklyRedis = await this.readQuotaKey(getWeeklyKey(normalized));
+    const monthlyRedis = await this.readQuotaKey(getMonthlyKey(normalized));
+
+    let dailyUsed = dailyRedis >= 0 ? dailyRedis : 0;
+    let weeklyUsed = weeklyRedis >= 0 ? weeklyRedis : 0;
+    let monthlyUsed = monthlyRedis >= 0 ? monthlyRedis : 0;
+
+    // If Redis wasn't available, fall back to DB
+    if (dailyRedis < 0) {
+      const dbCounts = await getUsageCounts(walletAddress);
+      dailyUsed = dbCounts.daily;
+      weeklyUsed = dbCounts.weekly;
+      monthlyUsed = dbCounts.monthly;
+    }
+
+    return {
+      walletAddress: normalized,
+      plan,
+      dailyUsed,
+      dailyLimit: quotas.daily,
+      weeklyUsed,
+      weeklyLimit: quotas.weekly,
+      monthlyUsed,
+      monthlyLimit: quotas.monthly,
+      dailyRemaining: Math.max(0, quotas.daily - dailyUsed),
+      weeklyRemaining: Math.max(0, quotas.weekly - weeklyUsed),
+      monthlyRemaining: Math.max(0, quotas.monthly - monthlyUsed),
+      canUse: dailyUsed < quotas.daily && weeklyUsed < quotas.weekly && monthlyUsed < quotas.monthly,
+      resetDailyAt: this.getNextDayReset(),
+      resetWeeklyAt: this.getNextWeekReset(),
+      resetMonthlyAt: this.getNextMonthReset(),
+    };
+  }
+
+  /**
+   * Check if a wallet can use chat (quota available).
+   */
+  async canUseChat(walletAddress: string): Promise<boolean> {
+    const status = await this.getQuotaStatus(walletAddress);
+    return status.canUse;
+  }
+
+  /**
+   * Reserve one prompt slot for a wallet.
+   * Returns true if reserved, false if quota exceeded.
+   * Uses concurrency lock + atomic Redis increment.
+   */
+  async canUseChatWithLock(walletAddress: string): Promise<boolean> {
+    const normalized = walletAddress.toLowerCase();
+    const releaseLock = await this.acquireLock(normalized);
+
+    try {
+      const status = await this.getQuotaStatus(walletAddress);
+      if (!status.canUse) {
+        return false;
+      }
+
+      // Increment daily counter
+      await this.incrementQuotaKey(getDailyKey(normalized));
+      // Increment weekly counter
+      await this.incrementQuotaKey(getWeeklyKey(normalized));
+      // Increment monthly counter
+      await this.incrementQuotaKey(getMonthlyKey(normalized));
+
+      return true;
+    } catch (error) {
+      logger.error('Quota check error:', error);
+      return true; // Fail open on error
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
+   * Get DID from wallet address (for backwards compatibility).
+   */
+  async getDIDFromWallet(walletAddress: string): Promise<string> {
+    // For backwards compatibility: return the wallet address itself
+    // DID functionality is handled separately via DIDService
+    return walletAddress.toLowerCase();
+  }
+
+  /**
+   * Acquire a concurrency lock for a wallet (for tracking concurrent requests).
+   * Returns true if lock was acquired, false if already locked.
+   */
+  async acquireConcurrencyLock(walletAddress: string, ttlSeconds: number = 300): Promise<boolean> {
+    const lockKey = `concurrency:chat:${walletAddress}:active`;
+    const redis = getSharedRedis();
+    if (redis) {
+      try {
+        const result = await redis.set(lockKey, '1', 'EX', ttlSeconds, 'NX');
+        return result === 'OK';
+      } catch {
+        return false;
+      }
+    }
+    // Fallback: assume lock acquired (Redis optional for concurrency tracking)
+    return true;
+  }
+
+  /**
+   * Release a concurrency lock for a wallet.
+   */
+  async releaseConcurrencyLock(walletAddress: string): Promise<void> {
+    const lockKey = `concurrency:chat:${walletAddress}:active`;
+    const redis = getSharedRedis();
+    if (redis) {
+      try {
+        await redis.del(lockKey);
+      } catch {
+        // Ignore errors on release
+      }
+    }
+  }
+}

@@ -9,7 +9,8 @@ import { optionalQuotaMiddleware } from '../middleware/quota';
 import { guestChatQuotaMiddleware } from '../middleware/guest-quota';
 import { guestDeviceCookieMiddleware } from '../middleware/guest-device-cookie';
 import { chatConcurrencyMiddleware } from '../middleware/concurrency';
-import { priceOracleService } from '../lib/price-oracle.service';
+import { subscriptionService } from '../lib/subscription.service';
+import { getAllPrices } from '../lib/subscription-config';
 import { enhanceWithRAG } from '../lib/chat-rag-context';
 
 const chatCompletionSchema = Joi.object({
@@ -59,52 +60,46 @@ export function mountChatCompletions(router: Router, path: string = '/completion
         }
 
         if (!isGuestMode && req.quota && req.wallet) {
-          const { did, service } = req.quota;
-          const walletAddress = req.wallet.walletAddress.toLowerCase();
-          const incrementResult = await service.incrementUsage(did);
-          await service.getQuotaStatus(did, walletAddress);
+          const { walletAddress } = req.quota;
+          const requestId = crypto.randomUUID();
+          const recordResult = await subscriptionService.recordUsage(walletAddress, requestId);
 
-          if (!incrementResult.success) {
-            const premiumPricing = await priceOracleService.getPremiumPricing();
-            const pricing = {
-              PREMIUM: {
-                crypto: {
-                  ETH: premiumPricing.ETH,
-                  USDT: premiumPricing.USDT,
-                  USDC: premiumPricing.USDC,
+          if (!recordResult.recorded) {
+            // Idempotent: already recorded — get current quota status
+            const quotaCheck = await subscriptionService.checkQuota(walletAddress);
+            const allPrices = getAllPrices();
+
+            if (!quotaCheck.allowed) {
+              const paywallData = {
+                error: 'QUOTA_EXCEEDED',
+                message: 'Chat quota exceeded. Upgrade your plan to continue.',
+                quota: {
+                  dailyUsed: quotaCheck.daily.used,
+                  dailyLimit: quotaCheck.daily.limit,
+                  weeklyUsed: quotaCheck.weekly.used,
+                  weeklyLimit: quotaCheck.weekly.limit,
+                  monthlyUsed: quotaCheck.monthly.used,
+                  monthlyLimit: quotaCheck.monthly.limit,
                 },
-              },
-            };
+                paywall: {
+                  showPaywall: true,
+                  pricing: allPrices,
+                  paymentRecipient: process.env.PAYMENT_TREASURY_ADDRESS || null,
+                },
+              };
 
-            const paywallData = {
-              error: 'QUOTA_EXCEEDED',
-              message: 'Chat quota exceeded. Upgrade to Premium to continue.',
-              quota: {
-                dailyUsed: incrementResult.status.dailyUsed,
-                dailyLimit: incrementResult.status.dailyLimit,
-                monthlyUsed: incrementResult.status.monthlyUsed,
-                monthlyLimit: incrementResult.status.monthlyLimit,
-                resetDailyAt: incrementResult.status.resetDailyAt,
-                resetMonthlyAt: incrementResult.status.resetMonthlyAt,
-              },
-              paywall: {
-                showPaywall: true,
-                pricing,
-                paymentRecipient: process.env.CRYPTO_PAYMENT_CONTRACT_ADDRESS || null,
-              },
-            };
-
-            if (shouldStream) {
-              res.setHeader('Content-Type', 'text/event-stream');
-              res.setHeader('Cache-Control', 'no-cache');
-              res.setHeader('Connection', 'keep-alive');
-              res.write(`event: error\n`);
-              res.write(`data: ${JSON.stringify(paywallData)}\n\n`);
-              res.end();
-            } else {
-              res.status(429).json(paywallData);
+              if (shouldStream) {
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.write(`event: error\n`);
+                res.write(`data: ${JSON.stringify(paywallData)}\n\n`);
+                res.end();
+              } else {
+                res.status(429).json(paywallData);
+              }
+              return;
             }
-            return;
           }
         }
 

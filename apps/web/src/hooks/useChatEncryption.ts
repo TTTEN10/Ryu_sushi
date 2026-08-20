@@ -68,11 +68,6 @@ export function useChatEncryption() {
 
   const initializeKey = useCallback(async () => {
     if (!wallet || !signer || !authState.isVerified) {
-      console.log('Skipping key initialization: wallet/signer/not verified', {
-        hasWallet: !!wallet,
-        hasSigner: !!signer,
-        isVerified: authState.isVerified,
-      });
       return;
     }
 
@@ -80,12 +75,6 @@ export function useChatEncryption() {
       (import.meta.env.VITE_DID_IDENTITY_TOKEN_ADDRESS || '').trim(),
     );
 
-    console.log('Initializing encryption key...', {
-      walletAddress: wallet.address,
-      hasDid: authState.didInfo?.hasDid,
-      didStatus: authState.didStatus,
-      didContractConfigured,
-    });
 
     try {
       setIsLoading(true);
@@ -94,7 +83,6 @@ export function useChatEncryption() {
       // If we already have a symmetric key, don't re-initialize (prevents key rotation on didStatus changes)
       // The key is wallet-derived and deterministic, so it's safe to keep across re-renders
       if (symmetricKey) {
-        console.log('Encryption key already initialized, skipping re-initialization');
         setIsLoading(false);
         return;
       }
@@ -102,23 +90,13 @@ export function useChatEncryption() {
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
           const metadataHex = await getEncryptedKeyMetadata(provider, wallet.address);
-          console.log('DID encrypted key metadata:', {
-            metadataHex: metadataHex?.substring(0, 50) + '...',
-            metadataLength: metadataHex?.length,
-          });
           const fromChain = onchainMetadataToEncryptedChatKey(metadataHex);
-          console.log('Parsed from chain:', {
-            fromChain: fromChain ? fromChain.substring(0, 50) + '...' : null,
-            hasColon: fromChain?.includes(':'),
-          });
           if (fromChain && fromChain.includes(':')) {
             const decryptedKey = await decryptSymmetricKey(fromChain, wallet.address, signer);
-            console.log('Successfully loaded key from DID contract');
             setSymmetricKey(decryptedKey);
             setEncryptedKey(fromChain);
             return;
           } else {
-            console.log('No valid key found in DID contract (empty or invalid format)');
           }
         } catch (err) {
           console.warn('Could not read encrypted key metadata from DID contract:', err);
@@ -129,13 +107,6 @@ export function useChatEncryption() {
       // This is critical for users without DID - the key MUST be recovered from localStorage
       const localStorageKey = legacyLocalStorageKey(wallet.address);
       const storedEncryptedKey = localStorage.getItem(localStorageKey);
-      console.log('Checking localStorage for encrypted key:', {
-        localStorageKey,
-        walletAddress: wallet.address,
-        hasStoredKey: !!storedEncryptedKey,
-        storedKeyPreview: storedEncryptedKey ? storedEncryptedKey.substring(0, 80) + '...' : null,
-        allKeys: Object.keys(localStorage).filter(k => k.includes('encryptedKey')),
-      });
       if (storedEncryptedKey) {
         // Validate format: should be "signature:ivHex:ciphertextHex" (at least 2 colons)
         const colonCount = (storedEncryptedKey.match(/:/g) || []).length;
@@ -143,14 +114,12 @@ export function useChatEncryption() {
           console.warn('Stored key has invalid format (missing colons), clearing and regenerating');
           localStorage.removeItem(localStorageKey);
         } else {
-          console.log('Found encrypted key in localStorage, attempting to decrypt...');
           try {
             const decryptedKey = await decryptSymmetricKey(
               storedEncryptedKey,
               wallet.address,
               signer,
             );
-            console.log('Successfully loaded key from localStorage');
             setSymmetricKey(decryptedKey);
             setEncryptedKey(storedEncryptedKey);
 
@@ -159,7 +128,6 @@ export function useChatEncryption() {
               try {
                 await persistEncryptedKeyToChain(signer, storedEncryptedKey);
                 localStorage.removeItem(legacyLocalStorageKey(wallet.address));
-                console.log('Migrated key from localStorage to DID contract');
               } catch (err) {
                 console.warn('Could not migrate encrypted key to DID contract:', err);
               }
@@ -173,27 +141,19 @@ export function useChatEncryption() {
       }
 
       // No existing key found - generate new one
-      console.log('Generating new encryption key (no existing key found)');
       const newKey = generateSymmetricKey();
       const encrypted = await encryptSymmetricKey(newKey, wallet.address, signer);
 
       setSymmetricKey(newKey);
       setEncryptedKey(encrypted);
-      console.log('New key generated and encrypted');
 
       // Persist to localStorage immediately (critical for users without DID)
       const saveKey = legacyLocalStorageKey(wallet.address);
       localStorage.setItem(saveKey, encrypted);
-      console.log('Encrypted key stored in localStorage:', {
-        localStorageKey: saveKey,
-        walletAddress: wallet.address,
-        encryptedKeyPreview: encrypted.substring(0, 50) + '...',
-      });
 
       if (authState.didInfo?.hasDid && provider && didContractConfigured) {
         try {
           await persistEncryptedKeyToChain(signer, encrypted);
-          console.log('New key persisted to DID contract');
         } catch (err) {
           console.warn('Could not persist new encrypted key to DID contract:', err);
         }
@@ -248,13 +208,6 @@ export function useChatEncryption() {
       const data = await response.json();
 
       // Debug: log the response to see what we're getting
-      console.log('Chat load response:', {
-        success: data.success,
-        hasChat: data.data?.hasChat,
-        hasBlob: !!data.data?.encryptedChatBlob,
-        blobLength: data.data?.encryptedChatBlob?.length,
-        didTokenId: data.data?.didTokenId,
-      });
 
       if (!data.success || !data.data.hasChat || !data.data.encryptedChatBlob) {
         return [];
@@ -311,11 +264,6 @@ export function useChatEncryption() {
         throw new Error('Encryption not initialized');
       }
 
-      console.log('Saving chat:', {
-        messageCount: messages.length,
-        didTokenId: authState.didInfo?.tokenId,
-        hasDid: authState.didInfo?.hasDid,
-      });
 
       const chatJson = JSON.stringify(messages);
       const encryptedBlob = await encryptChatHistory(chatJson, symmetricKey);
@@ -348,11 +296,6 @@ export function useChatEncryption() {
       const data = await response.json();
       const payload = data?.data ?? {};
 
-      console.log('Chat saved successfully:', {
-        blobHash: payload.blobHash?.substring(0, 16) + '...',
-        requiresDidUpdate: payload.requiresDidUpdate,
-        hasEncryptedKey: !!encryptedKey,
-      });
 
       // Ensure encrypted key is persisted to localStorage (critical for users without DID)
       if (encryptedKey && wallet) {
@@ -408,7 +351,6 @@ export function useChatEncryption() {
       setIsLoading(true);
       setError(null);
 
-      console.log('Starting key rotation...');
 
       // Step 1: Load current encrypted chat
       const headers: HeadersInit = {
@@ -439,9 +381,6 @@ export function useChatEncryption() {
         signer
       );
 
-      console.log('Key rotation completed locally:', {
-        newBlobHash: rotationResult.newBlobHash.substring(0, 16) + '...',
-      });
 
       // Step 5: Save new encrypted chat to API
       const saveResponse = await apiFetch('/chat/rotate-key', {
@@ -460,14 +399,12 @@ export function useChatEncryption() {
       }
 
       await saveResponse.json();
-      console.log('Key rotation saved to API successfully');
 
       // Step 6: Update DID contract with new wrapped key (if DID exists)
       if (authState.didInfo?.hasDid && provider) {
         try {
           const bytes = encryptedChatKeyToOnchainBytes(rotationResult.newEncryptedKey);
           await updateEncryptedKeyMetadata(signer, bytes);
-          console.log('New key metadata updated in DID contract');
         } catch (didError: any) {
           console.error('Failed to update DID contract with new key:', didError);
           // Don't fail the whole rotation - API save succeeded
@@ -482,7 +419,6 @@ export function useChatEncryption() {
       // Persist to localStorage (critical for users without DID)
       localStorage.setItem(legacyLocalStorageKey(wallet.address), rotationResult.newEncryptedKey);
 
-      console.log('Key rotation complete - new key active');
 
       return {
         success: true,

@@ -1,220 +1,415 @@
-import { SubscriptionTier, SubscriptionStatus, PaymentMethod } from '@prisma/client';
-import logger from './logger';
-import { DIDService } from './did.service';
-import { prisma } from './prisma';
-
 /**
- * Subscription tier limits
+ * Subscription Service (rewritten)
+ *
+ * Manages the subscription domain:
+ * - Get/create subscription for a wallet
+ * - Activate/extend subscriptions after payment verification
+ * - Check expiration (dynamic, not cron-dependent)
+ * - Resolve plan + quotas for a wallet
+ *
+ * All pricing, quotas, and durations come from subscription-config.ts.
+ * The backend is the authoritative source; frontend values are never trusted.
  */
-export const SUBSCRIPTION_LIMITS = {
-  FREE: {
-    dailyLimit: 10,
-    monthlyLimit: 100,
-  },
-  PREMIUM: {
-    dailyLimit: 100,
-    monthlyLimit: 1000,
-  },
-};
+
+import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import logger from './logger';
+import { prisma } from './prisma';
+import * as config from './subscription-config';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+/** How often to sweep expired subscriptions in the DB (for index cleanliness; NOT authoritative). */
+const EXPIRATION_SWEEP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
+// ─── Internal helpers ────────────────────────────────────────────────────────
 
 /**
- * Subscription Service
- * Manages user subscriptions and tier assignments
+ * Normalise a wallet address to a consistent lowercase format for DB lookups.
+ */
+function normalizeAddress(address: string): string {
+  return address.trim().toLowerCase();
+}
+
+/**
+ * Compute the expiresAt date given a billing period.
+ */
+function computeExpiresAt(billingPeriod: config.BillingPeriod): Date {
+  const now = new Date();
+  const months = config.getSubscriptionDurationMonths(billingPeriod);
+  return new Date(now.getFullYear(), now.getMonth() + months, now.getDate());
+}
+
+/**
+ * Determine whether a subscription is currently active (includes dynamic expiration check).
+ */
+function isSubscriptionActive(status: SubscriptionStatus, expiresAt: Date | null): boolean {
+  if (status !== SubscriptionStatus.ACTIVE) return false;
+  if (expiresAt && expiresAt <= new Date()) return false;
+  return true;
+}
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+/**
+ * Resolve the current effective plan for a wallet address.
+ * Returns FREE if no paid subscription is active.
+ */
+export async function resolvePlan(walletAddress: string): Promise<SubscriptionPlan> {
+  const normalized = normalizeAddress(walletAddress);
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { walletAddress: normalized },
+  });
+
+  if (!subscription) {
+    return SubscriptionPlan.FREE;
+  }
+
+  if (isSubscriptionActive(subscription.status, subscription.expiresAt)) {
+    return subscription.plan;
+  }
+
+  // Expired — fall back to FREE
+  // Mark as expired in DB
+  if (subscription.status === SubscriptionStatus.ACTIVE) {
+    try {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { status: SubscriptionStatus.EXPIRED },
+      });
+    } catch {
+      // Best effort; dynamic check below will catch it
+    }
+  }
+
+  return SubscriptionPlan.FREE;
+}
+
+/**
+ * Get the full subscription record for a wallet (or null if not found).
+ * Returns null for non-existent subscriptions (caller creates if needed).
+ */
+export async function getSubscription(walletAddress: string) {
+  return prisma.subscription.findUnique({
+    where: { walletAddress: normalizeAddress(walletAddress) },
+  });
+}
+
+/**
+ * Get or create a FREE subscription for a wallet.
+ */
+export async function getOrCreateSubscription(walletAddress: string): Promise<{
+  id: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  expiresAt: Date | null;
+  startedAt: Date | null;
+}> {
+  const normalized = normalizeAddress(walletAddress);
+
+  let subscription = await prisma.subscription.findUnique({
+    where: { walletAddress: normalized },
+  });
+
+  if (!subscription) {
+    subscription = await prisma.subscription.create({
+      data: {
+        walletAddress: normalized,
+        plan: SubscriptionPlan.FREE,
+        status: SubscriptionStatus.ACTIVE,
+      },
+    });
+    logger.info(`Created FREE subscription for wallet ${normalized}`);
+  }
+
+  // Check if expired
+  if (subscription.status === SubscriptionStatus.ACTIVE && subscription.expiresAt && subscription.expiresAt <= new Date()) {
+    try {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { status: SubscriptionStatus.EXPIRED },
+      });
+      subscription = { ...subscription, status: SubscriptionStatus.EXPIRED };
+    } catch {
+      // fall through
+    }
+  }
+
+  return {
+    id: subscription.id,
+    plan: subscription.plan,
+    status: subscription.status,
+    expiresAt: subscription.expiresAt,
+    startedAt: subscription.startedAt,
+  };
+}
+
+/**
+ * Activate a subscription after payment verification.
+ *
+ * If an active subscription exists, it is extended.
+ * Otherwise a new one is created.
+ */
+export async function activateSubscription(
+  walletAddress: string,
+  plan: SubscriptionPlan,
+  billingPeriod: config.BillingPeriod,
+  txHash: string,
+  blockNumber?: number,
+): Promise<{
+  subscriptionId: string;
+  isNew: boolean;
+  expiresAt: Date;
+}> {
+  const normalized = normalizeAddress(walletAddress);
+  const expiresAt = computeExpiresAt(billingPeriod);
+
+  let subscription = await prisma.subscription.findUnique({
+    where: { walletAddress: normalized },
+  });
+
+  const isNew = !subscription;
+
+  if (subscription) {
+    // Extend existing subscription
+    const currentExpires = subscription.expiresAt || new Date();
+    const newExpires = currentExpires > new Date() ? currentExpires : new Date();
+
+    subscription = await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        plan,
+        billingPeriod,
+        status: SubscriptionStatus.ACTIVE,
+        startedAt: new Date(),
+        expiresAt: newExpires,
+        cryptoPaymentTxHash: txHash,
+        cryptoBlockNumber: blockNumber ?? null,
+      },
+    });
+
+    logger.info(`Extended subscription for ${normalized}: ${plan} (${billingPeriod}) until ${newExpires.toISOString()}`);
+  } else {
+    subscription = await prisma.subscription.create({
+      data: {
+        walletAddress: normalized,
+        plan,
+        billingPeriod,
+        status: SubscriptionStatus.ACTIVE,
+        startedAt: new Date(),
+        expiresAt,
+        cryptoPaymentTxHash: txHash,
+        cryptoBlockNumber: blockNumber ?? null,
+      },
+    });
+
+    logger.info(`Activated new subscription for ${normalized}: ${plan} (${billingPeriod}) until ${expiresAt.toISOString()}`);
+  }
+
+  return {
+    subscriptionId: subscription.id,
+    isNew,
+    expiresAt: subscription.expiresAt || expiresAt,
+  };
+}
+
+/**
+ * Get the current usage counts for a wallet.
+ */
+export async function getUsageCounts(walletAddress: string, now = new Date()) {
+  const normalized = normalizeAddress(walletAddress);
+
+  // Daily: today 00:00 UTC
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // Weekly: Monday of current ISO week in UTC
+  const dayOfWeek = now.getUTCDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStart = new Date(todayStart);
+  weekStart.setUTCDate(todayStart.getUTCDate() + mondayOffset);
+  // Monthly: first of current month in UTC
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  const [daily, weekly, monthly] = await Promise.all([
+    prisma.promptUsage.count({
+      where: {
+        walletAddress: normalized,
+        timestamp: { gte: todayStart },
+      },
+    }),
+    prisma.promptUsage.count({
+      where: {
+        walletAddress: normalized,
+        timestamp: { gte: weekStart },
+      },
+    }),
+    prisma.promptUsage.count({
+      where: {
+        walletAddress: normalized,
+        timestamp: { gte: monthStart },
+      },
+    }),
+  ]);
+
+  return { daily, weekly, monthly };
+}
+
+/**
+ * Record a prompt usage atomically.
+ * Idempotent: if the same requestId is recorded twice, it returns the existing row.
+ */
+export async function recordUsage(
+  walletAddress: string,
+  requestId: string,
+  subscriptionId?: string,
+  metadata?: Record<string, unknown>,
+): Promise<{ recorded: boolean; daily?: number; weekly?: number; monthly?: number }> {
+  const normalized = normalizeAddress(walletAddress);
+
+  try {
+    await prisma.promptUsage.create({
+      data: {
+        walletAddress: normalized,
+        requestId,
+        subscriptionId: subscriptionId || undefined,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      },
+    });
+  } catch (error: any) {
+    // Duplicate requestId — idempotent, already recorded
+    if (error.code === 'P2002') {
+      return { recorded: false };
+    }
+    throw error;
+  }
+
+  // Return current usage counts
+  const now = new Date();
+  const counts = await getUsageCounts(walletAddress, now);
+  return { recorded: true, daily: counts.daily, weekly: counts.weekly, monthly: counts.monthly };
+}
+
+/**
+ * Check if a wallet has remaining quota for today, this week, and this month.
+ */
+export async function checkQuota(walletAddress: string): Promise<{
+  allowed: boolean;
+  daily: { used: number; limit: number };
+  weekly: { used: number; limit: number };
+  monthly: { used: number; limit: number };
+  plan: SubscriptionPlan;
+}> {
+  const plan = await resolvePlan(walletAddress);
+  const quotas = config.getQuotas(plan);
+  const counts = await getUsageCounts(walletAddress);
+
+  const dailyUsed = Math.min(counts.daily, quotas.daily);
+  const weeklyUsed = Math.min(counts.weekly, quotas.weekly);
+  const monthlyUsed = Math.min(counts.monthly, quotas.monthly);
+
+  const allowed = counts.daily < quotas.daily && counts.weekly < quotas.weekly && counts.monthly < quotas.monthly;
+
+  return {
+    allowed,
+    daily: { used: dailyUsed, limit: quotas.daily },
+    weekly: { used: weeklyUsed, limit: quotas.weekly },
+    monthly: { used: monthlyUsed, limit: quotas.monthly },
+    plan,
+  };
+}
+
+/**
+ * Sweep expired subscriptions (runs on a cron job or on-demand).
+ * Not authoritative — dynamic expiration is checked in resolvePlan/getSubscription.
+ */
+export async function sweepExpiredSubscriptions() {
+  const now = new Date();
+  const result = await prisma.subscription.updateMany({
+    where: {
+      status: SubscriptionStatus.ACTIVE,
+      expiresAt: { lt: now },
+    },
+    data: { status: SubscriptionStatus.EXPIRED },
+  });
+  if (result.count > 0) {
+    logger.info(`Swept ${result.count} expired subscriptions`);
+  }
+  return result.count;
+}
+
+// ─── Backwards-compatible exports ────────────────────────────────────────────
+
+/**
+ * Alias for backwards compatibility with existing code that imports SubscriptionService.
  */
 export class SubscriptionService {
-  /**
-   * Get or create subscription for a wallet address
-   */
-  async getOrCreateSubscription(walletAddress: string, didTokenId?: string | null): Promise<{
-    id: string;
-    tier: SubscriptionTier;
-    status: SubscriptionStatus;
-    dailyLimit: number;
-    monthlyLimit: number;
-  }> {
-    try {
-      // Get DID if not provided
-      if (!didTokenId) {
-        const didService = DIDService.getInstance();
-        if (didService) {
-          const didInfo = await didService.getDIDInfo(walletAddress);
-          if (didInfo.hasDid && didInfo.tokenId) {
-            didTokenId = didInfo.tokenId;
-          }
-        }
-      }
-
-      // Try to find existing subscription
-      let subscription = await prisma.subscription.findUnique({
-        where: { walletAddress },
-      });
-
-      // If not found by wallet, try by DID
-      if (!subscription && didTokenId) {
-        subscription = await prisma.subscription.findUnique({
-          where: { didTokenId },
-        });
-      }
-
-      // Create if doesn't exist
-      if (!subscription) {
-        subscription = await prisma.subscription.create({
-          data: {
-            walletAddress: walletAddress.toLowerCase(),
-            didTokenId: didTokenId || null,
-            tier: SubscriptionTier.FREE,
-            status: SubscriptionStatus.ACTIVE,
-            paymentMethod: PaymentMethod.NONE,
-          },
-        });
-        logger.info(`Created FREE subscription for wallet ${walletAddress}`);
-      }
-
-      // Get limits for tier
-      const limits = SUBSCRIPTION_LIMITS[subscription.tier];
-
-      return {
-        id: subscription.id,
-        tier: subscription.tier,
-        status: subscription.status,
-        dailyLimit: limits.dailyLimit,
-        monthlyLimit: limits.monthlyLimit,
-      };
-    } catch (error) {
-      logger.error(`Error getting subscription for ${walletAddress}:`, error);
-      // Return free tier on error
-      return {
-        id: '',
-        tier: SubscriptionTier.FREE,
-        status: SubscriptionStatus.ACTIVE,
-        dailyLimit: SUBSCRIPTION_LIMITS.FREE.dailyLimit,
-        monthlyLimit: SUBSCRIPTION_LIMITS.FREE.monthlyLimit,
-      };
-    }
+  async getOrCreateSubscription(walletAddress: string) {
+    return getOrCreateSubscription(walletAddress);
   }
 
-  /**
-   * Get subscription by wallet address
-   */
   async getSubscription(walletAddress: string) {
-    return prisma.subscription.findUnique({
-      where: { walletAddress: walletAddress.toLowerCase() },
-    });
+    return getSubscription(walletAddress);
   }
 
-  /**
-   * Get subscription by DID token ID
-   */
-  async getSubscriptionByDID(didTokenId: string) {
-    return prisma.subscription.findUnique({
-      where: { didTokenId },
-    });
+  async isSubscriptionActive(walletAddress: string): Promise<boolean> {
+    const sub = await getSubscription(walletAddress);
+    if (!sub) return false;
+    return isSubscriptionActive(sub.status, sub.expiresAt);
   }
 
-  /**
-   * Update subscription tier
-   */
+  async resolvePlan(walletAddress: string) {
+    return resolvePlan(walletAddress);
+  }
+
   async updateSubscriptionTier(
     walletAddress: string,
-    tier: SubscriptionTier,
-    paymentMethod: PaymentMethod,
-    metadata?: {
-      cryptoTxHash?: string;
-      currentPeriodStart?: Date;
-      currentPeriodEnd?: Date;
-    }
+    plan: SubscriptionPlan,
+    billingPeriod: config.BillingPeriod,
+    txHash: string,
+    blockNumber?: number,
   ) {
-    try {
-      const subscription = await this.getSubscription(walletAddress);
-      if (!subscription) {
-        throw new Error('Subscription not found');
-      }
-
-      return prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          tier,
-          paymentMethod,
-          status: SubscriptionStatus.ACTIVE,
-          cryptoPaymentTxHash: metadata?.cryptoTxHash || subscription.cryptoPaymentTxHash,
-          currentPeriodStart: metadata?.currentPeriodStart || subscription.currentPeriodStart,
-          currentPeriodEnd: metadata?.currentPeriodEnd || subscription.currentPeriodEnd,
-        },
-      });
-    } catch (error) {
-      logger.error(`Error updating subscription tier for ${walletAddress}:`, error);
-      throw error;
-    }
+    return activateSubscription(walletAddress, plan, billingPeriod, txHash, blockNumber);
   }
 
-  /**
-   * Cancel subscription
-   */
-  async cancelSubscription(walletAddress: string, cancelAtPeriodEnd: boolean = true) {
-    try {
-      const subscription = await this.getSubscription(walletAddress);
-      if (!subscription) {
-        throw new Error('Subscription not found');
-      }
-
-      return prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          cancelAtPeriodEnd,
-          status: cancelAtPeriodEnd ? SubscriptionStatus.ACTIVE : SubscriptionStatus.CANCELLED,
-        },
-      });
-    } catch (error) {
-      logger.error(`Error cancelling subscription for ${walletAddress}:`, error);
-      throw error;
-    }
+  async activateSubscription(
+    walletAddress: string,
+    plan: SubscriptionPlan,
+    billingPeriod: config.BillingPeriod,
+    txHash: string,
+    blockNumber?: number,
+  ) {
+    return activateSubscription(walletAddress, plan, billingPeriod, txHash, blockNumber);
   }
 
-  /**
-   * Check if subscription is active and valid
-   */
-  async isSubscriptionActive(walletAddress: string): Promise<boolean> {
-    try {
-      const subscription = await this.getSubscription(walletAddress);
-      if (!subscription) {
-        return false;
-      }
-
-      // Check status
-      if (subscription.status !== SubscriptionStatus.ACTIVE) {
-        return false;
-      }
-
-      // Check if cancelled but still in period
-      if (subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd) {
-        if (new Date() > subscription.currentPeriodEnd) {
-          return false;
-        }
-      }
-
-      return true;
-    } catch (error) {
-      logger.error(`Error checking subscription status for ${walletAddress}:`, error);
-      return false;
-    }
+  async cancelSubscription(walletAddress: string) {
+    const sub = await getSubscription(walletAddress);
+    if (!sub) throw new Error('Subscription not found');
+    return prisma.subscription.update({
+      where: { id: sub.id },
+      data: { status: SubscriptionStatus.CANCELLED },
+    });
   }
 
-  /**
-   * Get subscription limits for a wallet
-   */
-  async getSubscriptionLimits(walletAddress: string): Promise<{
-    dailyLimit: number;
-    monthlyLimit: number;
-    tier: SubscriptionTier;
-  }> {
-    const subscription = await this.getOrCreateSubscription(walletAddress);
+  async getSubscriptionLimits(walletAddress: string) {
+    const plan = await resolvePlan(walletAddress);
+    const quotas = config.getQuotas(plan);
     return {
-      dailyLimit: subscription.dailyLimit,
-      monthlyLimit: subscription.monthlyLimit,
-      tier: subscription.tier,
+      dailyLimit: quotas.daily,
+      weeklyLimit: quotas.weekly,
+      monthlyLimit: quotas.monthly,
     };
+  }
+
+  async recordUsage(walletAddress: string, requestId: string, subscriptionId?: string, metadata?: Record<string, unknown>) {
+    return recordUsage(walletAddress, requestId, subscriptionId, metadata);
+  }
+
+  async checkQuota(walletAddress: string) {
+    return checkQuota(walletAddress);
+  }
+
+  async getUsageCounts(walletAddress: string) {
+    return getUsageCounts(walletAddress);
   }
 }
 
 export const subscriptionService = new SubscriptionService();
-

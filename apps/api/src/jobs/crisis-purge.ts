@@ -98,11 +98,10 @@ async function main(): Promise<void> {
   const result = await purgeExpiredCrisisOptIns();
 
   if (result.success) {
-    logger.info(`Crisis opt-in purge completed: ${result.deletedCount} records deleted`);
-    console.log(JSON.stringify(result, null, 2));
+    logger.info('Crisis opt-in purge completed', { deletedCount: result.deletedCount });
   } else {
-    logger.error(`Crisis opt-in purge failed: ${result.error}`);
-    console.error(JSON.stringify(result, null, 2));
+    logger.error('Crisis opt-in purge failed', { error: result.error });
+    logger.error('Purge error details', { result });
     process.exit(1);
   }
 
@@ -112,7 +111,7 @@ async function main(): Promise<void> {
 
 // Run if executed directly
 main().catch((error) => {
-  console.error('Fatal error in crisis purge job:', error);
+  logger.error('Fatal error in crisis purge job', { error: error.message || String(error) });
   process.exit(1);
 });
 

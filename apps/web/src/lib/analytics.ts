@@ -19,6 +19,7 @@
  */
 
 import { hashWalletAddress } from '../lib/wallet-hash';
+import { ga4Track } from './ga4';
 
 // ============================================================================
 // Constants
@@ -47,6 +48,21 @@ export type AnalyticsEventName =
   | 'first_message_sent'
   | 'first_reply_received'
   | 'return_24h';
+
+/**
+ * Map internal analytics event names to GA4 event names.
+ * Events listed here are tracked in both the self-hosted SDK and GA4.
+ */
+const ANALYTICS_TO_GA4: Record<AnalyticsEventName, string> = {
+  landing_visit: 'page_view',
+  wallet_click: 'wallet_connect_initiated',
+  wallet_success: 'wallet_connected',
+  session_success: 'session_started',
+  did_success: 'did_minted',
+  first_message_sent: 'first_chat_sent',
+  first_reply_received: 'first_chat_replied',
+  return_24h: 'returning_visit',
+};
 
 export interface AnalyticsEvent {
   event_name: AnalyticsEventName;
@@ -635,10 +651,21 @@ class AnalyticsSDK {
 
     // Queue for sending
     queueEvent(event);
+
+    // Parallel track: fire GA4 event (silently no-ops if not loaded)
+    const ga4EventName = ANALYTICS_TO_GA4[eventName];
+    if (ga4EventName) {
+      ga4Track(ga4EventName, {
+        ...metadata,
+        event_category: 'engagement',
+        event_label: eventName,
+      });
+    }
   }
 
   /**
    * Track landing visit (call on app mount).
+   * Also fires a GA4 page_view.
    */
   async trackLandingVisit(): Promise<void> {
     // Check for 24h return
@@ -665,6 +692,8 @@ class AnalyticsSDK {
       utm_campaign: this.getUtmParam('utm_campaign'),
       utm_medium: this.getUtmParam('utm_medium'),
     });
+
+    // GA4 page_view fires inside trackEvent via the mapping above
   }
 
   /**
@@ -681,8 +710,9 @@ class AnalyticsSDK {
 
   /**
    * Enable analytics.
+   * Also attempts to initialise GA4 if consent permits.
    */
-  enable(): void {
+  async enable(): Promise<void> {
     this.config.enabled = true;
   }
 

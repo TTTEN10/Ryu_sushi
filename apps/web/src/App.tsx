@@ -7,12 +7,17 @@ import { RouterProvider } from 'react-router-dom'
 import { initializeAnalytics } from './utils/cookieUtils'
 import { flushProductMetricsToServer, recordLandingSession } from './utils/conversionMetrics'
 import { analytics } from './lib/analytics'
+import { ga4InitIfConsented, ga4Disable } from './lib/ga4'
+import { initSentry } from './lib/sentry'
+
+initSentry()
 
 export default function App({ router }: { router: unknown }) {
   useEffect(() => {
     initializeAnalytics()
     recordLandingSession()
     void flushProductMetricsToServer()
+    void ga4InitIfConsented()
 
     // Track landing visit in new analytics system
     void analytics.trackLandingVisit()
@@ -31,9 +36,13 @@ export default function App({ router }: { router: unknown }) {
 
       // Enable analytics SDK
       analytics.enable()
+      // Load GA4 scripts (idempotent)
+      void ga4InitIfConsented()
     } else if (preferences.analytics === false) {
       // Disable analytics SDK
       analytics.disable()
+      // Remove GA4 scripts to stop tracking
+      ga4Disable()
     }
   }
 

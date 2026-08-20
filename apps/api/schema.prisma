@@ -54,51 +54,97 @@ model EncryptedChat {
 }
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  walletAddress        String             @unique
-  didTokenId           String?            @unique
-  tier                 SubscriptionTier   @default(FREE)
-  status               SubscriptionStatus @default(ACTIVE)
-  paymentMethod        PaymentMethod      @default(NONE)
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
-  stripePriceId        String?
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  cancelAtPeriodEnd    Boolean            @default(false)
-  cryptoPaymentTxHash  String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  payments             Payment[]
+  id                  String             @id @default(cuid())
+  walletAddress       String             @unique
+  didTokenId          String?            @unique
+  plan                SubscriptionPlan   @default(FREE)
+  billingPeriod       SubscriptionBillingPeriod?
+  status              SubscriptionStatus @default(ACTIVE)
+  startedAt           DateTime?
+  expiresAt           DateTime?
+  cryptoPaymentTxHash String?            @unique
+  cryptoBlockNumber   BigInt?
+  paymentId           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  payments            Payment[]
 
   @@index([walletAddress])
   @@index([didTokenId])
   @@index([status])
+  @@index([walletAddress, status])
+  @@index([expiresAt])
+  @@index([cryptoPaymentTxHash])
   @@map("subscriptions")
 }
 
-model Payment {
-  id                    String        @id @default(cuid())
-  subscriptionId        String
-  walletAddress         String
-  didTokenId            String?
-  amount                Decimal       @db.Decimal(18, 8)
-  currency              String        @default("USD")
-  paymentMethod         PaymentMethod
-  status                PaymentStatus @default(PENDING)
-  stripePaymentIntentId String?
-  cryptoTxHash          String?
-  cryptoBlockNumber     BigInt?
-  metadata              String?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-  subscription          Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+model PaymentIntent {
+  id            String              @id @default(cuid())
+  walletAddress String
+  plan          SubscriptionPlan
+  billingPeriod SubscriptionBillingPeriod
+  amountCents   Int
+  currency      String              @default("USD")
+  chainId       Int
+  treasuryAddress String
+  status        PaymentIntentStatus @default(PENDING)
+  expiresAt     DateTime
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
-  @@index([subscriptionId])
+  @@index([walletAddress])
+  @@index([status])
+  @@index([walletAddress, status])
+  @@map("payment_intents")
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  walletAddress       String
+  didTokenId          String?
+  subscriptionId      String?
+  paymentIntentId     String?
+  plan                SubscriptionPlan
+  billingPeriod       SubscriptionBillingPeriod
+  amountCents         Int
+  currency            String        @default("USD")
+  chainId             Int
+  treasuryAddress     String
+  paymentMethod       PaymentMethod
+  status              PaymentStatus @default(PENDING)
+  cryptoTxHash        String        @unique
+  cryptoBlockNumber   BigInt?
+  senderAddress       String?
+  tokenAddress        String?
+  metadata            String?
+  createdAt           DateTime      @default(now())
+  confirmedAt         DateTime?
+  updatedAt           DateTime      @updatedAt
+  subscription        Subscription? @relation(fields: [subscriptionId], references: [id])
+
   @@index([walletAddress])
   @@index([status])
   @@index([cryptoTxHash])
+  @@index([walletAddress, status])
   @@map("payments")
+}
+
+/**
+ * PromptUsage — records every prompt request for quota accounting.
+ * Each row is keyed by a unique requestId so retries are idempotent.
+ */
+model PromptUsage {
+  id             String   @id @default(cuid())
+  walletAddress  String
+  requestId      String   // UUID supplied by the frontend or server
+  subscriptionId String?
+  timestamp      DateTime @default(now())
+  metadata       String?
+
+  @@unique([requestId])
+  @@index([walletAddress, timestamp])
+  @@index([subscriptionId, timestamp])
+  @@map("prompt_usages")
 }
 
 model RAGAuditLog {
@@ -182,17 +228,28 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
-enum SubscriptionTier {
+enum SubscriptionPlan {
   FREE
-  PREMIUM
+  PRO
+  UNLIMITED
+}
+
+enum SubscriptionBillingPeriod {
+  MONTHLY
+  YEARLY
 }
 
 enum SubscriptionStatus {
   ACTIVE
-  CANCELLED
   EXPIRED
-  PAST_DUE
-  TRIALING
+  CANCELLED
+}
+
+enum PaymentIntentStatus {
+  PENDING
+  CONFIRMED
+  EXPIRED
+  CANCELLED
 }
 
 enum PaymentMethod {
@@ -203,8 +260,9 @@ enum PaymentMethod {
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  CONFIRMED
   FAILED
+  REJECTED
   REFUNDED
   CANCELLED
 }

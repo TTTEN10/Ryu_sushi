@@ -117,30 +117,33 @@ export class PriceOracleService {
 
 
   /**
-   * Calculate ETH amount for premium subscription ($20 USD)
-   * Applies 2% markup to the ETH amount (user pays 2% more ETH than base price)
+   * Calculate ETH amount for a given USD price.
+   * Applies 2% markup to the ETH amount (user pays 2% more ETH than base price).
    */
-  async getPremiumETHAmount(): Promise<string> {
+  async getETHAmountForUSD(USD: number): Promise<string> {
     try {
       const ethPrice = await this.getETHPrice();
       // Calculate base ETH amount at CoinGecko price
-      const baseEthAmount = this.PREMIUM_USD_PRICE / ethPrice;
+      const baseEthAmount = USD / ethPrice;
       // Apply 2% markup to ETH amount (user pays 2% more ETH)
       const ethAmount = baseEthAmount * (1 + this.PRICE_MARKUP);
-      
+
       // Round to 6 decimal places to avoid precision issues
       const rounded = Math.round(ethAmount * 1000000) / 1000000;
-      
-      logger.info(
-        `Premium ETH amount calculated: ${rounded} ETH ` +
-        `(Base amount at $${ethPrice}: ${baseEthAmount.toFixed(6)} ETH, with 2% markup: ${rounded} ETH)`
-      );
+
       return rounded.toFixed(6);
     } catch (error) {
-      logger.error('Error calculating premium ETH amount:', error);
-      // Fallback to environment variable or default
-      return process.env.CRYPTO_PRICE_PREMIUM_ETH || '0.005714';
+      logger.error('Error calculating ETH amount:', error);
+      throw error;
     }
+  }
+
+  /**
+   * Calculate ETH amount for premium subscription ($20 USD — legacy).
+   * Applies 2% markup to the ETH amount (user pays 2% more ETH than base price)
+   */
+  async getPremiumETHAmount(): Promise<string> {
+    return this.getETHAmountForUSD(this.PREMIUM_USD_PRICE);
   }
 
   /**

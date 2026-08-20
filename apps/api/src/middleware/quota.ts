@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { QuotaService } from '../lib/quota.service';
 import { AuthenticatedRequest } from './auth';
-import { priceOracleService } from '../lib/price-oracle.service';
+import { subscriptionService } from '../lib/subscription.service';
+import { getPlanDefinitions, getAllPrices } from '../lib/subscription-config';
 import logger from '../lib/logger';
 
 /**
@@ -57,41 +58,35 @@ export const quotaMiddleware = async (
       return;
     }
 
-    // Check if quota is available (pass wallet address for subscription check)
-    const canUse = await quotaService.canUseChat(did, walletAddress);
+    // Check if quota is available (use wallet address directly, no DID lookup)
+    const canUse = await quotaService.canUseChat(walletAddress);
 
     if (!canUse) {
-      const status = await quotaService.getQuotaStatus(did, walletAddress);
-      logger.warn(`Quota exceeded for DID ${did}: daily=${status.dailyUsed}/${status.dailyLimit}, monthly=${status.monthlyUsed}/${status.monthlyLimit}`);
+      const status = await quotaService.getQuotaStatus(walletAddress);
+      logger.warn(`Quota exceeded for wallet ${walletAddress}: daily=${status.dailyUsed}/${status.dailyLimit}, weekly=${status.weeklyUsed}/${status.weeklyLimit}, monthly=${status.monthlyUsed}/${status.monthlyLimit}`);
 
-      // Get pricing information for paywall (dynamic ETH price)
-      const premiumPricing = await priceOracleService.getPremiumPricing();
-      const pricing = {
-        PREMIUM: {
-          crypto: {
-            ETH: premiumPricing.ETH,
-            USDT: premiumPricing.USDT,
-            USDC: premiumPricing.USDC,
-          },
-        },
-      };
+      // Get pricing information for paywall
+      const allPlans = getAllPrices();
 
       res.status(429).json({
         success: false,
         error: 'QUOTA_EXCEEDED',
-        message: 'Chat quota exceeded. Upgrade to Premium to continue.',
+        message: 'Chat quota exceeded. Upgrade your plan to continue.',
         quota: {
           dailyUsed: status.dailyUsed,
           dailyLimit: status.dailyLimit,
+          weeklyUsed: status.weeklyUsed,
+          weeklyLimit: status.weeklyLimit,
           monthlyUsed: status.monthlyUsed,
           monthlyLimit: status.monthlyLimit,
           resetDailyAt: status.resetDailyAt,
+          resetWeeklyAt: status.resetWeeklyAt,
           resetMonthlyAt: status.resetMonthlyAt,
         },
         paywall: {
           showPaywall: true,
-          pricing,
-          paymentRecipient: process.env.CRYPTO_PAYMENT_CONTRACT_ADDRESS || null,
+          pricing: allPlans,
+          paymentRecipient: process.env.PAYMENT_TREASURY_ADDRESS || null,
         },
       });
       return;
@@ -99,7 +94,8 @@ export const quotaMiddleware = async (
 
     // Attach quota info to request for later use
     req.quota = {
-      did,
+      did: did,
+      walletAddress: walletAddress,
       service: quotaService,
     };
 
@@ -171,14 +167,15 @@ export const optionalQuotaMiddleware = async (
       return;
     }
 
-    const canUse = await quotaService.canUseChat(did);
+    const canUse = await quotaService.canUseChat(walletAddress);
     if (canUse) {
       req.quota = {
         did,
+        walletAddress: walletAddress,
         service: quotaService,
       };
     } else {
-      logger.warn(`Quota exceeded for DID ${did}, but allowing request (optional middleware)`);
+      logger.warn(`Quota exceeded for wallet ${walletAddress}, but allowing request (optional middleware)`);
     }
 
     next();
@@ -207,6 +204,7 @@ declare global {
     interface Request {
       quota?: {
         did: string;
+        walletAddress: string;
         service: QuotaService;
       };
     }

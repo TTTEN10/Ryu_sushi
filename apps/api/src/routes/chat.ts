@@ -12,7 +12,6 @@ import { optionalQuotaMiddleware } from '../middleware/quota';
 import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { QuotaService } from '../lib/quota.service';
 import { subscriptionService } from '../lib/subscription.service';
-import { priceOracleService } from '../lib/price-oracle.service';
 import { storageService } from '../lib/storage.service';
 import { encryptAES256GCM, generateEncryptionKey } from '../lib/crypto';
 import { prisma } from '../lib/prisma';
@@ -542,38 +541,44 @@ router.get(
       const walletAddress = req.wallet.walletAddress.toLowerCase();
       const quotaService = QuotaService.getInstance();
 
-      // Get DID from wallet address
-      const did = await quotaService.getDIDFromWallet(walletAddress);
+      // Get quota status (uses wallet address directly)
+      const quotaStatus = await quotaService.getQuotaStatus(walletAddress);
 
-      if (!did) {
-        return res.json({
-          success: true,
-          message: 'No DID found for wallet',
-          data: {
-            hasDid: false,
-            quota: null,
-          },
-        });
-      }
-
-      // Get quota status (pass wallet address for subscription check)
-      const quotaStatus = await quotaService.getQuotaStatus(did, walletAddress);
-      
       // Get subscription info
       const subscription = await subscriptionService.getOrCreateSubscription(walletAddress);
+      const effectivePlan = await subscriptionService.resolvePlan(walletAddress);
+      const quotas = (await import('../lib/subscription-config')).getQuotas(effectivePlan);
 
       res.json({
         success: true,
         data: {
-          hasDid: true,
-          did,
-          quota: quotaStatus,
-          subscription: {
-            tier: subscription.tier,
-            status: subscription.status,
-            dailyLimit: subscription.dailyLimit,
-            monthlyLimit: subscription.monthlyLimit,
+          walletAddress,
+          quota: {
+            dailyUsed: quotaStatus.dailyUsed,
+            dailyLimit: quotaStatus.dailyLimit,
+            weeklyUsed: quotaStatus.weeklyUsed,
+            weeklyLimit: quotaStatus.weeklyLimit,
+            monthlyUsed: quotaStatus.monthlyUsed,
+            monthlyLimit: quotaStatus.monthlyLimit,
+            dailyRemaining: quotaStatus.dailyRemaining,
+            weeklyRemaining: quotaStatus.weeklyRemaining,
+            monthlyRemaining: quotaStatus.monthlyRemaining,
+            canUse: quotaStatus.canUse,
+            plan: quotaStatus.plan,
+            resetDailyAt: quotaStatus.resetDailyAt,
+            resetWeeklyAt: quotaStatus.resetWeeklyAt,
+            resetMonthlyAt: quotaStatus.resetMonthlyAt,
           },
+          subscription: {
+            id: subscription.id,
+            plan: subscription.plan,
+            billingPeriod: subscription.billingPeriod,
+            status: subscription.status,
+            startedAt: subscription.startedAt?.toISOString() ?? null,
+            expiresAt: subscription.expiresAt?.toISOString() ?? null,
+            cryptoPaymentTxHash: subscription.cryptoPaymentTxHash,
+          },
+          quotas: quotas,
         },
       });
     } catch (error: any) {

@@ -125,16 +125,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           },
         });
 
-        provider.on('display_uri', (uri: string) => {
-          console.log('WalletConnect URI:', uri);
+        provider.on('display_uri', (_uri: string) => {
         });
 
         provider.on('connect', () => {
-          console.log('WalletConnect connected');
         });
 
         provider.on('disconnect', () => {
-          console.log('WalletConnect disconnected');
           setWallet(null);
           setProvider(null);
           setSigner(null);
@@ -142,7 +139,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
         provider.on('chainChanged', (chainId: number | string) => {
           const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 16) : chainId;
-          console.log('Chain changed:', numericChainId);
           // Disconnect if user switches to a different chain
           if (numericChainId !== SUPPORTED_CHAIN_ID) {
             console.warn('Unsupported chain detected. Disconnecting wallet.');
@@ -158,7 +154,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         });
 
         provider.on('accountsChanged', (accounts: string[]) => {
-          console.log('Accounts changed:', accounts);
           if (accounts.length > 0) {
             setWallet((prev) => prev ? { ...prev, address: accounts[0] } : null);
           } else {
@@ -187,7 +182,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     // Check if user manually logged out - if so, don't auto-reconnect
     const isManualLogout = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(MANUAL_LOGOUT_KEY) === '1';
     if (isManualLogout) {
-      console.log('[WalletContext] Skipping auto-reconnect after manual logout');
       return;
     }
 
@@ -276,7 +270,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
     const handleChainChanged = (chainId: string) => {
       const numericChainId = parseInt(chainId, 16);
-      console.log('MetaMask chain changed:', numericChainId);
       
       // Disconnect if user switches to a different chain
       if (numericChainId !== SUPPORTED_CHAIN_ID) {
@@ -454,7 +447,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             })) as unknown as WalletConnectProvider;
 
             wc.on('disconnect', () => {
-              console.log('WalletConnect disconnected');
               setWallet(null);
               setProvider(null);
               setSigner(null);
@@ -462,7 +454,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
             wc.on('chainChanged', (chainId: number | string) => {
               const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 16) : chainId;
-              console.log('Chain changed:', numericChainId);
               if (numericChainId !== SUPPORTED_CHAIN_ID) {
                 console.warn('Unsupported chain detected. Disconnecting wallet.');
                 setError('Please switch to Sepolia Testnet to use SafePsy.');
@@ -477,7 +468,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             });
 
             wc.on('accountsChanged', (accounts: string[]) => {
-              console.log('Accounts changed:', accounts);
               if (accounts.length > 0) {
                 setWallet((prev) => (prev ? { ...prev, address: accounts[0] } : null));
               } else {
@@ -533,7 +523,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             }
           } catch (wcError: any) {
             if (wcError.message?.includes('User rejected') || wcError.code === 5001 || wcError.code === 'USER_REJECTED') {
-              console.log('WalletConnect cancelled by user');
             } else {
               console.error('WalletConnect error:', wcError);
             }
@@ -557,16 +546,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   }, [walletConnectProvider, clearWalletState, wallet?.address, wallet?.chainId]);
 
   const disconnectWallet = useCallback(() => {
-    console.log('[WalletContext] disconnectWallet() called');
     if (walletConnectProvider && walletConnectProvider.session) {
-      console.log('[WalletContext] Disconnecting WalletConnect session');
       walletConnectProvider.disconnect();
     }
-    console.log('[WalletContext] Clearing wallet state');
     clearWalletState();
-    console.log('[WalletContext] Clearing error');
     setError(null);
-    console.log('[WalletContext] disconnectWallet() completed');
   }, [walletConnectProvider, clearWalletState]);
 
   /**

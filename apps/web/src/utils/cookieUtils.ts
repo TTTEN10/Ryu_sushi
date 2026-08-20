@@ -29,16 +29,7 @@ export const initializeAnalytics = () => {
     return false
   }
 
-  // Example: Initialize Google Analytics
-  console.log('Initializing analytics...')
-
-  // You would typically load Google Analytics or other tracking scripts here
-  // Example:
-  // gtag('config', 'GA_MEASUREMENT_ID', {
-  //   anonymize_ip: true,
-  //   cookie_flags: 'SameSite=Strict;Secure'
-  // })
-
+  // GA4 is initialised in lib/ga4.ts via ga4InitIfConsented()
   return true
 }
 

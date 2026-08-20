@@ -13,6 +13,7 @@ import betaChat from "./routes/beta-chat";
 import did from "./routes/did";
 import auth from "./routes/auth";
 import payment from "./routes/payment";
+import subscription from "./routes/subscription";
 import rag from "./routes/rag";
 import admin from "./routes/admin";
 import crisis from "./routes/crisis";
@@ -195,6 +196,7 @@ export function createApp() {
   app.use("/api/chat", chat);
   app.use("/api/did", did);
   app.use("/api/payment", payment);
+  app.use("/api/subscription", subscription);
   app.use("/api/rag", rag);
   app.use("/api/admin", admin);
   app.use("/api/crisis", crisis);

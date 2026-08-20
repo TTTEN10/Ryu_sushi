@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@reown/walletkit": "^1.4.1",
+    "@sentry/react": "^10.12.0",
     "@walletconnect/ethereum-provider": "^2.9.2",
     "@walletconnect/modal": "^2.6.2",
     "buffer": "^6.0.3",

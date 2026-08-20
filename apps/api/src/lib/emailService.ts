@@ -5,6 +5,8 @@
  * allowing easy switching between SES, Postmark, SendGrid, Resend, Mailgun, etc.
  */
 
+import logger from '../lib/logger';
+
 export interface EmailProvider {
   sendConfirmationEmail(email: string): Promise<void>
   sendAdminNotificationEmail(params: {
@@ -28,9 +30,9 @@ export interface EmailServiceConfig {
  */
 export class StubEmailProvider implements EmailProvider {
   async sendConfirmationEmail(email: string): Promise<void> {
-    console.log(`[EMAIL STUB] Confirmation email would be sent to: ${email}`)
-    console.log(`[EMAIL STUB] Email content: Welcome to SafePsy! You've successfully joined our waitlist.`)
-    console.log(`[EMAIL STUB] Timestamp: ${new Date().toISOString()}`)
+    logger.info('[EMAIL STUB] Confirmation email would be sent', { email });
+    logger.info('[EMAIL STUB] Email content: Welcome to SafePsy! You have successfully joined our waitlist.');
+    logger.info('[EMAIL STUB] Timestamp', { timestamp: new Date().toISOString() });
     
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -42,13 +44,12 @@ export class StubEmailProvider implements EmailProvider {
     textBody: string
     htmlBody?: string
   }): Promise<void> {
-    console.log(`[EMAIL STUB] Admin notification would be sent to: ${params.to}`)
-    console.log(`[EMAIL STUB] Subject: ${params.subject}`)
-    console.log(`[EMAIL STUB] Text body:\n${params.textBody}`)
+    logger.info('[EMAIL STUB] Admin notification would be sent', { to: params.to, subject: params.subject });
+    logger.info('[EMAIL STUB] Text body', { textBody: params.textBody });
     if (params.htmlBody) {
-      console.log(`[EMAIL STUB] HTML body:\n${params.htmlBody}`)
+      logger.info('[EMAIL STUB] HTML body', { htmlBody: params.htmlBody });
     }
-    console.log(`[EMAIL STUB] Timestamp: ${new Date().toISOString()}`)
+    logger.info('[EMAIL STUB] Timestamp', { timestamp: new Date().toISOString() });
 
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -163,13 +164,13 @@ export class EmailService {
    */
   async sendConfirmationEmail(email: string): Promise<void> {
     if (!this.config.enabled) {
-      console.log(`[EMAIL SERVICE] Confirmation email feature is disabled, skipping email to: ${email}`)
+      logger.info('[EMAIL SERVICE] Confirmation email feature is disabled', { email });
       return
     }
 
     try {
       await this.config.provider.sendConfirmationEmail(email)
-      console.log(`[EMAIL SERVICE] Confirmation email sent successfully to: ${email}`)
+      logger.info('[EMAIL SERVICE] Confirmation email sent successfully', { email });
     } catch (error) {
       console.error(`[EMAIL SERVICE] Failed to send confirmation email to ${email}:`, error)
       // Don't throw - email failures shouldn't break the subscription flow
@@ -182,7 +183,7 @@ export class EmailService {
     htmlBody?: string
   }): Promise<void> {
     if (!this.config.adminNotificationsEnabled) {
-      console.log('[EMAIL SERVICE] Admin notifications are disabled, skipping admin notification')
+      logger.info('[EMAIL SERVICE] Admin notifications are disabled');
       return
     }
 
@@ -199,7 +200,7 @@ export class EmailService {
         textBody: params.textBody,
         htmlBody: params.htmlBody,
       })
-      console.log(`[EMAIL SERVICE] Admin notification sent successfully to: ${to}`)
+      logger.info('[EMAIL SERVICE] Admin notification sent successfully', { to });
     } catch (error) {
       console.error(`[EMAIL SERVICE] Failed to send admin notification to ${to}:`, error)
       // Don't throw - admin notification failures shouldn't break the user flow
