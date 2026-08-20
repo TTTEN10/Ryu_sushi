@@ -8,7 +8,7 @@
 #   APP_DOMAIN=polinapsycho.com
 #   APP_IP=151.115.151.231
 #   TIMEOUT=15
-#   CHECK_LLM=1              # POST /api/chat/completions (guest, non-stream)
+#   CHECK_LLM=0              # disable chat completions test (enabled by default)
 #   CHECK_LLM_STREAM=1       # optional SSE smoke test (requires CHECK_LLM=1)
 #   USE_SCALEWAY_DIRECT=1    # expect Scaleway routing (no chatbot :8000); models list is static
 #   SCALEWAY_MODEL=...       # expected model id when USE_SCALEWAY_DIRECT=1
@@ -24,7 +24,8 @@ APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
 APP_IP="${APP_IP:-151.115.151.231}"
 LOCAL_BASE_URL="http://127.0.0.1:${LOCAL_HTTP_PORT}"
 TIMEOUT="${TIMEOUT:-15}"
-CHECK_LLM="${CHECK_LLM:-0}"
+# CHECK_LLM defaults to 1 to always verify chatbot is working
+CHECK_LLM="${CHECK_LLM:-1}"
 CHECK_LLM_STREAM="${CHECK_LLM_STREAM:-0}"
 USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT:-0}"
 SCALEWAY_MODEL="${SCALEWAY_MODEL:-mistral-small-3.2-24b-instruct-2506}"
@@ -170,6 +171,7 @@ fi
 check_http_code "Homepage HTTPS" "https://${APP_DOMAIN}" "200"
 check_http_code "Backend health via Caddy" "https://${APP_DOMAIN}/api/healthz" "200"
 check_http_code "Chat route HTTPS" "https://${APP_DOMAIN}/chat" "200"
+check_http_code "Subscription plans HTTPS" "https://${APP_DOMAIN}/api/subscription/plans" "200"
 check_http_code "Direct app IP HTTP" "http://${APP_IP}" "200"
 check_http_code "Direct app IP API health" "http://${APP_IP}/api/healthz" "200"
 
