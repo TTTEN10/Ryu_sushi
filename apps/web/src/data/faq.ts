@@ -6,7 +6,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'What can I do immediately?',
-    a: 'Immediately after connecting:\n• create your AI identity\n• start chatting\n• build a persistent profile\n• experience memory/context continuity\n• explore identity-native interactions\n\nThe key is that value appears in under 30 seconds.\n\nConnect wallet → create identity → start chatting instantly.',
+    a: 'You can start chatting, to see how it works.\n\nThen connect your wallet, create your ID token and experience safe discussions where you own your privacy.',
   },
   {
     q: 'Why should I care?',
