@@ -14,7 +14,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'Why is it different?',
-    a: 'SafePsy is different because identity is native to the experience, not an add-on.\n\nMost AI apps:\n• reset context\n• depend on centralized accounts\n• treat users as sessions\n\nSafePsy treats users as persistent entities.\n\nKey differentiators:\n• wallet-native identity\n• portable ID token layer\n• persistent interactions\n• user-owned identity graph\n• AI experiences tied to identity, not accounts',
+    a: 'SafePsy is different in two major points:\n\nIt is designed around data privacy to facilitate free association with your thoughts, without feeling observed.\n\nIt is designed by psychologists to ensure a legitimate assistance to users, in adequation with HIPAA Compliance.',
   },
   {
     q: 'What is My ID token?',
