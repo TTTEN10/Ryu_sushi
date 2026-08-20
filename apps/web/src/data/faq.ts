@@ -2,7 +2,7 @@
 export const FAQ_ITEMS = [
   {
     q: 'What is SafePsy?',
-    a: "SafePsy is a privacy-first mental wellness platform that combines ethical AI support (Dr. Safe) with blockchain-secured identity.\n\nYou own your data: we do not store it with third parties or use it to train AI models. Chat and summary data are encrypted at rest; keys are derived from your wallet and are not stored on our servers.",
+    a: 'SafePsy is a privacy-first mental wellness platform that combines ethical AI support with blockchain-secured identity.\n\nUse Dr. Safe to digest your thoughts or reflect between therapy sessions.\n\nYou own your data: we do not store it with third parties or use it to train AI models. Chat and summary data are encrypted at rest; keys are derived from your wallet and are not stored on our servers.\n\nAfter every chat, you have the choice to save, or not, your data on your wallet.',
   },
   {
     q: 'What can I do immediately?',
