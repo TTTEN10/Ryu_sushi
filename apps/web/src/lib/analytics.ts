@@ -682,8 +682,10 @@ class AnalyticsSDK {
       }
     }
 
-    // Update last visit
-    setLastVisit();
+    // Update last visit (only with consent — this creates a persistent identifier)
+    if (this.hasConsent()) {
+      setLastVisit();
+    }
 
     // Track landing
     await this.trackEvent('landing_visit', {

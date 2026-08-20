@@ -20,7 +20,7 @@
  */
 
 import { ethers } from 'ethers';
-import { SubscriptionPlan, SubscriptionStatus, PaymentIntentStatus, PaymentMethod } from '@prisma/client';
+import { SubscriptionPlan, SubscriptionStatus, PaymentIntentStatus, PaymentMethod, PaymentStatus, SubscriptionBillingPeriod } from '@prisma/client';
 import logger from './logger';
 import { prisma } from './prisma';
 import { SUPPORTED_CHAIN_ID } from './constants';
@@ -29,10 +29,8 @@ import { subscriptionService } from './subscription.service';
 
 // ─── Treasury & chain configuration ──────────────────────────────────────────
 
-function getTreasuryAddress(): string {
-  const addr = process.env.PAYMENT_TREASURY_ADDRESS;
-  if (!addr) throw new Error('PAYMENT_TREASURY_ADDRESS is not configured');
-  return addr;
+function getTreasuryAddress(): string | null {
+  return process.env.PAYMENT_TREASURY_ADDRESS || null;
 }
 
 function getChainId(): number {
@@ -65,7 +63,7 @@ export interface PaymentIntentRequest {
 export interface PaymentIntentResponse {
   paymentId: string;
   plan: SubscriptionPlan;
-  billingPeriod: subscriptionConfig.BillingPeriod;
+  billingPeriod: SubscriptionBillingPeriod;
   amountCents: number;
   currency: string;
   chainId: number;
@@ -87,7 +85,7 @@ export async function createPaymentIntent(
   const normalized = walletAddress.trim().toLowerCase();
 
   // Validate plan
-  if (!subscriptionConfig.isValidPlanId(request.plan)) {
+  if (!subscriptionConfig.isValidPlanPlanId(request.plan)) {
     throw new Error(`Invalid plan: ${request.plan}`);
   }
 
@@ -101,11 +99,17 @@ export async function createPaymentIntent(
     throw new Error('Free plan requires no payment');
   }
 
+  // Check if payment system is configured
+  const treasuryAddress = getTreasuryAddress();
+  if (!treasuryAddress) {
+    throw new Error('Payment system not configured: PAYMENT_TREASURY_ADDRESS is not set');
+  }
+
   // Get expected price from backend config
   const plan = request.plan.toUpperCase() as SubscriptionPlan;
+  const billingPeriod = request.billingPeriod.toUpperCase() as SubscriptionBillingPeriod;
   const amountCents = subscriptionConfig.getExpectedPriceCents(request.plan, request.billingPeriod);
   const chainId = getChainId();
-  const treasuryAddress = getTreasuryAddress();
   const tokenAddress = getTokenAddress();
 
   // Check for existing pending intent
@@ -120,7 +124,7 @@ export async function createPaymentIntent(
     // Check if it's still valid and matches the request
     if (
       existing.plan === plan &&
-      existing.billingPeriod === request.billingPeriod &&
+      existing.billingPeriod === billingPeriod &&
       new Date() < existing.expiresAt
     ) {
       return {
@@ -148,7 +152,7 @@ export async function createPaymentIntent(
     data: {
       walletAddress: normalized,
       plan,
-      billingPeriod: request.billingPeriod,
+      billingPeriod,
       amountCents,
       currency: 'USD',
       chainId,
@@ -157,7 +161,7 @@ export async function createPaymentIntent(
     },
   });
 
-  logger.info(`Payment intent created: ${intent.id} (${plan}/${request.billingPeriod}) for ${normalized}`);
+  logger.info(`Payment intent created: ${intent.id} (${plan}/${billingPeriod}) for ${normalized}`);
 
   return {
     paymentId: intent.id,
@@ -275,7 +279,8 @@ async function verifyTransaction(
           data: log.data,
         });
         if (parsed && parsed.name === 'Transfer') {
-          const [from, to, value] = parsed.args as [string, string, bigint];
+          const args = parsed.args as unknown as [string, string, bigint];
+          const [from, to, value] = args;
           if (to.toLowerCase() === expectedTreasury.toLowerCase()) {
             transferFound = true;
             transferAmount = value;
@@ -362,7 +367,7 @@ export interface PaymentVerificationResult {
   paymentId: string;
   subscriptionId: string;
   plan: SubscriptionPlan;
-  billingPeriod: subscriptionConfig.BillingPeriod;
+  billingPeriod: SubscriptionBillingPeriod;
   expiresAt: Date;
   status: string;
 }
@@ -408,7 +413,7 @@ export async function verifyPayment(
           paymentId: intent.id,
           subscriptionId: subscription.id,
           plan: subscription.plan,
-          billingPeriod: subscription.billingPeriod,
+          billingPeriod: subscription.billingPeriod as SubscriptionBillingPeriod,
           expiresAt: subscription.expiresAt || new Date(),
           status: 'already_confirmed',
         };
@@ -434,15 +439,17 @@ export async function verifyPayment(
   if (existingPayment) {
     if (existingPayment.status === PaymentStatus.CONFIRMED) {
       // Idempotent replay — return existing
-      const subscription = existingPayment.subscription;
-      if (subscription) {
+      const existingSub = await prisma.subscription.findUnique({
+        where: { id: existingPayment.subscriptionId! },
+      });
+      if (existingSub) {
         return {
           success: true,
           paymentId: intent.id,
-          subscriptionId: subscription.id,
-          plan: subscription.plan,
-          billingPeriod: subscription.billingPeriod,
-          expiresAt: subscription.expiresAt || new Date(),
+          subscriptionId: existingSub.id,
+          plan: existingSub.plan,
+          billingPeriod: existingSub.billingPeriod as SubscriptionBillingPeriod,
+          expiresAt: existingSub.expiresAt || new Date(),
           status: 'already_confirmed',
         };
       }
@@ -486,13 +493,14 @@ export async function verifyPayment(
       senderAddress: verification.sender,
       confirmedAt: new Date(),
     },
+    include: { subscription: true },
   });
 
   // 9. Activate subscription
   const subResult = await subscriptionService.activateSubscription(
     normalizedWallet,
     plan,
-    billingPeriod,
+    billingPeriod.toLowerCase() as subscriptionConfig.BillingPeriod,
     request.txHash,
     verification.blockNumber,
   );
@@ -554,8 +562,12 @@ export async function createPaymentRecord(
     data: {
       walletAddress: walletAddress.toLowerCase(),
       subscriptionId,
+      plan: SubscriptionPlan.FREE,
+      billingPeriod: SubscriptionBillingPeriod.MONTHLY,
       amountCents: 0,
       currency,
+      chainId: getChainId(),
+      treasuryAddress: getTreasuryAddress() || '',
       paymentMethod: PaymentMethod.CRYPTO,
       status: PaymentStatus.PENDING,
       cryptoTxHash: txHash,

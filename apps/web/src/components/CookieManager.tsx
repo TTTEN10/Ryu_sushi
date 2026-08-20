@@ -8,9 +8,10 @@ interface CookieManagerProps {
 }
 
 const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
-  const { consentData, updateConsent } = useCookieConsent()
+  const { consentData, updateConsent, withdrawConsent } = useCookieConsent()
   const [preferences, setPreferences] = useState<CookiePreferences>(consentData.preferences)
   const [consentHealthData, setConsentHealthData] = useState(consentData.preferences.healthData)
+  const [withdrawing, setWithdrawing] = useState(false)
 
   // Sync with consent data when it changes
   useEffect(() => {
@@ -267,6 +268,27 @@ const CookieManager: React.FC<CookieManagerProps> = ({ isOpen, onClose }) => {
                 Accept all
               </button>
             </div>
+
+            {/* Withdraw consent */}
+            {consentData.hasConsented && (
+              <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-gray-700">
+                <button
+                  onClick={async () => {
+                    setWithdrawing(true)
+                    await withdrawConsent()
+                    onClose()
+                    setWithdrawing(false)
+                  }}
+                  disabled={withdrawing}
+                  className="w-full px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors disabled:opacity-50 min-h-[44px]"
+                >
+                  {withdrawing ? 'Withdrawing...' : 'Withdraw All Consent'}
+                </button>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 text-center">
+                  Withdrawing health data consent will block access to the AI assistant.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { subscriptionService } from '../lib/subscription.service';
 import { getAllPrices } from '../lib/subscription-config';
 import { enhanceWithRAG } from '../lib/chat-rag-context';
+import { consentCheckMiddleware } from '../middleware/consent-check';
 
 const chatCompletionSchema = Joi.object({
   messages: Joi.array()
@@ -43,6 +44,7 @@ export function mountChatCompletions(router: Router, path: string = '/completion
     path,
     chatRateLimitMiddleware,
     optionalAuthenticateWallet,
+    consentCheckMiddleware as any,
     guestDeviceCookieMiddleware,
     guestChatMinuteRateLimitMiddleware,
     guestChatQuotaMiddleware,

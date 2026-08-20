@@ -11,7 +11,7 @@
  * The backend is the authoritative source; frontend values are never trusted.
  */
 
-import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import { SubscriptionPlan, SubscriptionStatus, SubscriptionBillingPeriod } from '@prisma/client';
 import logger from './logger';
 import { prisma } from './prisma';
 import * as config from './subscription-config';
@@ -104,6 +104,7 @@ export async function getOrCreateSubscription(walletAddress: string): Promise<{
   status: SubscriptionStatus;
   expiresAt: Date | null;
   startedAt: Date | null;
+  cryptoPaymentTxHash: string | null;
 }> {
   const normalized = normalizeAddress(walletAddress);
 
@@ -141,6 +142,7 @@ export async function getOrCreateSubscription(walletAddress: string): Promise<{
     status: subscription.status,
     expiresAt: subscription.expiresAt,
     startedAt: subscription.startedAt,
+    cryptoPaymentTxHash: subscription.cryptoPaymentTxHash,
   };
 }
 
@@ -163,6 +165,7 @@ export async function activateSubscription(
 }> {
   const normalized = normalizeAddress(walletAddress);
   const expiresAt = computeExpiresAt(billingPeriod);
+  const prismaBillingPeriod = billingPeriod.toUpperCase() as SubscriptionBillingPeriod;
 
   let subscription = await prisma.subscription.findUnique({
     where: { walletAddress: normalized },
@@ -179,7 +182,7 @@ export async function activateSubscription(
       where: { id: subscription.id },
       data: {
         plan,
-        billingPeriod,
+        billingPeriod: prismaBillingPeriod,
         status: SubscriptionStatus.ACTIVE,
         startedAt: new Date(),
         expiresAt: newExpires,
@@ -194,7 +197,7 @@ export async function activateSubscription(
       data: {
         walletAddress: normalized,
         plan,
-        billingPeriod,
+        billingPeriod: prismaBillingPeriod,
         status: SubscriptionStatus.ACTIVE,
         startedAt: new Date(),
         expiresAt,
@@ -298,8 +301,9 @@ export async function checkQuota(walletAddress: string): Promise<{
   monthly: { used: number; limit: number };
   plan: SubscriptionPlan;
 }> {
-  const plan = await resolvePlan(walletAddress);
-  const quotas = config.getQuotas(plan);
+  const prismaPlan = await resolvePlan(walletAddress);
+  const planId = prismaPlan.toLowerCase() as config.PlanId;
+  const quotas = config.getQuotas(planId);
   const counts = await getUsageCounts(walletAddress);
 
   const dailyUsed = Math.min(counts.daily, quotas.daily);
@@ -313,7 +317,7 @@ export async function checkQuota(walletAddress: string): Promise<{
     daily: { used: dailyUsed, limit: quotas.daily },
     weekly: { used: weeklyUsed, limit: quotas.weekly },
     monthly: { used: monthlyUsed, limit: quotas.monthly },
-    plan,
+    plan: prismaPlan,
   };
 }
 
@@ -390,8 +394,9 @@ export class SubscriptionService {
   }
 
   async getSubscriptionLimits(walletAddress: string) {
-    const plan = await resolvePlan(walletAddress);
-    const quotas = config.getQuotas(plan);
+    const prismaPlan = await resolvePlan(walletAddress);
+    const planId = prismaPlan.toLowerCase() as config.PlanId;
+    const quotas = config.getQuotas(planId);
     return {
       dailyLimit: quotas.daily,
       weeklyLimit: quotas.weekly,

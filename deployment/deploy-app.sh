@@ -645,6 +645,12 @@ ${CADDY_SITE_NAMES} {
   handle /beta/chat/completions* {
     reverse_proxy node-api:3001
   }
+  handle /api/subscription/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/payment/* {
+    reverse_proxy node-api:3001
+  }
   handle /api/admin/* {
     reverse_proxy node-api:3001
   }
@@ -697,6 +703,12 @@ http://${APP_IP} {
     reverse_proxy node-api:3001
   }
   handle /beta/chat/completions* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/subscription/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/payment/* {
     reverse_proxy node-api:3001
   }
   handle /api/admin/* {

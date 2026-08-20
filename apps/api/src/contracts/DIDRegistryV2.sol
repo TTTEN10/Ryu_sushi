@@ -14,7 +14,25 @@ import "./Actions.sol";
  * @notice The token is a representation mechanism, not the identity itself
  * @notice ALL authorization logic is deferred to DIDOwnershipV2 contract
  * @notice Revocation burns the token and permanently prevents re-minting to the same address
- * 
+ *
+ * GDPR Privacy Rule (No PII on-Chain):
+ * This contract stores ONLY the following non-PII data:
+ * - Wallet address (pseudonym, not direct personal identification)
+ * - SHA-256/keccak256 hash of the DID (cryptographic commitment, not raw identity data)
+ * - Token ID (opaque numeric identifier)
+ * - Revocation flag (access control state)
+ *
+ * NEVER store on this contract:
+ * - Raw health data or medical information
+ * - Chat messages or conversation content
+ * - Email addresses or names
+ * - IP addresses or geolocation data
+ * - Any directly identifiable personal information
+ *
+ * The encryptedKeyMetadata field in DIDIdentityTokenV2 stores only a cryptographic blob
+ * ({signature}:{iv}:{ciphertext}) -- an AES key wrapped by a wallet-derived KEK.
+ * Without the user's wallet to re-derive the KEK, the blob is unintelligible.
+ *
  * Security Notes:
  * - Reentrancy-protected: Uses nonReentrant for state-changing functions (mint, revoke, revokeByAddress)
  * - Pause mechanism: Emergency stop via DEFAULT_ADMIN_ROLE (break-glass only)

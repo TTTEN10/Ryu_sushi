@@ -317,8 +317,8 @@ const DPIA: React.FC = () => {
                     <div>
                       <strong className="text-heading">Retention Periods:</strong>
                       <ul className="mt-2 ml-6 list-disc space-y-1">
-                        <li>Active therapy data: Retained during active service period</li>
-                        <li>Historical health records: 7 years (regulatory requirement)</li>
+                        <li>Active conversation data: Retained during active service period</li>
+                        <li>Health conversation data: Not stored as clinical records; deleted automatically per retention policy (30 days default)</li>
                         <li>Communication data: 30 days (user-configurable)</li>
                         <li>Technical logs: 90 days (metadata only)</li>
                       </ul>
@@ -946,8 +946,8 @@ const DPIA: React.FC = () => {
                     Data retention is limited to necessary periods:
                   </p>
                   <ul className="space-y-2 text-body ml-6 list-disc">
-                    <li>Active therapy data: Retained during active service period</li>
-                    <li>Historical records: 7 years (regulatory requirement for health records)</li>
+                    <li>Active conversation data: Retained during active service period</li>
+                    <li>Health conversation data: Not stored as clinical records; deleted automatically per retention policy (30 days default)</li>
                     <li>Communication data: 30 days (configurable by user)</li>
                     <li>Automated deletion after retention periods expire</li>
                     <li>User-controlled deletion available at any time</li>

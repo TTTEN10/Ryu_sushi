@@ -1,10 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import CookieBanner from './components/CookieBanner'
-import { ThemeProvider } from './contexts/ThemeContext'
+import CookieManager from './components/CookieManager'
+import {
+  ThemeProvider,
+} from './contexts/ThemeContext'
 import { WalletProvider } from './contexts/WalletContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { SubscriptionTerminalProvider } from './contexts/SubscriptionTerminalContext'
 import { RouterProvider } from 'react-router-dom'
-import { initializeAnalytics } from './utils/cookieUtils'
+import { initializeAnalytics, hasConsentForCookieType } from './utils/cookieUtils'
 import { flushProductMetricsToServer, recordLandingSession } from './utils/conversionMetrics'
 import { analytics } from './lib/analytics'
 import { ga4InitIfConsented, ga4Disable } from './lib/ga4'
@@ -13,14 +17,25 @@ import { initSentry } from './lib/sentry'
 initSentry()
 
 export default function App({ router }: { router: unknown }) {
-  useEffect(() => {
-    initializeAnalytics()
-    recordLandingSession()
-    void flushProductMetricsToServer()
-    void ga4InitIfConsented()
+  const [isCookieManagerOpen, setIsCookieManagerOpen] = useState(false)
 
-    // Track landing visit in new analytics system
-    void analytics.trackLandingVisit()
+  useEffect(() => {
+    // Listen for open-cookie-manager events dispatched from subpages (e.g. /cookies).
+    const handler = () => setIsCookieManagerOpen(true)
+    window.addEventListener('open-cookie-manager', handler)
+    return () => window.removeEventListener('open-cookie-manager', handler)
+  }, [])
+
+  useEffect(() => {
+    // Only initialize analytics and fire tracking events after consent is given.
+    // GA4 is properly gated in lib/ga4.ts (scripts injected only after consent).
+    if (hasConsentForCookieType('analytics')) {
+      initializeAnalytics()
+      void recordLandingSession()
+      void flushProductMetricsToServer()
+      void ga4InitIfConsented()
+      void analytics.trackLandingVisit()
+    }
   }, [])
 
   const handleConsentChange = (preferences: {
@@ -50,11 +65,14 @@ export default function App({ router }: { router: unknown }) {
     <ThemeProvider>
       <WalletProvider>
         <AuthProvider>
-          <RouterProvider router={router as any} />
-
+          <SubscriptionTerminalProvider>
+            <RouterProvider router={router as any} />
+          </SubscriptionTerminalProvider>
           {typeof window !== 'undefined' ? (
             <CookieBanner onConsentChange={handleConsentChange} />
           ) : null}
+
+          <CookieManager isOpen={isCookieManagerOpen} onClose={() => setIsCookieManagerOpen(false)} />
         </AuthProvider>
       </WalletProvider>
     </ThemeProvider>

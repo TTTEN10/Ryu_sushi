@@ -1,11 +1,9 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Mail, Instagram, Linkedin, Settings, HelpCircle, LifeBuoy } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import CookieManager from './CookieManager'
 
 const Footer: React.FC = () => {
   const navigate = useNavigate()
-  const [isCookieManagerOpen, setIsCookieManagerOpen] = useState(false)
 
   return (
     <footer className="fade-in">
@@ -89,7 +87,7 @@ const Footer: React.FC = () => {
                 className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
                 <span className="text-black dark:text-white link-hover block w-full text-left">
-                  Terms of Service & Privacy Policy
+                  Terms of Service
                 </span>
               </button>
               <button 
@@ -112,7 +110,7 @@ const Footer: React.FC = () => {
               </button>
               <button 
                 type="button"
-                onClick={() => setIsCookieManagerOpen(true)}
+                onClick={() => window.dispatchEvent(new CustomEvent('open-cookie-manager'))}
                 className="flex w-full items-center gap-2 text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
               >
                 <Settings className="w-4 h-4 dark:text-white flex-shrink-0 transition-transform duration-300 group-hover:rotate-90" />
@@ -133,12 +131,6 @@ const Footer: React.FC = () => {
           </p>
         </div>
       </div>
-      
-      {/* Cookie Manager Modal */}
-      <CookieManager 
-        isOpen={isCookieManagerOpen} 
-        onClose={() => setIsCookieManagerOpen(false)} 
-      />
     </footer>
   )
 }

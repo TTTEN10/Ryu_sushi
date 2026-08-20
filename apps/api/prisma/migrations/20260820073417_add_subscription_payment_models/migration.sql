@@ -1,0 +1,2 @@
+-- This migration was applied externally (subscription/payment models).
+-- Tables already exist in the database.

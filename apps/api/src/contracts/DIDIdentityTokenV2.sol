@@ -15,7 +15,37 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @title DIDIdentityTokenV2
  * @dev Soulbound ERC-721 token for SafePsy DID identities
  * @notice Each wallet can have exactly one non-transferable identity token
- * 
+ *
+ * GDPR Privacy Rule (No PII on-Chain):
+ * This contract MUST NOT store raw personal or health information on-chain.
+ *
+ * Allowed on-chain data:
+ * - Wallet address (pseudonym, not direct PII)
+ * - SHA-256/keccak256 hashes (cryptographic commitments, not data)
+ * - Token ID (opaque numeric identifier)
+ * - Timestamps of on-chain events
+ * - Encrypted key metadata blob: {wallet_signature}:{iv}:{ciphertext}
+ *   This blob contains an AES key wrapped by a KEK derived from the user's
+ *   wallet signature. Without the wallet to re-derive the KEK, the blob is
+ *   cryptographically unreadable.
+ *
+ * NEVER store on this contract:
+ * - Raw health data or medical information
+ * - Chat messages or conversation content
+ * - Email addresses or names
+ * - IP addresses or geolocation data
+ * - Raw encryption keys (only wrapped/hashed forms)
+ * - Any directly identifiable personal information
+ *
+ * Data flow architecture:
+ *   Smart Contract -> hash / identifier / cryptographic commitment
+ *   Off-chain storage -> raw encrypted data (AES-256-GCM)
+ *   NO raw health data
+ *   NO chat messages
+ *   NO email
+ *   NO names
+ *   NO identifiable medical information
+ *
  * Security Notes:
  * - No delegatecall Risks: UUPS is safer than transparent proxy (but requires trusted admins)
  *   - Contract uses UUPS-compatible storage layout for future upgradeability

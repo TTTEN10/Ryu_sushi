@@ -546,7 +546,8 @@ router.get(
 
       // Get subscription info
       const subscription = await subscriptionService.getOrCreateSubscription(walletAddress);
-      const effectivePlan = await subscriptionService.resolvePlan(walletAddress);
+      const prismaPlan = await subscriptionService.resolvePlan(walletAddress);
+      const effectivePlan = prismaPlan.toLowerCase() as import('../lib/subscription-config').PlanId;
       const quotas = (await import('../lib/subscription-config')).getQuotas(effectivePlan);
 
       res.json({
@@ -572,7 +573,6 @@ router.get(
           subscription: {
             id: subscription.id,
             plan: subscription.plan,
-            billingPeriod: subscription.billingPeriod,
             status: subscription.status,
             startedAt: subscription.startedAt?.toISOString() ?? null,
             expiresAt: subscription.expiresAt?.toISOString() ?? null,

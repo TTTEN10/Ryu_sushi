@@ -3,11 +3,19 @@ import { ArrowRight } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import ConnectWallet from './ConnectWallet'
+import PlanBadge from './PlanBadge'
+import SubscriptionTerminal from './SubscriptionTerminal'
+import { useSubscriptionTerminal } from '../contexts/SubscriptionTerminalContext'
 
 const Header: React.FC = () => {
   const { pathname } = useLocation()
   const showTryBeta = pathname === '/'
   const isBetaChat = pathname === '/beta/chat'
+  const {
+    showSubscriptionTerminal,
+    subscriptionTerminalForced,
+    openSubscriptionTerminal,
+  } = useSubscriptionTerminal()
 
   return (
     <header className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-3 fade-in">
@@ -32,8 +40,18 @@ const Header: React.FC = () => {
           ) : null}
 
           {isBetaChat ? (
-            <div id="wallet-connect-region" className="flex min-w-0 shrink">
-              <ConnectWallet variant="header" />
+            <div id="wallet-connect-region" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
+              <PlanBadge onOpenTerminal={() => openSubscriptionTerminal()} />
+              <div className="flex min-w-0 shrink">
+                <ConnectWallet variant="header" />
+              </div>
+              {showSubscriptionTerminal && (
+                <SubscriptionTerminal
+                  forced={subscriptionTerminalForced}
+                  onActivate={() => openSubscriptionTerminal(false)}
+                  onClose={() => openSubscriptionTerminal(false)}
+                />
+              )}
             </div>
           ) : null}
 

@@ -13,6 +13,8 @@ import "./Actions.sol";
  * @title DIDService
  * @dev Service endpoint and data pointer storage
  * @notice Stores service endpoints (plaintext URLs) and data pointers (hashes only). User content is not stored on-chain.
+ * @notice GDPR Privacy Rule: This contract stores ONLY hashes and pointers, NEVER raw PII or health data.
+ * @notice All data stored on-chain is non-identifiable: key hashes, data hashes, encrypted-key-metadata hashes.
  * @notice Queries DIDOwnership for authorization
  * @notice Reads DIDRegistry for existence checks
  * 

@@ -1,14 +1,14 @@
 /**
  * Data Retention Cleanup Job
  *
- * Purges expired encrypted chat data from the database based on retention policy.
+ * Purges expired encrypted chat data and consent records from the database based on retention policy.
  *
  * Usage:
  *   // Run manually
  *   npx tsx apps/api/src/lib/cleanup-job.ts
  *
- *   // Or schedule with cron (example: every hour)
- *   0 * * * * cd /path/to/repo && npx tsx apps/api/src/lib/cleanup-job.ts
+ *   // Or schedule with cron (example: daily at 3 AM)
+ *   0 3 * * * cd /path/to/repo && npx tsx apps/api/src/lib/cleanup-job.ts
  *
  * Environment variables:
  *   DATABASE_URL - PostgreSQL connection string
@@ -131,9 +131,49 @@ async function runCleanup(
 
     logger.info(`Cleanup job: Successfully deleted ${expiredChats.length} expired chats`);
 
+    // ─── Consent record cleanup ────────────────────────────────────────────
+    // Delete consent records older than retention + grace period.
+    // Per GDPR Art. 5(1)(e), consent records may be kept for up to 2 years
+    // after withdrawal to demonstrate compliance (Art. 5(2) accountability).
+    const consentRetentionMs = 2 * 365 * 24 * 60 * 60 * 1000; // 2 years
+    const consentCutoff = new Date(Date.now() - consentRetentionMs);
+
+    let expiredConsents: any[] = [];
+    try {
+      expiredConsents = await prisma.$queryRaw<any[]>`
+        SELECT "id", "walletAddress", "consentType", "status", "withdrawnAt", "createdAt"
+        FROM "user_consents"
+        WHERE "withdrawnAt" IS NOT NULL
+          AND "withdrawnAt" < ${consentCutoff}
+        LIMIT ${batchSize}
+      `;
+    } catch {
+      // Table may not exist yet (Phase 1 not deployed); skip silently.
+      logger.info('Cleanup job: user_consents table not found — skipping consent cleanup');
+    }
+
+    if (expiredConsents.length > 0) {
+      logger.info(`Cleanup job: Found ${expiredConsents.length} expired consent records`);
+
+      if (!dryRun) {
+        const consentIds = expiredConsents.map((c) => c.id);
+        await prisma.$executeRaw`
+          DELETE FROM "user_consents" WHERE "id" = ANY(${consentIds}::text[])
+        `;
+        logger.info(`Cleanup job: Successfully deleted ${expiredConsents.length} expired consent records`);
+      } else {
+        for (const consent of expiredConsents) {
+          const hashedWallet = ethers.keccak256(ethers.toUtf8Bytes(consent.walletAddress)).substring(0, 16);
+          logger.info(`Cleanup job (DRY RUN): Would delete consent record for wallet ${hashedWallet}..., type=${consent.consentType}, withdrawn at ${consent.withdrawnAt}`);
+        }
+      }
+    }
+
+    const totalDeleted = expiredChats.length + expiredConsents.length;
+
     return {
       success: true,
-      deletedCount: expiredChats.length,
+      deletedCount: totalDeleted,
       dryRun,
       startedAt,
       completedAt: new Date().toISOString(),

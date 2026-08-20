@@ -21,6 +21,7 @@ import metricsRoutes from "./routes/metrics";
 import analyticsRoutes from "./routes/analytics";
 import analyticsDashboardRoutes from "./routes/analytics-dashboard";
 import accountRoutes from "./routes/account";
+import consentRoutes from "./routes/consent";
 
 import logger from "./lib/logger";
 import { errorHandlerMiddleware } from "./middleware/error-handler";
@@ -192,6 +193,7 @@ export function createApp() {
   }
   app.use("/api/auth", auth);
   app.use("/api/account", accountRoutes);
+  app.use("/api/consent", consentRoutes);
   app.use("/beta", betaChat);
   app.use("/api/chat", chat);
   app.use("/api/did", did);

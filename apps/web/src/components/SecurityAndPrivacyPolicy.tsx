@@ -381,11 +381,11 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-body font-medium">Purpose Limitation</p>
-                        <p className="text-sm text-body">Data processing limited to stated therapy purposes</p>
+                        <p className="text-sm text-body">Data processing limited to stated AI reflection and platform functionality purposes</p>
                       </div>
                       <div className="text-center">
                         <p className="text-body font-medium">Data Minimization</p>
-                        <p className="text-sm text-body">Only necessary data collected for therapy services</p>
+                        <p className="text-sm text-body">Only necessary data collected for platform services</p>
                       </div>
                       <div className="text-center">
                         <p className="text-body font-medium">Storage Limitation</p>
@@ -851,21 +851,51 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       </tr>
                       <tr>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">AI Conversation Data</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">AI-powered therapy assistance and conversation history</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">User-controlled deletion (30 days default)</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent, Legitimate Interests</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">AI-powered reflection responses (encrypted storage, server stores ciphertext only)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">30 days (user-configurable, automated deletion)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent</td>
                       </tr>
                       <tr>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Health Data</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Therapy provision and progress tracking</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">7 years (regulatory)</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent, Vital Interests</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Health Data (conversations)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">AI reflection responses only; SafePsy acts as technology/AI service provider, not a healthcare provider</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Until user deletion or account closure (automated, not stored after 30 days by default)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Explicit consent (GDPR Art. 9(2)(a))</td>
                       </tr>
                       <tr>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Communication Data</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Therapy conversations and sessions</td>
-                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">30 days (configurable)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Analytics Data</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Product analytics and usage optimization (aggregated, non-personalized where possible)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">12 months (automated deletion)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Crisis Safety Data</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Crisis detection and emergency response facilitation</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">30 days (automated purge)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Vital interests / Explicit consent</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Wallet Address</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Authentication, identity binding, and subscription management</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Until account deletion (deleted upon account closure)</td>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent, Contract</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Blockchain / DID Data</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Decentralized identity anchor; on-chain hashes cannot be modified or deleted</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Permanent (blockchain immutability; off-chain data deleted independently)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent (with acknowledgment of technical limitations)</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">IP Addresses</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Security, abuse prevention, and compliance logging</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">90 days (automated deletion)</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Legitimate Interests (security)</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Consent Records</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Demonstrate lawful basis for processing; audit trail for GDPR Art. 5(2) accountability</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">2 years after withdrawal or expiration</td>
+                        <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Legal obligation (GDPR Art. 5(2))</td>
                       </tr>
                       <tr>
                         <td className="border border-neutral-300 dark:border-gray-600 px-3 sm:px-4 py-2 sm:py-3 text-body text-xs sm:text-sm">Technical Data</td>
@@ -1195,6 +1225,139 @@ const SecurityAndPrivacyPolicy: React.FC = () => {
                       <li>Application-level analytics (not stored on-chain)</li>
                     </ul>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right to Erasure and Blockchain Limitations */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
+              <h2 className="text-3xl lg:text-4xl text-heading mb-12 text-center">
+                <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                  Right to Erasure and Blockchain Limitations
+                </span>
+              </h2>
+
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <p className="text-body leading-relaxed text-lg">
+                    SafePsy complies with your right to erasure under GDPR Article 17. However, because SafePsy uses blockchain technology for decentralized identity, some data cannot be technically deleted. This section explains exactly what is deleted, what remains, and why.
+                  </p>
+                </div>
+
+                {/* What Is Deleted */}
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-8">
+                  <h3 className="text-2xl text-heading mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                    What Is Deleted
+                  </h3>
+                  <p className="text-body mb-4">
+                    When you request account deletion via <code className="font-mono text-sm">DELETE /api/account</code>, SafePsy permanently removes the following off-chain data:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 text-body">
+                    <li><strong>Encrypted chat history</strong> — All chat messages, keys, and summaries stored in our database</li>
+                    <li><strong>Subscription and payment records</strong> — All billing information, Stripe data, and crypto payment records</li>
+                    <li><strong>Crisis opt-in data</strong> — Your name, email address, and emergency contact information</li>
+                    <li><strong>RAG audit logs</strong> — All records of document indexing and retrieval operations associated with your wallet</li>
+                    <li><strong>Consent records</strong> — All records of consent grants and withdrawals stored in our database</li>
+                    <li><strong>Active sessions</strong> — All active authentication sessions are invalidated</li>
+                  </ul>
+                </div>
+
+                {/* What Cannot Technically Be Deleted */}
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-8">
+                  <h3 className="text-2xl text-heading mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-6 h-6 text-amber-600" />
+                    What Cannot Technically Be Deleted
+                  </h3>
+                  <p className="text-body mb-4">
+                    The following data exists on the Ethereum blockchain and cannot be modified or removed due to blockchain immutability:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 text-body">
+                    <li><strong>DID token IDs and hashes</strong> — These are cryptographic commitments (SHA-256 hashes) that do not contain personal information</li>
+                    <li><strong>Wallet addresses</strong> — Your wallet address is pseudonymous and not directly identifiable without your action to link it to your identity</li>
+                    <li><strong>DID lifecycle events</strong> — Records of DID minting, revocation, and key updates are permanent event logs</li>
+                    <li><strong>Encrypted key metadata</strong> — An encrypted blob (`{'{signature}'}:{'{iv}'}:{'ciphertext'}`) that is cryptographically unreadable without your wallet</li>
+                    <li><strong>Service endpoint URLs</strong> — Public infrastructure URLs for DID Document resolution</li>
+                    <li><strong>Data and key hashes</strong> — One-way hashes that cannot be reverse-engineered to identify any individual</li>
+                  </ul>
+                </div>
+
+                {/* Why It Remains */}
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading">Why It Remains</h3>
+                  <div className="space-y-3 text-body">
+                    <p>
+                      <strong>Ethereum blockchain immutability.</strong> Data committed to a block cannot be modified or removed. This is a fundamental property of the blockchain, not a design choice.
+                    </p>
+                    <p>
+                      <strong>Cryptographic integrity.</strong> On-chain data consists of hashes and cryptographic commitments. These exist to verify system behavior and ensure data integrity — not to identify individuals.
+                    </p>
+                    <p>
+                      <strong>No personal data on-chain.</strong> SafePsy does not store raw personal information (health data, names, emails, IP addresses, chat messages) on the blockchain. All on-chain data is either purely non-personal (hashes, opaque identifiers) or pseudonymous (wallet-address indexed).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Legal Basis */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-8">
+                  <h3 className="text-2xl text-heading mb-4">Legal Basis for On-Chain Retention</h3>
+                  <div className="space-y-3 text-body">
+                    <p>
+                      <strong>GDPR Article 6(1)(f) — Legitimate interest:</strong> Blockchain audit trails ensure system integrity and prevent fraud (e.g., duplicate DID minting after revocation, unauthorized key modifications).
+                    </p>
+                    <p>
+                      <strong>GDPR Article 17(3)(d) — Legal claims:</strong> On-chain records may serve as evidence in legal disputes concerning identity verification or access control.
+                    </p>
+                    <p>
+                      <strong>No material conflict:</strong> Because on-chain data contains no raw personal information, the retention of this data does not materially conflict with the right to erasure. The personal data (off-chain records) is fully deleted.
+                    </p>
+                  </div>
+                </div>
+
+                {/* How SafePsy Minimizes Identification */}
+                <div className="space-y-4">
+                  <h3 className="text-2xl text-heading">How SafePsy Minimizes On-Chain Identification</h3>
+                  <ul className="list-disc list-inside space-y-2 text-body">
+                    <li><strong>No raw PII on-chain.</strong> Health data, chat messages, email addresses, names, and IP addresses are NEVER stored on the blockchain.</li>
+                    <li><strong>Hash-only references.</strong> All data pointers are one-way cryptographic hashes that cannot be reverse-engineered.</li>
+                    <li><strong>Encrypted key blobs.</strong> The <code className="font-mono text-sm">encryptedKeyMetadata</code> field stores only an AES key wrapped by a wallet-derived KEK. Without the user's wallet to re-derive the KEK, the blob is unintelligible.</li>
+                    <li><strong>Pseudonymous identifiers.</strong> Wallet addresses are pseudonymous — they do not directly identify a natural person.</li>
+                    <li><strong>Separate off-chain storage.</strong> All encrypted content payloads, message bodies, and private user attributes are stored off-chain and are fully deleted on erasure.</li>
+                  </ul>
+                </div>
+
+                {/* Effect on Decryption/Access */}
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-8">
+                  <h3 className="text-2xl text-heading mb-4 flex items-center gap-2">
+                    <RefreshCw className="w-6 h-6 text-red-600" />
+                    Effect on Your Ability to Decrypt and Access Data
+                  </h3>
+                  <div className="space-y-3 text-body">
+                    <p>
+                      <strong>After erasure, your ability to decrypt and access previously stored data is permanently lost.</strong> Here is why:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-2 ml-4">
+                      <li>When you create a DID, an AES key is wrapped (encrypted) with a Key Encryption Key (KEK) derived from your wallet signature. This wrapped key is stored on-chain as <code className="font-mono text-sm">encryptedKeyMetadata</code>.</li>
+                      <li>Off-chain, SafePsy stores references that link this encrypted key to your encrypted chat data.</li>
+                      <li>When you request erasure, SafePsy severs ALL database references between your wallet and your data.</li>
+                      <li>The encrypted key metadata remains on-chain, but SafePsy no longer holds the database records needed to use it. Even if you still control your wallet and can decrypt the blob, the data it points to no longer exists.</li>
+                      <li><strong>Key unlinking = permanent loss of access to all previously stored encrypted data.</strong> This cannot be undone.</li>
+                    </ol>
+                    <p className="text-sm text-body">
+                      <strong>Please confirm you understand this consequence before proceeding with account deletion.</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Optional DID Revocation */}
+                <div className="space-y-4">
+                  <h3 className="text-xl text-heading">Optional: DID Token Revocation</h3>
+                  <p className="text-body">
+                    You may optionally revoke your DID token from your profile page. Revocation is permanent and cannot be undone. The revocation event (burning the token and adding your wallet address to the permanent revocation list) is recorded on-chain. Off-chain, the revocation prevents your wallet from minting a new DID.
+                  </p>
+                  <p className="text-body">
+                    Note: Revocation does NOT delete any on-chain data. The DID minting event, token ID, and hash remain permanently on-chain regardless of revocation status.
+                  </p>
                 </div>
               </div>
             </div>

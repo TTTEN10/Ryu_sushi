@@ -97,8 +97,8 @@ export class QuotaService {
   }
 
   static getInstance(config?: QuotaConfig): QuotaService {
-    if (!QuotaService.instance && config) {
-      QuotaService.instance = new QuotaService(config);
+    if (!QuotaService.instance) {
+      QuotaService.instance = new QuotaService(config || {});
     }
     return QuotaService.instance;
   }
@@ -236,7 +236,9 @@ export class QuotaService {
     }
 
     // Resolve plan and limits
-    const plan = await resolvePlan(walletAddress);
+    const prismaPlan = await resolvePlan(walletAddress);
+    // Convert Prisma enum (FREE/PRO/UNLIMITED) to config type (free/pro/unlimited)
+    const plan = prismaPlan.toLowerCase() as config.PlanId;
     const quotas = config.getQuotas(plan);
 
     // Try Redis counters first
@@ -355,5 +357,22 @@ export class QuotaService {
         // Ignore errors on release
       }
     }
+  }
+
+  /**
+   * Check if there's an active concurrency lock for a wallet.
+   */
+  async hasConcurrencyLock(walletAddress: string): Promise<boolean> {
+    const lockKey = `concurrency:chat:${walletAddress}:active`;
+    const redis = getSharedRedis();
+    if (redis) {
+      try {
+        const exists = await redis.exists(lockKey);
+        return exists === 1;
+      } catch {
+        return false;
+      }
+    }
+    return false;
   }
 }

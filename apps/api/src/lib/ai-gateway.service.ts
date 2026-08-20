@@ -7,6 +7,7 @@ import { detectCrisisInMessages, CRISIS_PREPEND_TEXT, CRISIS_RESOURCES } from '.
 import { getCachedResponse, cacheResponse, isResponseCacheEnabled } from './response-cache';
 import { logScalewayUsage, createUsageRecord } from './scaleway-metrics';
 import { Config } from './config';
+import { stripMessagesPII } from './pii-stripper';
 
 /**
  * SSE Event Types for AI Streaming
@@ -344,7 +345,11 @@ class AIGatewayService {
   private buildSanitizedMessages(
     request: ChatCompletionRequest
   ): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
-    const cleanMessages = request.messages.map((msg) => ({
+    // Defense-in-depth: strip PII patterns from all messages before sending
+    // to external AI providers (Scaleway). Primary minimization is architectural
+    // (no wallet/email/name in the messages array), but this catches edge cases.
+    const cleanedMessages = stripMessagesPII(request.messages);
+    const cleanMessages = cleanedMessages.map((msg) => ({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content,
     }));

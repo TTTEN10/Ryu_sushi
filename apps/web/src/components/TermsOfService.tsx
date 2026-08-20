@@ -479,7 +479,11 @@ const TermsOfService: React.FC = () => {
                       in accordance with the rules of the American Arbitration Association, except where prohibited by law.
                     </p>
                     <p>
-                      You agree to waive any right to participate in a class-action lawsuit or class-wide arbitration.
+                      You agree to waive any right to participate in a class-action lawsuit or class-wide arbitration,
+                      except for consumers established in the European Union. EU consumers retain the right to bring 
+                      claims before their local courts in accordance with the Brussels I bis Regulation (Regulation (EU) 
+                      No 1215/2012) and to exercise their rights under the GDPR (Regulation (EU) 2016/679) through the 
+                      supervisory authority of their member state.
                     </p>
                   </div>
                 </div>
@@ -493,8 +497,15 @@ const TermsOfService: React.FC = () => {
                   </h2>
                   <div className="space-y-4 text-body">
                     <p>
-                      These Terms shall be governed by and construed in accordance with the laws of [Jurisdiction], without regard to 
+                      These Terms shall be governed by and construed in accordance with the laws of Estonia, without regard to 
                       its conflict of law provisions.
+                    </p>
+                    <p>
+                      Notwithstanding the foregoing, consumers established in the European Union retain all rights granted 
+                      under mandatory provisions of the law of their country of residence, including the right to bring 
+                      proceedings before the courts of that country in accordance with applicable EU consumer protection 
+                      regulations. Nothing in these Terms limits or excludes any statutory rights of EU consumers under 
+                      the GDPR or other applicable EU legislation.
                     </p>
                   </div>
                 </div>

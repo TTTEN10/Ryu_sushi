@@ -12,7 +12,7 @@ import { useSubscription } from '../hooks/useSubscription';
 import { getActionableErrorMessage } from '../utils/errorMessages';
 import { recordFirstMessageSent, recordFirstReplyReceived } from '../utils/conversionMetrics';
 import { apiFetch, apiUrl } from '../config/api';
-import SubscriptionTerminal from './SubscriptionTerminal';
+import { useSubscriptionTerminal } from '../contexts/SubscriptionTerminalContext';
 import EmptyState from './EmptyState';
 import GuestModeLimitModal from './GuestModeLimitModal';
 import SafetyModal from './SafetyModal';
@@ -98,8 +98,7 @@ export default function ChatWidget() {
 
     if (!hasActivePaidSubscription) {
       setHasShownInitialTerminal(true);
-      setShowSubscriptionTerminal(true);
-      setSubscriptionTerminalForced(false);
+    openSubscriptionTerminal(false);
     }
   }, [wallet?.address, authState.isVerified, subscription, hasShownInitialTerminal]);
 
@@ -112,8 +111,7 @@ export default function ChatWidget() {
   const [sendPhase, setSendPhase] = useState<
     'idle' | 'checking' | 'encrypting' | 'sending' | 'streaming' | 'saving' | 'error'
   >('idle');
-  const [showSubscriptionTerminal, setShowSubscriptionTerminal] = useState(false);
-  const [subscriptionTerminalForced, setSubscriptionTerminalForced] = useState(false);
+  const { openSubscriptionTerminal } = useSubscriptionTerminal();
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [guestPromptCount, setGuestPromptCount] = useState<number>(() => readGuestPromptCount());
@@ -636,8 +634,7 @@ export default function ChatWidget() {
 
         // Check if it's a quota exceeded error
         if (response.status === 429 && errorData.error === 'QUOTA_EXCEEDED') {
-          setSubscriptionTerminalForced(true);
-          setShowSubscriptionTerminal(true);
+          openSubscriptionTerminal(true);
           setIsStreaming(false);
           return;
         }
@@ -796,8 +793,7 @@ export default function ChatWidget() {
               } else if (currentEvent === 'error') {
                 // Check if it's a quota exceeded error
                 if (data.error === 'QUOTA_EXCEEDED') {
-                  setSubscriptionTerminalForced(true);
-                  setShowSubscriptionTerminal(true);
+                  openSubscriptionTerminal(true);
                   setIsStreaming(false);
                   return;
                 }
@@ -857,23 +853,7 @@ export default function ChatWidget() {
         onClose={() => setShowGuestLimitModal(false)}
         onScrollToWallet={scrollToWalletConnect}
       />
-      {showSubscriptionTerminal && (
-        <SubscriptionTerminal
-          forced={subscriptionTerminalForced}
-          onActivate={() => {
-            setSubscriptionTerminalForced(false);
-            setShowSubscriptionTerminal(false);
-            // Refresh data after activation
-            fetchSubscription();
-            fetchUsage();
-            fetchPaymentHistory();
-          }}
-          onClose={() => {
-            setShowSubscriptionTerminal(false);
-          }}
-        />
-      )}
-      {/* DID Creation Prompt Modal - No dismiss, must create or refresh */}
+      {/* DID Creation Prompt Modal */}
       {showDidCreatePrompt && authState.isVerified && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-neutral-900 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-neutral-200 dark:border-white/10">
@@ -1090,7 +1070,7 @@ export default function ChatWidget() {
                 <span>Daily limit reached — upgrade to keep going.</span>
                 <button
                   type="button"
-                  onClick={() => setShowSubscriptionTerminal(true)}
+                  onClick={() => openSubscriptionTerminal(true)}
                   className="ml-auto underline text-primary-600 dark:text-primary-400 hover:text-primary-700 whitespace-nowrap"
                 >
                   Upgrade
@@ -1105,7 +1085,7 @@ export default function ChatWidget() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowSubscriptionTerminal(true)}
+                  onClick={() => openSubscriptionTerminal(true)}
                   className="ml-auto underline text-primary-600 dark:text-primary-400 hover:text-primary-700 whitespace-nowrap"
                 >
                   Upgrade

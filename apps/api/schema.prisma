@@ -272,3 +272,43 @@ enum RAGOperation {
   DELETE
   BATCH_INDEX
 }
+
+enum ConsentType {
+  HEALTH_DATA_PROCESSING
+  ANALYTICS
+  MARKETING
+}
+
+enum ConsentStatus {
+  GRANTED
+  WITHDRAWN
+}
+
+enum ConsentSource {
+  WEB_COOKIE_BANNER
+  MOBILE
+  EMAIL_SUBSCRIPTION
+  CONTACT_FORM
+}
+
+model UserConsent {
+  id             String          @id @default(cuid())
+  walletAddress  String
+  consentType    ConsentType
+  consentVersion String          // e.g. "1.0" — matches the legal document version at consent time
+  consentTextHash String          // Hash of the consent text presented to the user
+  status         ConsentStatus   @default(GRANTED)
+  source         ConsentSource   // Where the consent was captured
+  ipAddressHash  String?         // Hash of the IP at time of consent
+  userAgent      String?
+  createdAt      DateTime        @default(now())
+  withdrawnAt    DateTime?
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([walletAddress, consentType, consentVersion])
+  @@index([walletAddress, consentType])
+  @@index([status])
+  @@index([withdrawnAt])
+  @@index([createdAt])
+  @@map("user_consents")
+}
