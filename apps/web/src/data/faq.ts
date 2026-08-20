@@ -10,7 +10,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: 'Why should I care?',
-    a: 'Today, most AI interactions are temporary, disconnected, and owned by platforms.\n\nSafePsy gives you:\n• a persistent identity\n• continuity across sessions\n• ownership of your profile and interactions\n• a more personal and contextual AI experience\n\nThe emotional value is: "This AI knows me because my identity persists."',
+    a: 'Today, most discussions with AI are owned by platforms,\nused to train models and stored by third parties.\n\nSafePsy gives you privacy combined with continuity across\nsessions: own your data and your story.\n\nDr.Safe is a more personal and contextual AI\nexperience designed to assist you with your thoughts, made by\npsychologists.',
   },
   {
     q: 'Why is it different?',
