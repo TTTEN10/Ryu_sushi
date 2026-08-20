@@ -17,16 +17,16 @@ export const FAQ_ITEMS = [
     a: 'SafePsy is different in two major points:\n\nIt is designed around data privacy to facilitate free association with your thoughts, without feeling observed.\n\nIt is designed by psychologists to ensure a legitimate assistance to users, in adequation with HIPAA Compliance.',
   },
   {
-    q: 'What is My ID token?',
-    a: 'My ID token is your SafePsy profile page (/profile). It shows your on-chain ID token (a soulbound record tied to your wallet), encrypted chat references, session history, and tools to export chat data or rotate encryption keys.\n\nAfter connecting your wallet and creating your Safe ID Token, open My ID token to view token details, manage encrypted data, and export or revoke chat references.',
+    q: 'What is my ID token?',
+    a: 'Your ID token is where you own and store your encrypted chat references. It is a on-chain token (soulbound tied to your wallet).\n\nAfter connecting your wallet and creating your ID Token, save encrypted chats and retrieve history.',
   },
   {
     q: 'Can I try SafePsy without connecting a wallet?',
-    a: 'Yes. You can chat instantly as a guest for a limited, session-style experience. Connecting a wallet unlocks decentralized identity flows and encrypted persistence tied to your keys.',
+    a: 'Yes. You can chat instantly as a guest for a limited, session-style experience. Connecting a wallet allows you to create your ID token, save encrypted chat and retrieve history the next session.',
   },
   {
     q: 'How is my data protected?',
-    a: 'You control your keys—they are derived from your wallet and are not stored on SafePsy servers. Chat and summary data are encrypted at rest using AES-256-GCM; only ciphertext is stored. Data is transmitted over TLS 1.3 and sensitive content is encrypted client-side before sending. We do not log chat message content and we do not use your chats to train our models.',
+    a: 'You own your private keys and control your decntralized wallet. We do not log chat message content and we do not use your chats to train our models. Chat and summary data are encrypted at rest using AES-256-GCM; only ciphertext is stored. Data is transmitted over TLS 1.3 and sensitive content is encrypted client-side before sending.',
   },
   {
     q: 'Is SafePsy a replacement for a therapist?',
