@@ -41,7 +41,6 @@ APP_DOMAIN_APP="${APP_DOMAIN_APP:-app.polinapsycho.com}"
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
 CHATBOT_HOST="${CHATBOT_HOST:-151.115.151.231}"
 APP_HOST="${APP_HOST:-151.115.151.231}"
-APP_APP_HOST="${APP_APP_HOST:-51.159.160.246}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
@@ -524,28 +523,6 @@ wait_for_ssh_ready "${APP_HOST}" || warn "SSH wait before deploy-app exhausted; 
 ensure_host_swap "${APP_HOST}" || true
 _deploy_app || die "deploy-app.sh failed — app stack not fully updated (inspect SSH host ${APP_HOST})"
 post_deploy_verify
-
-log "STEP 3b — App subdomain stack (${APP_DOMAIN_APP} → ${APP_APP_HOST})"
-if [[ -n "${APP_APP_HOST:-}" && "${APP_APP_HOST}" != "${APP_HOST}" ]]; then
-  if [[ "${SSH_BOOT_WAIT_SEC:-0}" -gt 0 ]]; then
-    wait_for_ssh_ready "${APP_APP_HOST}" || warn "SSH wait for app subdomain host failed; proceeding"
-  fi
-  _app_sub_ssh_ok=0
-  if retry _ssh_probe_once "${APP_APP_HOST}"; then
-    _app_sub_ssh_ok=1
-  fi
-  if [[ "${_app_sub_ssh_ok}" -eq 1 ]]; then
-    export APP_DOMAIN="${APP_DOMAIN_APP}"
-    export CADDY_SITE_NAMES="${APP_DOMAIN_APP}"
-    wait_for_ssh_ready "${APP_APP_HOST}" || true
-    ensure_host_swap "${APP_APP_HOST}" || true
-    _deploy_app "${APP_APP_HOST}" || warn "deploy-app.sh for ${APP_DOMAIN_APP} failed"
-  else
-    warn "Cannot SSH to app subdomain host ${APP_APP_HOST} — skipping subdomain deploy"
-    warn "Ensure SSH access is configured for ${APP_APP_HOST} before deploying"
-  fi
-  unset APP_IP
-fi
 
 log "DEPLOY SUCCESS — app SSH, sync, compose, /health gates, deploy-app, and post-deploy HTTPS checks passed."
 exit 0
