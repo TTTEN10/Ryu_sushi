@@ -288,7 +288,6 @@ export function useCrisisDetection(options: UseCrisisDetectionOptions = {}) {
       // Check for false positives
       const isFP = isFalsePositive(message);
       if (isFP) {
-        console.log('Crisis detection: false positive filtered', { language, keywords });
         return {
           isCrisis: false,
           language,

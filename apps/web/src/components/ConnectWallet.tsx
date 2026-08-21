@@ -118,26 +118,20 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
 
   const handleDisconnect = async () => {
     try {
-      console.log('[ConnectWallet] handleDisconnect called');
       // Clear idle logout flag first (prevent "inactive" message on next login)
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.removeItem(WALLET_IDLE_LOGOUT_FLAG);
-        console.log('[ConnectWallet] Cleared idle logout flag from sessionStorage');
       }
       // Clear activity tracking
       clearWalletActivityTracking();
-      console.log('[ConnectWallet] Cleared wallet activity tracking');
       // Logout (skipIdleFlag: true means don't SET the idle flag, but we already cleared it)
-      console.log('[ConnectWallet] Calling logout from AuthContext...');
       await logout({ skipIdleFlag: true });
-      console.log('[ConnectWallet] logout() completed');
 
       // Add small delay to ensure cookies are fully cleared before reload
       await new Promise(resolve => setTimeout(resolve, 300));
 
       // Force reload to ensure all state is cleared
       // Note: Wallet extension may still be connected, but auth session is cleared
-      console.log('[ConnectWallet] Reloading page...');
       window.location.reload();
     } catch (err) {
       console.error('[ConnectWallet] Logout error:', err);

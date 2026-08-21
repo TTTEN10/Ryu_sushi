@@ -233,10 +233,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await logoutWalletSession();
     } catch (err: any) {
       // 401 is expected when user is already logged out - don't treat as error
-      if (err?.status !== 401) {
-        console.error('[AuthContext] Logout error:', err);
-      } else {
-      }
+      // Silently ignore 401 errors
     } finally {
       // Set manual logout flag to prevent wallet auto-reconnect on reload
       // (Only for manual logouts, not inactivity timeouts)

@@ -533,13 +533,6 @@ class AnalyticsSDK {
     getOrCreateSessionId();
 
     this.initialized = true;
-
-    if (this.config.debug) {
-      console.log('[AnalyticsSDK] Initialized', {
-        visitorId: getFromStorage(getLocalStorage(), VISITOR_ID_KEY),
-        sessionId: getFromStorage(getSessionStorage(), SESSION_ID_KEY),
-      });
-    }
   }
 
   /**
@@ -554,9 +547,6 @@ class AnalyticsSDK {
 
     try {
       this.walletHash = await hashWalletAddress(walletAddress);
-      if (this.config.debug) {
-        console.log('[AnalyticsSDK] Wallet hash set:', this.walletHash);
-      }
     } catch (error) {
       console.error('[AnalyticsSDK] Failed to hash wallet:', error);
       this.walletHash = null;
@@ -599,9 +589,6 @@ class AnalyticsSDK {
   ): Promise<void> {
     // Check consent unless forced
     if (!options?.force && !this.hasConsent()) {
-      if (this.config.debug) {
-        console.log('[AnalyticsSDK] Skipping event (no consent):', eventName);
-      }
       return;
     }
 
@@ -613,9 +600,6 @@ class AnalyticsSDK {
 
     // Check for duplicates
     if (isDuplicateEvent(eventName, sessionId)) {
-      if (this.config.debug) {
-        console.log('[AnalyticsSDK] Duplicate event skipped:', eventName);
-      }
       return;
     }
 
@@ -644,10 +628,6 @@ class AnalyticsSDK {
 
     // Mark as sent for deduplication
     markEventAsSent(eventName, sessionId);
-
-    if (this.config.debug) {
-      console.log('[AnalyticsSDK] Tracking event:', event);
-    }
 
     // Queue for sending
     queueEvent(event);

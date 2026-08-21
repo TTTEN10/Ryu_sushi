@@ -43,8 +43,6 @@ export default function App({ router }: { router: unknown }) {
     functional?: boolean
     analytics?: boolean
   }) => {
-    console.log('Cookie consent updated:', preferences)
-
     if (preferences.analytics) {
       initializeAnalytics()
       // recordLandingSession + flushProductMetricsToServer run inside updateConsent()

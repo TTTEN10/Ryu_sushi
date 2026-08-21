@@ -522,8 +522,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               return { address: addr, chainId };
             }
           } catch (wcError: any) {
-            if (wcError.message?.includes('User rejected') || wcError.code === 5001 || wcError.code === 'USER_REJECTED') {
-            } else {
+            if (!(wcError.message?.includes('User rejected') || wcError.code === 5001 || wcError.code === 'USER_REJECTED')) {
               console.error('WalletConnect error:', wcError);
             }
           }

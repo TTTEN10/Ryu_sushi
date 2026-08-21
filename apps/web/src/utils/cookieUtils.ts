@@ -25,7 +25,6 @@ export const hasConsentForCookieType = (cookieType: keyof CookiePreferences): bo
  */
 export const initializeAnalytics = () => {
   if (!hasConsentForCookieType('analytics')) {
-    console.log('Analytics disabled - user has not given consent')
     return false
   }
 
@@ -38,18 +37,15 @@ export const initializeAnalytics = () => {
  */
 export const initializeFunctionalFeatures = () => {
   if (!hasConsentForCookieType('functional')) {
-    console.log('Functional cookies disabled - using default settings')
     return false
   }
 
-  console.log('Initializing functional features...')
-  
   // Example: Load user preferences, themes, etc.
   // const savedTheme = localStorage.getItem('theme')
   // if (savedTheme) {
   //   applyTheme(savedTheme)
   // }
-  
+
   return true
 }
 
@@ -69,8 +65,6 @@ export const clearNonEssentialCookies = () => {
   cookiesToRemove.forEach(cookieName => {
     document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
   })
-
-  console.log('Cleared all non-essential cookies')
 }
 
 /**
@@ -129,14 +123,11 @@ export const isConsentValid = (maxAgeInDays: number = 365): boolean => {
  */
 export const withConsentCheck = <T>(
   cookieType: keyof CookiePreferences,
-  featureName: string,
+  _featureName: string,
   initializeFunction: () => T
 ): T | null => {
   if (hasConsentForCookieType(cookieType)) {
-    console.log(`Loading ${featureName} - user has given consent for ${cookieType} cookies`)
     return initializeFunction()
-  } else {
-    console.log(`${featureName} skipped - no consent for ${cookieType} cookies`)
-    return null
   }
+  return null
 }

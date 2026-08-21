@@ -269,19 +269,16 @@ export async function fetchWalletSession(): Promise<SessionMeResponse['data'] | 
 export async function logoutWalletSession(): Promise<void> {
   // Call backend logout (may return 401 if already logged out or token expired)
   const logoutUrl = walletAuthFetchUrl('/auth/logout');
-  console.log('[auth.service] Calling logout:', logoutUrl);
 
   // First, call backend to clear HttpOnly cookie
-  const response = await fetch(logoutUrl, {
+  await fetch(logoutUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include', // Always include cookies for logout
-  }).catch((err) => {
+  }).catch(() => {
     // Ignore errors - backend might be unreachable or return 401
     // We'll clear cookies locally anyway
-    console.warn('[auth.service] Logout fetch error (ignored):', err.message);
   });
-  console.log('[auth.service] Logout response status:', response?.status);
 
   // Clear session cookie explicitly with multiple variations to ensure it's cleared
   const cookieClearDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
@@ -298,9 +295,6 @@ export async function logoutWalletSession(): Promise<void> {
       document.cookie = `walletSession=; expires=${cookieClearDate}; path=/; domain=localhost; SameSite=Lax`;
     }
   }
-
-  // Log what we cleared for debugging
-  console.log('[auth.service] Cleared walletSession cookie for path=/ and domain=', hostname);
 }
 
 export type DidCheckResponse = {

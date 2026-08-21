@@ -806,10 +806,9 @@ export default function ChatWidget() {
         }
       }
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-      } else {
-        const errorMsg = error instanceof Error 
-          ? error.message 
+      if (error.name !== 'AbortError') {
+        const errorMsg = error instanceof Error
+          ? error.message
           : getActionableErrorMessage(error);
         
         setSendPhase('error');

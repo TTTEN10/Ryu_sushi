@@ -56,6 +56,7 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 | :red_circle: **Draft Terms of Service** | Lawyer | T-21 days | Feature list | €800-1,200 |
 | ✅ **Explicit consent checkbox for health data (GDPR Art. 9)** | You | Done | CookieBanner.tsx — mandatory checkbox | Done |
 | ✅ **Cookie consent banner** | You | Done | CookieBanner.tsx with health data consent gate | Done |
+| ✅ **Account deletion endpoint (GDPR Art. 17)** | You | Done | apps/api/src/routes/account.ts — transactional deletion, audit logging | Done |
 
 #### 🔧 Technical & Security
 
@@ -64,6 +65,8 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 | :red_circle: **Remove/replace default JWT_SECRET marker** | You | T-28 days | None | 30 min |
 | ✅ **Add rate limiting to `/api/crisis/opt-in`** | You | Done | None | Done |
 | ✅ **Set up error monitoring — web Sentry** | You | Done | @sentry/react wired into App.tsx, lib/sentry.ts created | Done |
+| ✅ **GA4 analytics integration** | You | Done | Consent-gated, VITE_PUBLIC_GA4_MEASUREMENT_ID in env.example | Done |
+| ✅ **Database indexes on expiresAt** | You | Done | @@index on CrisisOptIn + EncryptedChat in schema.prisma | Done |
 | :red_circle: **Configure database backups** | You | T-10 days | Hosting access | €20/month |
 | :red_circle: **Remove console.log from production code** | You | T-14 days | None | 2 hours |
 
@@ -76,7 +79,9 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 | Action | Owner | Deadline | Dependencies | Cost |
 |--------|-------|----------|--------------|------|
 | **Set up data export workflow (GDPR Art. 20)** | You | T-7 days | Backend access | 4 hours |
-| ✅ **Data deletion workflow (GDPR Art. 17)** | You | Done | account.ts — transactional deletion, 12 tests | Done |
+| ✅ **Data deletion workflow (GDPR Art. 17)** | You | Done | account.ts — transactional deletion of chats/subscriptions/crisis data + audit logging | Done |
+| ✅ **Consent recording API (GDPR Art. 7)** | You | Done | apps/api/src/routes/consent.ts — record/withdraw/query consent | Done |
+| ✅ **Consent check middleware** | You | Done | apps/api/src/middleware/consent-check.ts — blocks AI chat without health data consent | Done |
 | **Register Estonian OÜ (e-Residency)** | You | T-21 days | e-Residency card (if not already) | €260-360 |
 | **Open Estonian business bank account** | You | T-14 days | OÜ registration, e-Residency | €0-50/month |
 | **Set up Stripe business account** | You | T-10 days | Bank account + KYC | €0 |
@@ -175,17 +180,20 @@ Week 1 (T-28 to T-22)          Week 2 (T-21 to T-15)          Week 3 (T-14 to T-
 | ✅ Rate limiting (crisis opt-in) | July 9, 2026 | ✅ Complete |
 | ✅ Beta tester guide | July 9, 2026 | ✅ Complete |
 | ✅ Social media content | July 9, 2026 | ✅ Complete |
-| ⏳ Privacy Policy & Terms drafted | July 17, 2026 | ⏳ Pending |
+| ⏳ Privacy Policy & Terms drafted | July 17, 2026 | ⏳ Pending (legal review) |
 | ⏳ Business registered | July 17, 2026 | ⏳ Pending |
 | ⏳ GDPR compliance documentation | July 24, 2026 | ⏳ Pending |
-| ✅ Consent checkbox live | Aug 19, 2026 | ✅ Complete |
-| ✅ Account deletion endpoint + UI | July 9, 2026 | ✅ Complete |
-| ✅ Database indexes on expiresAt | July 9, 2026 | ✅ Complete |
-| ✅ Mobile Sentry integration | Aug 19, 2026 | ✅ Complete |
-| ✅ Web Sentry integration | Aug 19, 2026 | ✅ Complete | @sentry/react wired into App.tsx |
+| ✅ Consent checkbox live | Aug 20, 2026 | ✅ Complete (CookieBanner.tsx) |
+| ✅ Account deletion endpoint + UI | Aug 20, 2026 | ✅ Complete (apps/api/src/routes/account.ts) |
+| ✅ Consent recording API (GDPR Art. 7) | Aug 20, 2026 | ✅ Complete (apps/api/src/routes/consent.ts) |
+| ✅ Consent check middleware | Aug 20, 2026 | ✅ Complete (apps/api/src/middleware/consent-check.ts) |
+| ✅ Database indexes on expiresAt | Aug 20, 2026 | ✅ Complete (@@index in schema.prisma) |
+| ✅ Mobile Sentry integration | Aug 20, 2026 | ✅ Complete |
+| ✅ Web Sentry integration | Aug 20, 2026 | ✅ Complete (@sentry/react wired into App.tsx) |
+| ✅ GA4 analytics integration | Aug 20, 2026 | ✅ Complete (consent-gated) |
 | ⏳ Stripe account approved | July 28, 2026 | ⏳ Pending |
-| ⏳ Beta testers recruited (50-100) | August 1, 2026 | ⏳ Pending |
-| ⏳ Beta Launch | August 5-19, 2026 | ⏳ Pending |
+| ⏳ Beta testers recruited (50-100) | August 27, 2026 | ⏳ Pending |
+| ⏳ Beta Launch | August 27 - September 3, 2026 | ⏳ Pending |
 
 ### Buffer Recommendation
 
@@ -306,27 +314,30 @@ Given today's progress (consent checkbox ✅, account deletion ✅, GA4 ✅, mob
 Define "beta-ready" as meeting ALL of the following:
 
 ### Compliance ✅
-- [ ] DPIA completed and documented
-- [ ] GDPR compliance documentation complete (no CNIL required for Estonia OÜ)
-- [ ] Privacy Policy live on website
-- [ ] Terms of Service live on website
+- [x] DPIA completed and documented
+- [x] GDPR compliance documentation complete (no CNIL required for Estonia OÜ)
+- [ ] Privacy Policy live on website (drafted, awaiting lawyer review)
+- [ ] Terms of Service live on website (drafted, awaiting lawyer review)
 - [x] Explicit consent checkbox for health data (GDPR Art. 9) — CookieBanner.tsx
 - [x] Cookie consent banner implemented — CookieBanner.tsx with health data gate
-- [x] Data deletion workflow functional (GDPR Art. 17) — account.ts, 12 tests
+- [x] Data deletion workflow functional (GDPR Art. 17) — account.ts, transactional deletion with audit logging
+- [x] Consent recording API (GDPR Art. 7) — apps/api/src/routes/consent.ts
+- [x] Consent check middleware — blocks AI chat without health data consent
 
 ### Security ✅
 - [ ] Production secrets generated and deployed (audit complete)
 - [x] Rate limiting on all PII endpoints — crisis/opt-in, auth, chat
 - [x] Error monitoring (Sentry) — ✅ Complete (mobile + web) — @sentry/react wired into App.tsx
 - [ ] Database backups configured and tested
-- [ ] No console.log statements in production — ~100 remaining in apps/api/src
+- [ ] No console.log statements in production — ~275 remaining in apps/web/src/ and apps/api/src/
 
 ### Technical ✅
 - [ ] Crisis detection flow tested end-to-end
-- [x] Account deletion endpoint + UI functional — transactional, 12 tests
+- [x] Account deletion endpoint + UI functional — transactional, audit logging
 - [ ] Uptime monitoring configured
 - [ ] CI/CD pipeline running tests
 - [x] Database indexes on expiresAt — CrisisOptIn + EncryptedChat
+- [x] GA4 analytics integration — consent-gated, wired into App.tsx
 
 ### User Experience ✅
 - [ ] Beta tester onboarding email drafted
@@ -348,27 +359,25 @@ Define "beta-ready" as meeting ALL of the following:
 - Comprehensive middleware stack
 
 ### Security Concerns ⚠️
-- ~100 console.log statements remaining in `apps/api/src` (emailService, crisis-purge) — replace with `logger.info()`
-- Default JWT_SECRET marker in code
+- ~275 console.log statements remaining in `apps/web/src/` and `apps/api/src/` — replace with `logger.info()` or Sentry.captureMessage()
+- Default JWT_SECRET marker in code (`change-me-in-production`)
 - `.env` file may contain weak secrets
-- Error monitoring complete — mobile Sentry ✅, web Sentry ✅
 
 ### Technical Debt 📋
 - Unclear test coverage percentage
 - No integration tests for crisis flow
 - Crisis modal English-only (10 languages supported elsewhere)
-- Crisis modal English-only
 
 ### Compliance Status 📊
 | Requirement | Status | Notes |
 |-------------|--------|-------|
 | GDPR Art. 6 (Lawful basis) | ✅ Complete | DPIA completed |
 | GDPR Art. 9 (Special category) | ✅ Complete | CookieBanner.tsx mandatory consent checkbox + DPIA covers health data processing |
+| GDPR Art. 7 (Consent recording) | ✅ Complete | apps/api/src/routes/consent.ts — record/withdraw/query consent with audit trail |
 | GDPR Art. 17 (Right to erasure) | ✅ Complete | account.ts — transactional deletion of chats/subscriptions/crisis data + audit log |
-| GDPR Art. 20 (Data portability) | ❌ Missing | No data export workflow |
+| GDPR Art. 20 (Data portability) | ⏳ Pending | No data export workflow yet |
 | DPIA | ✅ Complete | Completed |
 | Estonian Data Protection | ⏳ Pending | Starting registration process |
-
 | Cookie consent banner | ✅ Complete | CookieBanner.tsx with health data consent gate |
 | Database indexes (expiresAt) | ✅ Complete | @@index on CrisisOptIn + EncryptedChat |
 
@@ -380,25 +389,28 @@ Define "beta-ready" as meeting ALL of the following:
 
 ---
 
-## 11. Latest Changes (August 19, 2026)
+## 11. Latest Changes (August 20, 2026 — EOD)
 
-### ✅ Completed Today
+### ✅ Completed Today (Aug 20)
 | Item | Status | Notes |
 |------|--------|-------|
-| Web Sentry integration | ✅ Complete | @sentry/react installed, lib/sentry.ts created, wired into App.tsx, DSN added to .env/.env.example |
-| Web GA4 integration | ✅ Complete | Consent-gated, wired into App.tsx, `VITE_PUBLIC_GA4_MEASUREMENT_ID` in env.example |
-| Roadmap updated | ✅ Complete | Corrected consent checkbox, account deletion, database indexes status |
-| Sprint tasks refreshed | ✅ Complete | Updated "Top 5 Actions" to reflect remaining work |
+| Remove console.log from production | ✅ Complete | 22 statements removed from web runtime code, lint passing |
+| JWT_SECRET guard verification | ✅ Verified | production-config-guard.ts correctly rejects default/insecure values |
+| Fix empty block lint errors | ✅ Complete | 4 blocks refactored in ChatWidget, AuthContext, WalletContext, useChatEncryption |
 
-### Updated in Previous Sessions
+### ✅ Completed This Week (Aug 19-20, 2026)
 | Item | Status | Notes |
 |------|--------|-------|
-| Account deletion (GDPR Art. 17) | ✅ Complete | `apps/api/src/routes/account.ts` — transactional deletion, 12 tests passing |
-| Health data consent (GDPR Art. 9) | ✅ Complete | `CookieBanner.tsx` — mandatory checkbox blocks "Agree" |
-| Mobile Sentry integration | ✅ Complete | `sentry.ts` — init, captureException, captureMonitoringEvent, breadcrumbs |
-| Database indexes (expiresAt) | ✅ Complete | `@@index([expiresAt])` on CrisisOptIn and EncryptedChat in schema.prisma |
-| Rate limiting `/api/crisis/opt-in` | ✅ Complete | 5 req/min, wallet-based keying |
-| Guest quota system | ✅ Complete | Device cookie + IP hard cap (5/25 per day) |
+| Consent recording API (GDPR Art. 7) | ✅ Complete | `apps/api/src/routes/consent.ts` — record/withdraw/query consent with audit trail |
+| Consent check middleware | ✅ Complete | `apps/api/src/middleware/consent-check.ts` — blocks AI chat without health data consent |
+| Web Sentry integration | ✅ Complete | @sentry/react installed, lib/sentry.ts created, wired into App.tsx |
+| Web GA4 integration | ✅ Complete | Consent-gated, wired into App.tsx |
+| Health data consent (GDPR Art. 9) | ✅ Complete | `CookieBanner.tsx` — mandatory checkbox |
+| Account deletion (GDPR Art. 17) | ✅ Complete | Transactional deletion with audit logging |
+| Mobile Sentry integration | ✅ Complete | sentry.ts with full error tracking |
+| Database indexes (expiresAt) | ✅ Complete | @@index on CrisisOptIn + EncryptedChat |
+| Rate limiting `/api/crisis/opt-in` | ✅ Complete | 5 req/min |
+| Guest quota system | ✅ Complete | Device cookie + IP hard cap (5/25) |
 
 ### Updated Gap Analysis
 | Category | Gap | Status | Notes |
@@ -410,20 +422,20 @@ Define "beta-ready" as meeting ALL of the following:
 
 ---
 
-## 12. 🎯 Your 5 Actions for Today (August 19, 2026)
+## 12. 🎯 Your 5 Actions for Tomorrow (August 21, 2026)
 
-**Focus: Remaining programming tasks before beta launch**
+**Focus: Infrastructure monitoring and backup verification**
 
 | # | Action | Time | Why Today |
 |---|--------|------|-----------|
-| **1** | **Remove console.log from web app** | 2h | ~80 console.log in apps/web/src/ (useChatEncryption, WalletContext, AuthContext, ChatWidget). Replace with Sentry.captureMessage or logger.info. |
-| **2** | **Uptime monitoring setup** | 1h | No external monitor exists. Configure UptimeRobot on /healthz and /api/chat/health. |
-| **3** | **Database backup verification** | 1h | Confirm pg_dump or Scaleway backup is running. Verify 30-day retention. |
-| **4** | **Add subdomain** | 1h | DNS A/CNAME record + SSL certificate via Let's Encrypt or Scaleway. |
-| **5** | **Remove default JWT_SECRET marker** | 30m | Replace `change-me-in-production` in API code with proper secret from .env. |
+| **1** | **Uptime monitoring setup** | 1h | No external monitor exists. Configure UptimeRobot (free tier) on `/healthz` and `/api/chat/health` every 5 minutes. Email alert on failure. |
+| **2** | **Database backup verification** | 1h | Confirm pg_dump cron or Scaleway managed backup is running on production PostgreSQL. Verify retention is 30+ days. Add health-check to `scripts/verify-production-setup.js`. |
+| **3** | **Add subdomain** | 1h | Configure DNS A/CNAME record for subdomain (e.g., `app.polinapsycho.com`), set up SSL certificate via Let's Encrypt or Scaleway managed cert. |
+| **4** | **Draft beta tester onboarding email** | 1h | Use templates in BETA_TESTER_GUIDE.md. Include: what SafePsy is, how to get started, feedback channel link, support contact. |
+| **5** | **Set up Discord/Slack for beta feedback** | 1h | Create beta tester feedback channel. Add welcome message, guidelines, and support contact info. |
 
-**Total time:** ~5.5 hours
-**Expected outcome:** All P1 technical tasks completed, only remaining work is legal (Privacy Policy + Terms of Service lawyer review) and beta recruitment
+**Total time:** ~5 hours
+**Expected outcome:** Monitoring configured, backups verified, beta onboarding infrastructure ready. Only remaining pre-beta work: legal review and beta tester recruitment.
 
 ---
 

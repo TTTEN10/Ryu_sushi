@@ -96,10 +96,9 @@ export function useChatEncryption() {
             setSymmetricKey(decryptedKey);
             setEncryptedKey(fromChain);
             return;
-          } else {
           }
         } catch (err) {
-          console.warn('Could not read encrypted key metadata from DID contract:', err);
+          // Silently ignore - will fall back to localStorage
         }
       }
 
