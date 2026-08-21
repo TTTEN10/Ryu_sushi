@@ -141,14 +141,17 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | P1 | Configure Scaleway Instance Block Volume snapshots (scheduled, coarser backup) | 1 hour | ⏳ Pending |
 | P1 | Uptime monitoring setup | 1 hour | ⏳ Pending — UptimeRobot on /healthz |
 | P1 | Add subdomain (DNS config, SSL) | 1 hour | ✅ Done — `app.polinapsycho.com` → A record `51.159.165.150`; Caddy handles TLS via ACME; deploy pipeline supports multi-host deployment |
+| P1 | Beta welcome packet | 2 hours | ✅ Done — ready for distribution to beta testers |
+| P2 | Manual testing suite execution | 4 hours | ⏳ Pending — 57 test cases covering auth, chat, GDPR, subscriptions, mobile |
 
 ### Beta Sprint Goals (August 20-27, 2026)
 
 1. **Verify P0 compliance items** — ✅ All complete: Consent checkbox, Account deletion, Cookie banner, Consent API (Art. 7), Consent middleware
-2. **Code quality** — ✅ console.log removed from production, ✅ JWT_SECRET guard verified, ⏳ Uptime monitoring, ⏳ Backups verification
+2. **Code quality** — ✅ console.log removed, ✅ JWT_SECRET guard verified, ⏳ Uptime monitoring, ⏳ Backups verification
 3. **Integrate analytics** — ✅ GA4 for activation tracking (consent-gated)
-4. **Prepare beta onboarding** — Email flows, Discord server, landing page
-5. **Recruit first 10 beta testers** — Manual onboarding, observe friction
+4. **Beta onboarding** — ✅ Welcome packet done, ✅ Subdomain configured, ⏳ Discord/Slack setup
+5. **Manual testing** — ⏳ 57 test cases covering: auth, DID, chat, GDPR, subscriptions, mobile, error handling, production health
+6. **Recruit first 10 beta testers** — Manual onboarding, observe friction
 
 ---
 
