@@ -18,11 +18,12 @@
 | Production verification | ✅ Complete | DNS, HTTPS, health, chat, models, POST chat-completions all passing |
 
 ### 📊 Deployment Stats
-- **Server:** 151.115.151.231 (polinapsycho.com)
-- **Containers:** 6 running (backend, frontend, node-api, caddy, postgres, redis)
+- **Server:** 151.115.151.231 (polinapsycho.com) + 51.159.165.150 (app.polinapsycho.com)
+- **Containers:** 12 running (6 on main host: backend, frontend, node-api, caddy, postgres, redis; 6 on app subdomain: frontend, node-api, caddy, backend, postgres, redis)
 - **LLM:** Scaleway direct (`mistral-small-3.2-24b-instruct-2506`)
+- **App URL:** `app.polinapsycho.com/beta` (SPA at /beta path prefix)
 - **Disk cleanup:** Freed 4GB before deploy (was 89% full, now 64%)
-- **Verification:** All 8 production checks passed
+- **Verification:** All 8+ production checks passed
 
 ---
 
@@ -96,6 +97,7 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
    - **✅ DEPLOYED (July 9, 2026):** `./deployment/deploy-live-app.sh` succeeded — all 8 verification checks passed
    - **Runbook (validated May 2026):** **`documentation/private documentation/DEPLOY-RUNBOOK.md`** — scw-last-app **`151.115.151.231`**, polinapsycho.com, Scaleway direct (no legacy chatbot VM).
    - **Default prod command:** **`./deployment/deploy-live-app.sh`** (loads repo `.env`, sets `USE_SCALEWAY_DIRECT=1`, deploys Caddy + Vite SPA + Python proxy). Requires **`SCALEWAY_API_KEY`** in `.env`.
+   - **App subdomain:** `deploy.sh` now auto-deploys to `APP_APP_HOST` (51.159.165.150) for `app.polinapsycho.com` with Caddy site block handling TLS + `/beta` prefix strip. Caddyfile: `${APP_DOMAIN_APP} { ... }` block with `handle_path /beta/*` rewrite.
    - **Full pipeline:** **`./deployment/deploy.sh`** when Terraform apply is needed; use **`USE_SCALEWAY_DIRECT=1`**, **`APP_HOST=151.115.151.231`**, **`CHATBOT_HOST=151.115.151.231`**, **`DEPLOY_SKIP_TERRAFORM=1`** on resume.
    - **Local parity:** **`npm run deploy:local`** → **`deployment/deploy-local-app.sh`** (http://localhost:9080).
    - **Failures:** **`documentation/private documentation/deploy-issue.md`**. Post-deploy: **`CHECK_LLM=1 USE_SCALEWAY_DIRECT=1 ./deployment/verify-production.sh`**.
@@ -114,8 +116,8 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 
 | System | Status | Notes |
 |--------|--------|-------|
-| Production | ✅ Live | `https://polinapsycho.com` — all HTTPS checks passed |
-| Containers | ✅ 6/6 running | backend, frontend, node-api, caddy, postgres, redis |
+| Production | ✅ Live | `https://polinapsycho.com` (landing) + `https://app.polinapsycho.com/beta` (chat SPA) — all HTTPS checks passed |
+| Containers | ✅ 12/12 running | 6 on main (151.115.151.231): backend, frontend, node-api, caddy, postgres, redis; 6 on app subdomain (51.159.165.150): frontend, node-api, caddy, backend, postgres, redis |
 | LLM | ✅ Scaleway direct | `mistral-small-3.2-24b-instruct-2506` |
 | Rate limiting | ✅ Complete | `/api/crisis/opt-in` at 5 req/min |
 | Guest quota | ✅ Complete | Device cookie + IP hard cap (5/25 per day) |
@@ -138,7 +140,7 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | P1 | Database backups verification | 2 hours | ⏳ Pending — confirm pg_dump/Scaleway backup active |
 | P1 | Configure Scaleway Instance Block Volume snapshots (scheduled, coarser backup) | 1 hour | ⏳ Pending |
 | P1 | Uptime monitoring setup | 1 hour | ⏳ Pending — UptimeRobot on /healthz |
-| P1 | Add subdomain (DNS config, SSL) | 1 hour | ⏳ Pending — DNS access required |
+| P1 | Add subdomain (DNS config, SSL) | 1 hour | ✅ Done — `app.polinapsycho.com` → A record `51.159.165.150`; Caddy handles TLS via ACME; deploy pipeline supports multi-host deployment |
 
 ### Beta Sprint Goals (August 20-27, 2026)
 

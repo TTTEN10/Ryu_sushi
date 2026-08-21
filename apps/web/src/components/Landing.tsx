@@ -44,7 +44,7 @@ export default function Landing() {
                 </p>
               </div>
               <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                <Link to="/beta/chat" className="btn-try-beta" aria-label="Try the SafePsy beta chat">
+                <Link to="/beta" className="btn-try-beta" aria-label="Try the SafePsy beta chat">
                   Try beta
                   <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
                 </Link>
@@ -92,7 +92,7 @@ export default function Landing() {
       </main>
       <div className="fixed bottom-4 right-4 z-40">
         <Link
-          to="/beta/chat"
+          to="/beta"
           className="btn-try-beta"
           aria-label="Try the SafePsy beta chat"
         >

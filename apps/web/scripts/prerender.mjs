@@ -40,7 +40,7 @@ function loadRoutes() {
     '/',
     '/explore',
     '/register',
-    '/beta/chat',
+    '/beta',
     '/sap-policy',
     '/contact-us',
     '/support',

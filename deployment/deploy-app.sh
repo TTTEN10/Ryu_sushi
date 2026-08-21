@@ -672,6 +672,72 @@ ${CADDY_SITE_NAMES} {
   reverse_proxy /* frontend:3000
 }
 
+# App subdomain (SPA at /beta, API routes proxied to same Docker services)
+${APP_DOMAIN_APP} {
+  encode gzip
+  handle /beta/chat/completions* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/auth/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/did/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/save {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/load* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/summary {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/export {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/concurrency {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/quota {
+    reverse_proxy node-api:3001
+  }
+  handle /api/chat/completions {
+    reverse_proxy node-api:3001
+  }
+  handle /api/subscription/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/payment/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/admin/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/rag/* {
+    reverse_proxy node-api:3001
+  }
+  handle /metrics {
+    reverse_proxy node-api:3001
+  }
+  handle /api/analytics/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/metrics/* {
+    reverse_proxy node-api:3001
+  }
+  handle_path /api/* {
+    reverse_proxy backend:5000
+  }
+  handle_path /beta/* {
+    rewrite * /beta{uri}
+  }
+  handle_path /beta {
+    rewrite * /beta/index.html
+  }
+  reverse_proxy /* frontend:3000
+}
+
 # Plain HTTP for direct-IP access only (no public cert for raw IPs — avoids breaking :443 for real domains)
 http://${APP_IP} {
   encode gzip

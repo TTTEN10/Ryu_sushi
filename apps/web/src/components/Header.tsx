@@ -10,7 +10,7 @@ import { useSubscriptionTerminal } from '../contexts/SubscriptionTerminalContext
 const Header: React.FC = () => {
   const { pathname } = useLocation()
   const showTryBeta = pathname === '/'
-  const isBetaChat = pathname === '/beta/chat'
+  const isBetaChat = pathname === '/beta'
   const {
     showSubscriptionTerminal,
     subscriptionTerminalForced,
@@ -33,7 +33,7 @@ const Header: React.FC = () => {
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 justify-end">
           {/* Primary action (desktop & mobile) */}
           {showTryBeta ? (
-            <Link to="/beta/chat" className="btn-try-beta" aria-label="Try the SafePsy beta chat">
+            <Link to="/beta" className="btn-try-beta" aria-label="Try the SafePsy beta chat">
               Try beta
               <ArrowRight className="w-5 h-5 shrink-0" aria-hidden="true" />
             </Link>

@@ -2,7 +2,7 @@
 User-agent: *
 Allow: /
 Disallow: /chat
-Disallow: /beta/chat
+Disallow: /beta
 Disallow: /app/
 Disallow: /500
 Disallow: /maintenance

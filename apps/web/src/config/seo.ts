@@ -142,19 +142,19 @@ export const seoConfig: Record<string, SEOConfig> = {
     twitterCard: 'summary',
     canonical: `${baseUrl}/register`,
   },
-  '/beta/chat': {
+  '/beta': {
     title: 'AI Chat - SafePsy | Privacy-First Mental Wellness Support',
     description: 'Secure, encrypted AI chat for reflection and between-session support. Chat is encrypted at rest; each AI request sends message content over HTTPS. Not medical advice.',
     keywords: 'AI chat, mental wellness support, reflection, privacy-first, encrypted chat, between-session support',
     ogTitle: 'AI Chat - SafePsy',
     ogDescription: 'Secure, encrypted AI chat with privacy-first design. Data encrypted at rest and in transit.',
     ogImage: defaultImage,
-    ogUrl: `${baseUrl}/beta/chat`,
+    ogUrl: `${baseUrl}/beta`,
     twitterTitle: 'AI Chat - SafePsy',
     twitterDescription: 'Secure, encrypted AI chat with privacy-first design. Data encrypted at rest and in transit.',
     twitterImage: defaultImage,
     twitterCard: 'summary_large_image',
-    canonical: `${baseUrl}/beta/chat`,
+    canonical: `${baseUrl}/beta`,
   },
   '/app/about-me': {
     title: 'My ID token - SafePsy | Identity & Chat Data',

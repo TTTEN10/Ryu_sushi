@@ -21,6 +21,7 @@ set -euo pipefail
 VERIFY_LOCAL="${VERIFY_LOCAL:-0}"
 LOCAL_HTTP_PORT="${LOCAL_HTTP_PORT:-9080}"
 APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
+APP_DOMAIN_APP="${APP_DOMAIN_APP:-app.polinapsycho.com}"
 APP_IP="${APP_IP:-151.115.151.231}"
 LOCAL_BASE_URL="http://127.0.0.1:${LOCAL_HTTP_PORT}"
 TIMEOUT="${TIMEOUT:-15}"
@@ -253,6 +254,12 @@ if [[ "$CHECK_LLM" == "1" ]]; then
     rm -f "${stream_tmp}"
   fi
 fi
+
+# App subdomain checks (app.polinapsycho.com/beta)
+echo "Verifying app subdomain: $APP_DOMAIN_APP"
+check_http_code "App subdomain Homepage HTTPS" "https://${APP_DOMAIN_APP}/beta" "200"
+check_http_code "App subdomain API health" "https://${APP_DOMAIN_APP}/api/healthz" "200"
+check_http_code "App subdomain Subscription plans" "https://${APP_DOMAIN_APP}/api/subscription/plans" "200"
 
 echo
 if [[ "$fail" -eq 0 ]]; then

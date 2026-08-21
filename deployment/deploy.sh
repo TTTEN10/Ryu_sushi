@@ -37,9 +37,11 @@ DEPLOY_JSONL="${DEPLOY_LOG_DIR}/deploy.jsonl"
 DEBUG_NDJSON="${DEPLOY_LOG_DIR}/debug-fcc1a0.log"
 
 APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
+APP_DOMAIN_APP="${APP_DOMAIN_APP:-app.polinapsycho.com}"
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
 CHATBOT_HOST="${CHATBOT_HOST:-151.115.151.231}"
 APP_HOST="${APP_HOST:-151.115.151.231}"
+APP_APP_HOST="${APP_APP_HOST:-51.159.160.246}"
 REMOTE_BASE="${REMOTE_BASE:-/opt/safepsy}"
 SSH_KEY="${SSH_KEY:-}"
 SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-12}"
@@ -493,28 +495,57 @@ if [[ "${SSH_BOOT_WAIT_SEC:-0}" -gt 0 ]]; then
 fi
 ssh_probe "app" "${APP_HOST}" || die "Cannot deploy: app host SSH failed."
 
+
+_deploy_app() {
+  export APP_DOMAIN
+  export CADDY_SITE_NAMES
+  export APP_IP="${APP_HOST}"
+  export SKIP_VLLM_DEPLOY=1
+  export USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT}"
+  export SKIP_CHATBOT_DEPLOY=1
+  export SCALEWAY_API_KEY SCALEWAY_PROJECT_ID SCALEWAY_MODEL SCALEWAY_API_BASE_URL
+  export MODEL_API_URL_FOR_COMPOSE=""
+  export MODEL_API_URL_ALT_FOR_COMPOSE=""
+  export SINGLE_HOST=1
+  export API_IP="${APP_HOST}"
+  export ALLOW_DEGRADED_CHATBOT
+  export DEPLOY_FRESH_CONTAINERS="${DEPLOY_FRESH_CONTAINERS:-0}"
+  log_event "exec_deploy_app" "{\"SINGLE_HOST\":1,\"USE_SCALEWAY_DIRECT\":\"${USE_SCALEWAY_DIRECT}\",\"DEPLOY_FRESH_CONTAINERS\":\"${DEPLOY_FRESH_CONTAINERS}\",\"host\":\"${APP_HOST}\"}"
+  export OUTBOUND_IP
+  export SSH_BOOT_WAIT_SEC="${SSH_BOOT_WAIT_SEC:-180}"
+  local target="${1:-${APP_HOST}}"
+  APP_IP="${target}"
+  "${SCRIPT_DIR}/deploy-app.sh" "$@" || return $?
+  return 0
+}
+
 log "STEP 3 — App stack (deploy-app.sh, Scaleway Generative API direct)"
 wait_for_ssh_ready "${APP_HOST}" || warn "SSH wait before deploy-app exhausted; deploy-app will retry"
 ensure_host_swap "${APP_HOST}" || true
-export APP_DOMAIN
-export CADDY_SITE_NAMES
-export APP_IP="${APP_HOST}"
-export SKIP_VLLM_DEPLOY=1
-export USE_SCALEWAY_DIRECT="${USE_SCALEWAY_DIRECT}"
-export SKIP_CHATBOT_DEPLOY=1
-export SCALEWAY_API_KEY SCALEWAY_PROJECT_ID SCALEWAY_MODEL SCALEWAY_API_BASE_URL
-export MODEL_API_URL_FOR_COMPOSE=""
-export MODEL_API_URL_ALT_FOR_COMPOSE=""
-export SINGLE_HOST=1
-export API_IP="${APP_HOST}"
-export ALLOW_DEGRADED_CHATBOT
-export DEPLOY_FRESH_CONTAINERS="${DEPLOY_FRESH_CONTAINERS:-0}"
-log_event "exec_deploy_app" "{\"SINGLE_HOST\":1,\"USE_SCALEWAY_DIRECT\":\"${USE_SCALEWAY_DIRECT}\",\"DEPLOY_FRESH_CONTAINERS\":\"${DEPLOY_FRESH_CONTAINERS}\"}"
-export OUTBOUND_IP
-export SSH_BOOT_WAIT_SEC="${SSH_BOOT_WAIT_SEC:-180}"
-_deploy_app_rc=0
-"${SCRIPT_DIR}/deploy-app.sh" "$@" || _deploy_app_rc=$?
-[[ "${_deploy_app_rc}" -eq 0 ]] || die "deploy-app.sh failed — app stack not fully updated (inspect SSH host ${APP_HOST})"
+_deploy_app || die "deploy-app.sh failed — app stack not fully updated (inspect SSH host ${APP_HOST})"
 post_deploy_verify
+
+log "STEP 3b — App subdomain stack (${APP_DOMAIN_APP} → ${APP_APP_HOST})"
+if [[ -n "${APP_APP_HOST:-}" && "${APP_APP_HOST}" != "${APP_HOST}" ]]; then
+  if [[ "${SSH_BOOT_WAIT_SEC:-0}" -gt 0 ]]; then
+    wait_for_ssh_ready "${APP_APP_HOST}" || warn "SSH wait for app subdomain host failed; proceeding"
+  fi
+  _app_sub_ssh_ok=0
+  if retry _ssh_probe_once "${APP_APP_HOST}"; then
+    _app_sub_ssh_ok=1
+  fi
+  if [[ "${_app_sub_ssh_ok}" -eq 1 ]]; then
+    export APP_DOMAIN="${APP_DOMAIN_APP}"
+    export CADDY_SITE_NAMES="${APP_DOMAIN_APP}"
+    wait_for_ssh_ready "${APP_APP_HOST}" || true
+    ensure_host_swap "${APP_APP_HOST}" || true
+    _deploy_app "${APP_APP_HOST}" || warn "deploy-app.sh for ${APP_DOMAIN_APP} failed"
+  else
+    warn "Cannot SSH to app subdomain host ${APP_APP_HOST} — skipping subdomain deploy"
+    warn "Ensure SSH access is configured for ${APP_APP_HOST} before deploying"
+  fi
+  unset APP_IP
+fi
+
 log "DEPLOY SUCCESS — app SSH, sync, compose, /health gates, deploy-app, and post-deploy HTTPS checks passed."
 exit 0

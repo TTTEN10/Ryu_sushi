@@ -56,7 +56,7 @@ export const routes: RouteObject[] = [
     ),
   },
   {
-    path: '/beta/chat',
+    path: '/beta',
     element: (
       <RouteWithSEO>
         <Testing />
