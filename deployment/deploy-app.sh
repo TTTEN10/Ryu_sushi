@@ -640,13 +640,11 @@ EOF
 ${CADDY_SITE_NAMES} {
   encode gzip
 
-  # Beta app at /beta/ path - strip prefix and serve from frontend:3000
-  handle /beta/* {
-    uri strip_prefix /beta
+  # Beta app at /beta/ path - handle_path automatically strips prefix
+  handle_path /beta/* {
     reverse_proxy frontend:3000
   }
-  handle /beta {
-    uri rewrite /index.html
+  handle_path /beta {
     reverse_proxy frontend:3000
   }
 
