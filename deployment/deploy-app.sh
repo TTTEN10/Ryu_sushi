@@ -640,11 +640,13 @@ EOF
 ${CADDY_SITE_NAMES} {
   encode gzip
 
-  # Beta app at /beta/ path - serve from frontend:3000 (beta build)
+  # Beta app at /beta/ path - strip prefix and serve from frontend:3000
   handle /beta/* {
+    uri strip_prefix /beta
     reverse_proxy frontend:3000
   }
   handle /beta {
+    uri rewrite /index.html
     reverse_proxy frontend:3000
   }
 
@@ -705,6 +707,10 @@ ${CADDY_SITE_NAMES} {
   }
 
   # Default: serve frontend (beta app for now)
+  # /chat redirects to /beta/chat for the main domain
+  handle /chat {
+    redir /beta/chat permanent
+  }
   reverse_proxy /* frontend:3000
 }
 
@@ -766,6 +772,10 @@ ${APP_DOMAIN_APP} {
   }
 
   # Serve app frontend at root
+  # /chat routes directly to the app (no prefix needed on app subdomain)
+  handle /chat {
+    reverse_proxy frontend:3001
+  }
   reverse_proxy /* frontend:3001
 }
 

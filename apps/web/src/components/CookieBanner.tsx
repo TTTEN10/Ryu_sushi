@@ -221,18 +221,15 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                 </label>
 
                 {/* Health data consent checkbox (mandatory) */}
-                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border-2 border-red-300 dark:border-red-800 bg-red-50/60 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-white/5 transition-colors">
                   <input
                     type="checkbox"
                     checked={consentHealthData}
                     onChange={(e) => setConsentHealthData(e.target.checked)}
-                    className="mt-1 w-5 h-5 rounded border-neutral-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                    className="mt-1 w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                   />
                   <div>
-                    <span className="text-sm font-medium text-heading flex items-center gap-1.5">
-                      <HeartPulse className="w-4 h-4 text-red-500" />
-                      Health Data Processing (GDPR Art. 9)
-                    </span>
+                    <span className="text-sm font-medium text-heading">Health Data Processing (GDPR Art. 9)</span>
                     <span className="block text-xs text-body mt-0.5">
                       I expressly consent to the processing of health-related information I voluntarily provide, solely for generating AI-powered reflection responses.{' '}
                       <a
@@ -246,7 +243,7 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                       </a>
                     </span>
                     {!canProceed && (
-                      <span className="block text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+                      <span className="block text-xs text-amber-600 dark:text-amber-400 mt-1 font-medium">
                         Required to use this platform
                       </span>
                     )}
@@ -363,12 +360,12 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
             </div>
 
             {/* Health Data Consent (GDPR Art. 9) — MANDATORY in customize */}
-            <div className="border-2 border-red-300 dark:border-red-800 rounded-xl p-4 bg-red-50 dark:bg-red-900/10">
+            <div className="border rounded-xl p-4 bg-neutral-50 dark:bg-neutral-800/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-start gap-3">
-                  <HeartPulse className="w-5 h-5 text-red-600 dark:text-red-400 mt-1 flex-shrink-0" />
+                  <HeartPulse className="w-5 h-5 text-neutral-600 dark:text-neutral-400 mt-1 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-heading flex items-center gap-1.5">
+                    <h4 className="font-semibold text-heading">
                       Health Data Processing (GDPR Art. 9)
                     </h4>
                     <p className="text-sm text-body mt-0.5">
@@ -384,7 +381,7 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                       </a>
                     </p>
                     {!canProceed && (
-                      <span className="block text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+                      <span className="block text-xs text-amber-600 dark:text-amber-400 mt-1 font-medium">
                         Required to use this platform
                       </span>
                     )}
@@ -393,7 +390,7 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
                 <button
                   onClick={() => setConsentHealthData(!consentHealthData)}
                   className={`w-12 h-6 rounded-full flex items-center transition-all duration-300 ${
-                    consentHealthData ? 'bg-red-600 justify-end' : 'bg-neutral-300 dark:bg-gray-600 justify-start'
+                    consentHealthData ? 'bg-primary-600 justify-end' : 'bg-neutral-300 dark:bg-gray-600 justify-start'
                   }`}
                 >
                   <div className="w-4 h-4 bg-white rounded-full mx-1 transition-transform duration-300"></div>
