@@ -50,22 +50,22 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 z-50"
+      className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-2 z-50"
       role="alertdialog"
       aria-labelledby="cookie-consent-title"
       aria-describedby="cookie-consent-description"
     >
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div className="flex-1">
           <h2
             id="cookie-consent-title"
-            className="text-lg font-semibold mb-2"
+            className="text-sm font-semibold mb-1"
           >
             We value your privacy
           </h2>
           <p
             id="cookie-consent-description"
-            className="text-sm text-gray-300"
+            className="text-xs text-gray-300"
           >
             We use anonymous analytics to understand how our platform is used
             and improve your experience. No personal data is stored. Your wallet
@@ -82,10 +82,10 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={handleDecline}
-            className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors"
+            className="px-3 py-1 text-xs font-medium text-gray-300 hover:text-white border border-gray-600 rounded hover:border-gray-500 transition-colors"
             aria-label="Decline analytics cookies"
           >
             Decline
@@ -93,7 +93,7 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
 
           <button
             onClick={handleAccept}
-            className="px-4 py-2 text-sm font-medium text-gray-900 bg-white rounded-md hover:bg-gray-100 transition-colors"
+            className="px-3 py-1 text-xs font-medium text-gray-900 bg-white rounded hover:bg-gray-100 transition-colors"
             aria-label="Accept analytics cookies"
           >
             Accept

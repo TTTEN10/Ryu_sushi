@@ -49,6 +49,12 @@ Documentation for users, contributors, and external audiences.
 | [CHANGELOG.md](./CHANGELOG.md) | Changelog |
 | [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) | Third-party notices |
 
+## Roadmap
+
+| Document | Description |
+|----------|-------------|
+| [ROADMAP-EMAIL.md](./ROADMAP-EMAIL.md) | Professional email setup (`contact@safepsy.com`) |
+
 ---
 
 For deployment, runbooks, infrastructure, and internal guides, see **[private documentation](../private%20documentation/)**.

@@ -11,17 +11,17 @@ const Cookies: React.FC = () => {
 
       {/* Main Content */}
       <main id="main-content" className="flex-1" role="main" aria-label="Cookie Policy" tabIndex={-1}>
-        <section className="section-padding py-8 lg:py-12">
+        <section className="section-padding py-4 lg:py-6">
           <div className="container-max">
             {/* Hero Section */}
-            <div className="text-center mb-16">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl text-heading leading-tight mb-6">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl text-heading leading-tight mb-4">
                 <span className="text-[1.08em]">Cookie</span>{' '}
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent text-[1.2em] font-bold">
                   Policy
                 </span>
               </h1>
-              <p className="text-xl text-body leading-relaxed max-w-3xl mx-auto">
+              <p className="text-lg text-body leading-relaxed max-w-3xl mx-auto">
                 SafePsy (OÜ) uses only essential cookies by default. Analytics and functional cookies require your explicit consent. You may withdraw consent at any time. This policy complies with the GDPR and the ePrivacy Directive.
               </p>
               <p className="text-sm text-body mt-4 opacity-75">
@@ -30,8 +30,8 @@ const Cookies: React.FC = () => {
             </div>
 
             {/* What Are Cookies */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
-              <h2 className="text-3xl lg:text-4xl text-heading mb-8 text-center">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 lg:p-8 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-8">
+              <h2 className="text-2xl lg:text-3xl text-heading mb-4 text-center">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                   What Are Cookies?
                 </span>
@@ -40,13 +40,13 @@ const Cookies: React.FC = () => {
                 <p className="text-lg text-body leading-relaxed text-center max-w-4xl mx-auto">
                   Cookies are small text files stored on your device. SafePsy uses cookies only with your consent (except where strictly necessary for the service to function). We do not sell or share any cookie data with third parties for advertising purposes.
                 </p>
-                <div className="grid md:grid-cols-3 gap-8">
-                  <div className="space-y-4 text-center">
-                    <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200">
-                      <Cookie className="w-8 h-8 text-primary-600" />
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="space-y-3 text-center">
+                    <div className="w-12 h-12 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200">
+                      <Cookie className="w-6 h-6 text-primary-600" />
                     </div>
-                    <h3 className="text-xl text-heading">Small Files</h3>
-                    <p className="text-body">
+                    <h3 className="text-base text-heading">Small Files</h3>
+                    <p className="text-sm text-body">
                       Tiny text files stored on your device to remember your preferences
                     </p>
                   </div>
@@ -55,8 +55,8 @@ const Cookies: React.FC = () => {
                     <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200">
                       <Settings className="w-8 h-8 text-secondary-600" />
                     </div>
-                    <h3 className="text-xl text-heading">User Experience</h3>
-                    <p className="text-body">
+                    <h3 className="text-base text-heading">User Experience</h3>
+                    <p className="text-sm text-body">
                       Help personalize your experience and remember your settings
                     </p>
                   </div>
@@ -65,8 +65,8 @@ const Cookies: React.FC = () => {
                     <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200">
                       <Shield className="w-8 h-8 text-accent-600" />
                     </div>
-                    <h3 className="text-xl text-heading">Privacy Safe</h3>
-                    <p className="text-body">
+                    <h3 className="text-base text-heading">Privacy Safe</h3>
+                    <p className="text-sm text-body">
                       Used responsibly with your privacy and security in mind
                     </p>
                   </div>
@@ -75,21 +75,21 @@ const Cookies: React.FC = () => {
             </div>
 
             {/* GDPR Cookie Table */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
-              <h2 className="text-3xl lg:text-4xl text-heading mb-4 text-center">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 lg:p-8 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-8">
+              <h2 className="text-2xl lg:text-3xl text-heading mb-4 text-center">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                   Detailed Cookie Inventory
                 </span>
               </h2>
-              <p className="text-center text-body mb-10 max-w-3xl mx-auto">
+              <p className="text-center text-body mb-6 max-w-3xl mx-auto">
                 Every cookie set by SafePsy, classified by purpose, legal basis, and consent requirement under the GDPR and ePrivacy Directive.
               </p>
 
               {/* Essential Cookies */}
               <div className="mb-8">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <CheckCircle className="w-6 h-6 text-green-600" />
-                  <h3 className="text-2xl text-heading">Essential Cookies</h3>
+                  <h3 className="text-xl text-heading">Essential Cookies</h3>
                   <span className="ml-auto text-sm font-semibold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full">No consent required</span>
                 </div>
                 <p className="text-body mb-6">
@@ -150,9 +150,9 @@ const Cookies: React.FC = () => {
 
               {/* Analytics Cookies */}
               <div className="mb-8">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <Eye className="w-6 h-6 text-purple-600" />
-                  <h3 className="text-2xl text-heading">Analytics Cookies</h3>
+                  <h3 className="text-xl text-heading">Analytics Cookies</h3>
                   <span className="ml-auto text-sm font-semibold text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded-full">Consent required</span>
                 </div>
                 <p className="text-body mb-6">
@@ -213,9 +213,9 @@ const Cookies: React.FC = () => {
 
               {/* Third-Party Analytics */}
               <div>
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <ExternalLink className="w-6 h-6 text-blue-600" />
-                  <h3 className="text-2xl text-heading">Third-Party Analytics (Conditional)</h3>
+                  <h3 className="text-xl text-heading">Third-Party Analytics (Conditional)</h3>
                   <span className="ml-auto text-sm font-semibold text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-full">Consent required</span>
                 </div>
                 <p className="text-body mb-6">
@@ -252,15 +252,15 @@ const Cookies: React.FC = () => {
             </div>
 
             {/* How We Protect Your Data */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
-              <h2 className="text-3xl lg:text-4xl text-heading mb-8 text-center">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 lg:p-8 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-8">
+              <h2 className="text-2xl lg:text-3xl text-heading mb-4 text-center">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                   How We Protect Your Data
                 </span>
               </h2>
-              <div className="grid md:grid-cols-2 gap-8">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-6">
-                  <h3 className="text-2xl text-heading">Data Protection Measures</h3>
+                  <h3 className="text-xl text-heading">Data Protection Measures</h3>
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
                       <Shield className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
@@ -287,7 +287,7 @@ const Cookies: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                  <h3 className="text-2xl text-heading">Your Rights Under the GDPR</h3>
+                  <h3 className="text-xl text-heading">Your Rights Under the GDPR</h3>
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
                       <CheckCircle className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
@@ -316,8 +316,8 @@ const Cookies: React.FC = () => {
             </div>
 
             {/* Managing Preferences */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 lg:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-16">
-              <h2 className="text-3xl lg:text-4xl text-heading mb-8 text-center">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 lg:p-8 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 mb-8">
+              <h2 className="text-2xl lg:text-3xl text-heading mb-4 text-center">
                 <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                   Managing Your Preferences
                 </span>
@@ -327,9 +327,9 @@ const Cookies: React.FC = () => {
                   You have full control over your cookie preferences. You can change your choices at any time.
                 </p>
 
-                <div className="grid md:grid-cols-2 gap-8">
+                <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-6">
-                    <h3 className="text-2xl text-heading">Cookie Consent Manager</h3>
+                    <h3 className="text-xl text-heading">Cookie Consent Manager</h3>
                     <div className="bg-gray-50 dark:bg-transparent border border-gray-200 dark:border-gray-700 rounded-xl p-6">
                       <p className="text-body dark:text-white mb-4">
                         SafePsy's consent manager allows you to:
@@ -366,7 +366,7 @@ const Cookies: React.FC = () => {
                   </div>
 
                   <div className="space-y-6">
-                    <h3 className="text-2xl text-heading">Browser Settings</h3>
+                    <h3 className="text-xl text-heading">Browser Settings</h3>
                     <div className="space-y-4">
                       <div className="flex items-start gap-3">
                         <CheckCircle className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
@@ -403,11 +403,11 @@ const Cookies: React.FC = () => {
             </div>
 
             {/* Contact */}
-            <div className="text-center mb-16">
-              <h2 className="text-3xl lg:text-4xl text-heading mb-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl lg:text-3xl text-heading mb-4">
                 Questions About Our Cookie Policy?
               </h2>
-              <p className="text-lg text-body mb-8 max-w-2xl mx-auto">
+              <p className="text-base text-body mb-4 max-w-2xl mx-auto">
                 If you have any questions about how we use cookies or would like to exercise your rights,{' '}
                 <Link
                   to="/contact-us"
