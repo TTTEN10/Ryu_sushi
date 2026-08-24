@@ -69,5 +69,10 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.0",
     "@openzeppelin/hardhat-upgrades": "^3.0.0"
+  },
+  "dependencies": {
+    "@types/node": "^26.2.0",
+    "@types/nodemailer": "^8.0.1",
+    "nodemailer": "^9.0.5"
   }
 }

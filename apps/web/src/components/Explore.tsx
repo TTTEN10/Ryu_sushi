@@ -1,13 +1,11 @@
 import React from 'react'
 import { Shield, Heart, Users, Brain, Lock, Globe } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
 import { FAQ_ITEMS } from '../data/faq'
 import FAQAccordion from './FAQAccordion'
 
 const Explore: React.FC = () => {
-  const navigate = useNavigate()
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -137,26 +135,8 @@ const Explore: React.FC = () => {
               </h2>
               <FAQAccordion items={FAQ_ITEMS} answerClassName="text-sm sm:text-base" />
             </section>
-
-            {/* Call to Action */}
-            <div className="text-center px-4 fade-in">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl text-heading mb-4 sm:mb-6 stagger-item">
-                Ready to Experience the Future of Mental Health Care?
-              </h2>
-              <p className="text-base sm:text-lg text-body mb-6 sm:mb-8 max-w-2xl mx-auto stagger-item">
-                Join our waitlist to be among the first to experience privacy-first mental wellness support.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center stagger-item">
-                <button
-                  onClick={() => navigate('/')}
-                  className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[44px] w-full sm:w-auto hover:scale-105 active:scale-95 transition-transform duration-200"
-                >
-                  Join Our Waitlist
-                </button>
-              </div>
-            </div>
           </div>
-        </section>
+          </section>
       </main>
       <Footer />
     </div>

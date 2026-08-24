@@ -150,6 +150,103 @@ export class PostmarkEmailProvider implements EmailProvider {
 }
 
 /**
+ * SMTP email provider using nodemailer
+ * Required env vars:
+ *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+ * Optional: SMTP_SECURE (true/false), SMTP_FROM_ADDRESS (defaults to EMAIL_FROM_ADDRESS)
+ */
+export class SmtpEmailProvider implements EmailProvider {
+  private transporter: any = null
+  private config: {
+    host: string
+    port: number
+    secure: boolean
+    from: string
+    auth: { user: string; pass: string }
+  }
+
+  constructor() {
+    this.config = {
+      host: process.env.SMTP_HOST || '',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      from: process.env.SMTP_FROM_ADDRESS || process.env.EMAIL_FROM_ADDRESS || 'noreply@polinapsycho.com',
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASSWORD || '',
+      },
+    }
+
+    if (!this.config.host || !this.config.auth.user || !this.config.auth.pass) {
+      throw new Error('SMTP_HOST, SMTP_USER, and SMTP_PASSWORD are required for SMTP provider')
+    }
+  }
+
+  private async getTransporter(): Promise<any> {
+    if (this.transporter) return this.transporter
+    const nodemailer = await import('nodemailer')
+    this.transporter = nodemailer.createTransport({
+      host: this.config.host,
+      port: this.config.port,
+      secure: this.config.secure,
+      auth: this.config.auth,
+    })
+    return this.transporter
+  }
+
+  async sendConfirmationEmail(email: string): Promise<void> {
+    const transport = await this.getTransporter()
+    const emailSubject = 'Welcome to SafePsy - You\'re on the waitlist!'
+    const emailBodyHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to SafePsy!</h1>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; margin-top: 0;">Thank you for joining our waitlist!</p>
+            <p style="font-size: 16px;">You've successfully signed up to get early access and exclusive updates about SafePsy.</p>
+            <p style="font-size: 16px;">We're building a privacy-first therapy platform that combines ethical AI with blockchain security to transform online therapy.</p>
+            <p style="font-size: 16px;">We'll keep you updated on our progress and let you know as soon as early access becomes available.</p>
+            <p style="font-size: 16px; margin-bottom: 0;">Best regards,<br>The SafePsy Team</p>
+          </div>
+        </body>
+      </html>
+    `
+    const emailBodyText = `Welcome to SafePsy!\n\nThank you for joining our waitlist! You've successfully signed up to get early access and exclusive updates about SafePsy.\n\nWe're building a privacy-first therapy platform that combines ethical AI with blockchain security to transform online therapy.\n\nWe'll keep you updated on our progress and let you know as soon as early access becomes available.\n\nBest regards,\nThe SafePsy Team`
+
+    await transport.sendMail({
+      from: this.config.from,
+      to: email,
+      subject: emailSubject,
+      html: emailBodyHtml,
+      text: emailBodyText,
+    })
+  }
+
+  async sendAdminNotificationEmail(params: {
+    to: string
+    subject: string
+    textBody: string
+    htmlBody?: string
+  }): Promise<void> {
+    const transport = await this.getTransporter()
+    await transport.sendMail({
+      from: this.config.from,
+      to: params.to,
+      subject: params.subject,
+      html: params.htmlBody,
+      text: params.textBody,
+    })
+  }
+}
+
+/**
  * Email service that manages email operations with feature flagging
  */
 export class EmailService {
@@ -240,6 +337,9 @@ export function createEmailService(): EmailService {
         break
       case 'postmark':
         provider = new PostmarkEmailProvider()
+        break
+      case 'smtp':
+        provider = new SmtpEmailProvider()
         break
       case 'stub':
       default:

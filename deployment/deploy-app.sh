@@ -517,14 +517,14 @@ else
   mkdir -p ${APP_BASE_DIR}/frontend ${APP_BASE_DIR}/backend
   cd ${APP_BASE_DIR}
 
-  # Build two separate frontend directories: beta (for /beta path) and app (for app subdomain at root)
+  # Build frontend for /beta/ path (main domain polinapsycho.com/beta)
   cat > frontend/Dockerfile <<EOF
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN npm install --legacy-peer-deps
 
-# Build for /beta/ path (main domain polinapsycho.com/beta)
+# Build for /beta/ path
 ARG VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID:-391299af5aedd1d51ef83d5e79e1a46d}
 ARG VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID:-0x103eAd096f898132E138ad228E35296db983A053}
 ARG VITE_RPC_URL=${WEB_VITE_RPC:-https://ethereum-sepolia-rpc.publicnode.com}
@@ -533,21 +533,13 @@ ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=\${VITE_DID_IDENTITY_TOKEN_ADDRESS}
 ENV VITE_RPC_URL=\${VITE_RPC_URL}
 ENV VITE_BASE_PATH=/beta/
 RUN npx vite build
-RUN mv /app/dist /app/dist-beta
 
-# Build for / path (app subdomain app.polinapsycho.com)
-RUN rm -rf /app/node_modules/.vite
-ENV VITE_BASE_PATH=/
-RUN npx vite build
-RUN mv /app/dist /app/dist-app
-
-# Production image - serve beta build on port 3000, app build on port 3001
+# Production image - serve beta build on port 3000
 FROM node:20-alpine
 RUN npm install -g serve
 WORKDIR /usr/share/nginx
-COPY --from=builder /app/dist-beta ./beta
-COPY --from=builder /app/dist-app ./app
-CMD [\"sh\", \"-c\", \"serve -l 3000 ./beta & serve -l 3001 ./app\"]
+COPY --from=builder /app/dist ./beta
+CMD [\"sh\", \"-c\", \"serve -l 3000 ./beta\"]
 EOF
 
   cat > docker-compose.yml <<\"EOF\"
@@ -591,6 +583,16 @@ services:
       - SCALEWAY_PROJECT_ID=${SCALEWAY_PROJECT_ID:-}
       - SCALEWAY_MODEL=${SCALEWAY_MODEL:-}
       - SCALEWAY_API_BASE_URL=${SCALEWAY_API_BASE_URL:-}
+      - ENABLE_CONFIRMATION_EMAIL=${ENABLE_CONFIRMATION_EMAIL:-false}
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-stub}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS:-}
+      - ENABLE_ADMIN_NOTIFICATION_EMAIL=${ENABLE_ADMIN_NOTIFICATION_EMAIL:-false}
+      - ADMIN_NOTIFICATION_EMAIL=${ADMIN_NOTIFICATION_EMAIL:-}
     deploy:
       resources:
         limits:
@@ -647,74 +649,9 @@ ${CADDY_SITE_NAMES} {
   handle_path /beta {
     reverse_proxy frontend:3000
   }
-
-  # API routes
-  handle /api/auth/* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/did/* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/save {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/load* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/summary {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/export {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/concurrency {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/quota {
-    reverse_proxy node-api:3001
-  }
-  handle /api/chat/completions {
-    reverse_proxy node-api:3001
-  }
   handle /beta/chat/completions* {
     reverse_proxy node-api:3001
   }
-  handle /api/subscription/* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/payment/* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/admin/* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/rag/* {
-    reverse_proxy node-api:3001
-  }
-  handle /metrics {
-    reverse_proxy node-api:3001
-  }
-  handle /api/analytics/* {
-    reverse_proxy node-api:3001
-  }
-  handle /api/metrics/* {
-    reverse_proxy node-api:3001
-  }
-  handle_path /api/* {
-    reverse_proxy backend:5000
-  }
-
-  # Default: serve frontend (beta app for now)
-  # /chat redirects to /beta/chat for the main domain
-  handle /chat {
-    redir /beta/chat permanent
-  }
-  reverse_proxy /* frontend:3000
-}
-
-# App subdomain: app.polinapsycho.com - serve beta app at root from frontend:3001 (app build)
-${APP_DOMAIN_APP} {
-  encode gzip
 
   # API routes
   handle /api/auth/* {
@@ -765,16 +702,15 @@ ${APP_DOMAIN_APP} {
   handle /api/metrics/* {
     reverse_proxy node-api:3001
   }
+  handle /api/subscribe {
+    reverse_proxy node-api:3001
+  }
   handle_path /api/* {
     reverse_proxy backend:5000
   }
 
-  # Serve app frontend at root
-  # /chat routes directly to the app (no prefix needed on app subdomain)
-  handle /chat {
-    reverse_proxy frontend:3001
-  }
-  reverse_proxy /* frontend:3001
+  # Default: serve main frontend at root
+  reverse_proxy /* frontend:3000
 }
 
 # Plain HTTP for direct-IP access only
@@ -829,6 +765,9 @@ http://${APP_IP} {
     reverse_proxy node-api:3001
   }
   handle /api/metrics/* {
+    reverse_proxy node-api:3001
+  }
+  handle /api/subscribe {
     reverse_proxy node-api:3001
   }
   handle_path /api/* {
