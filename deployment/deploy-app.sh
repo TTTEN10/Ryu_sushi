@@ -704,8 +704,7 @@ ${CADDY_SITE_NAMES} {
     reverse_proxy backend:5000
   }
 
-  # Default: serve marketing site (note: we don't have marketing site yet, so serve beta for now)
-  # TODO: Add marketing site build
+  # Default: serve frontend (beta app for now)
   reverse_proxy /* frontend:3000
 }
 
