@@ -103,12 +103,21 @@ const Footer: React.FC = () => {
                 type="button"
                 onClick={() => navigate('/cookies')}
                 className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
-              >
+                >
                 <span className="text-black dark:text-white link-hover block w-full text-left">
-                  Cookie Policy
+                Cookie Policy
                 </span>
-              </button>
-              <button 
+                </button>
+                <button 
+                type="button"
+                onClick={() => navigate('/blog')}
+                className="text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left block w-full min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"
+                >
+                <span className="text-black dark:text-white link-hover block w-full text-left">
+                Blog
+                </span>
+                </button>
+                <button 
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent('open-cookie-manager'))}
                 className="flex w-full items-center gap-2 text-text-primary font-titillium font-regular hover:text-primary-600 transition-all duration-300 text-left min-h-[36px] py-0.5 text-sm sm:text-base leading-tight group hover:scale-105 active:scale-95"

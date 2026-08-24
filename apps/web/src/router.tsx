@@ -13,6 +13,7 @@ import Support from './components/Support'
 import Feedback from './components/Feedback'
 import Testing from './components/Testing'
 import AboutMe from './components/AboutMe'
+import Blog from './components/Blog'
 import SEOHead from './components/SEOHead'
 import { useSEO } from './hooks/useSEO'
 import { useFocusManagement, useKeyboardNavigation } from './hooks/useFocusManagement'
@@ -132,6 +133,14 @@ export const routes: RouteObject[] = [
     element: (
       <RouteWithSEO>
         <AboutMe />
+      </RouteWithSEO>
+    ),
+  },
+  {
+    path: '/blog',
+    element: (
+      <RouteWithSEO>
+        <Blog />
       </RouteWithSEO>
     ),
   },

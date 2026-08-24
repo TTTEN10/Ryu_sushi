@@ -297,6 +297,20 @@ export const seoConfig: Record<string, SEOConfig> = {
     canonical: `${baseUrl}/internal/admin/7x9k2m4p8q1r5t3v6w0y2z4a6b8c0d2e4f6`,
     noindex: true, // Hidden from search engines
   },
+  '/blog': {
+    title: 'Blog - SafePsy | Privacy-First AI Therapy Insights',
+    description: 'Expert articles on AI therapy, mental health data privacy, blockchain identity, and secure mental wellness tools.',
+    keywords: 'mental health blog, AI therapy insights, data privacy mental health, safePsy blog, encrypted therapy, AI mental health, blockchain therapy',
+    ogTitle: 'SafePsy Blog',
+    ogDescription: 'Expert articles on AI therapy, mental health data privacy, blockchain identity, and secure mental wellness tools.',
+    ogImage: defaultImage,
+    ogUrl: `${baseUrl}/blog`,
+    twitterTitle: 'SafePsy Blog',
+    twitterDescription: 'Expert articles on AI therapy, mental health data privacy, blockchain identity, and secure mental wellness tools.',
+    twitterImage: defaultImage,
+    twitterCard: 'summary_large_image',
+    canonical: `${baseUrl}/blog`,
+  },
   '*': {
     title: 'Page Not Found - SafePsy | 404 Error',
     description: 'The page you\'re looking for doesn\'t exist. Return to SafePsy homepage to continue your mental health journey.',
