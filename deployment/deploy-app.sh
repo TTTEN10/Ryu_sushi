@@ -517,20 +517,35 @@ else
   mkdir -p ${APP_BASE_DIR}/frontend ${APP_BASE_DIR}/backend
   cd ${APP_BASE_DIR}
 
-  cat > frontend/Dockerfile <<\"EOF\"
-FROM node:20-alpine
+  # Build two separate frontend directories: beta (for /beta path) and app (for app subdomain at root)
+cat > frontend/Dockerfile <<\"EOF\"
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY . .
-  # apps/web currently has strict TS errors in some files; build production bundle via Vite.
-  # API base: unset — browser uses same-origin /api (Caddy → node-api). Avoids www vs apex CORS.
-  # VITE_BASE_PATH: '/' for app subdomain (app.polinapsycho.com serves beta at root), '/beta/' for main domain
+RUN npm install --legacy-peer-deps
+
+# Build for /beta/ path (main domain polinapsycho.com/beta)
 ENV VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID}
 ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID}
 ENV VITE_RPC_URL=${WEB_VITE_RPC}
+ENV VITE_BASE_PATH=/beta/
+RUN npx vite build
+RUN mv /app/dist /app/dist-beta
+
+# Build for / path (app subdomain app.polinapsycho.com)
+RUN rm -rf /app/node_modules/.vite
 ENV VITE_BASE_PATH=/
-RUN npm install --legacy-peer-deps && npx vite build
+RUN npx vite build
+RUN mv /app/dist /app/dist-app
+
+# Production image - serve beta build on port 3000 (for /beta path), app build on port 3001 (for app subdomain)
+FROM node:20-alpine
 RUN npm install -g serve
-CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"]
+WORKDIR /usr/share/nginx
+COPY --from=builder /app/dist-beta ./beta
+COPY --from=builder /app/dist-app ./app
+# Start two serve processes: beta on 3000, app on 3001
+CMD ["sh", "-c", "serve -l 3000 ./beta & serve -l 3001 ./app"]
 EOF
 
   cat > docker-compose.yml <<\"EOF\"
@@ -617,6 +632,16 @@ EOF
   cat > Caddyfile <<\"EOF\"
 ${CADDY_SITE_NAMES} {
   encode gzip
+
+  # Beta app at /beta/ path - serve from frontend:3000 (beta build)
+  handle /beta/* {
+    reverse_proxy frontend:3000
+  }
+  handle /beta {
+    reverse_proxy frontend:3000
+  }
+
+  # API routes
   handle /api/auth/* {
     reverse_proxy node-api:3001
   }
@@ -671,12 +696,17 @@ ${CADDY_SITE_NAMES} {
   handle_path /api/* {
     reverse_proxy backend:5000
   }
+
+  # Default: serve marketing site (note: we don't have marketing site yet, so serve beta for now)
+  # TODO: Add marketing site build
   reverse_proxy /* frontend:3000
 }
 
-# App subdomain (beta app served at root, API routes proxied to same Docker services)
+# App subdomain: app.polinapsycho.com - serve beta app at root from frontend:3001 (app build)
 ${APP_DOMAIN_APP} {
   encode gzip
+
+  # API routes
   handle /api/auth/* {
     reverse_proxy node-api:3001
   }
@@ -728,10 +758,12 @@ ${APP_DOMAIN_APP} {
   handle_path /api/* {
     reverse_proxy backend:5000
   }
-  reverse_proxy /* frontend:3000
+
+  # Serve app frontend at root
+  reverse_proxy /* frontend:3001
 }
 
-# Plain HTTP for direct-IP access only (no public cert for raw IPs — avoids breaking :443 for real domains)
+# Plain HTTP for direct-IP access only
 http://${APP_IP} {
   encode gzip
   handle /api/auth/* {
