@@ -1,11 +1,29 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, Tag } from 'lucide-react'
 import Header from './Header'
 import Footer from './Footer'
 import { blogPosts, type BlogPost } from '../data/blogPosts'
+import { SEOOverrideProvider } from '../hooks/useSEOOverride'
+import { SEOConfig } from '../types/seo'
 
 function getPostFromSlug(slug: string): BlogPost | undefined {
   return blogPosts.find((p) => p.slug === slug)
+}
+
+function getArticleSEO(post: BlogPost): SEOConfig {
+  return {
+    title: `${post.title} – SafePsy Blog`,
+    description: post.metaDescription,
+    keywords: post.keywords,
+    ogTitle: post.title,
+    ogDescription: post.metaDescription,
+    ogUrl: `/blog/${post.slug}`,
+    twitterTitle: post.title,
+    twitterDescription: post.metaDescription,
+    twitterCard: 'summary_large_image',
+    canonical: `/blog/${post.slug}`,
+    type: 'article',
+  }
 }
 
 /** Group consecutive table-line strings into rows. */
@@ -254,7 +272,7 @@ function BlogListView() {
           {blogPosts.map((post) => (
             <button
               key={post.slug}
-              onClick={() => navigate(`/blog?slug=${post.slug}`)}
+              onClick={() => navigate(`/blog/${post.slug}`)}
               className="group text-left p-6 sm:p-8 rounded-2xl border border-border hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-lg transition-all duration-300 bg-card hover:scale-[1.02] active:scale-[0.98]"
               aria-label={`Read article: ${post.title}`}
             >
@@ -288,16 +306,21 @@ function BlogListView() {
 }
 
 const Blog: React.FC = () => {
-  const location = useLocation()
-  const slug = new URLSearchParams(location.search).get('slug')
-
+  const params = useParams()
+  const slug = params.slug ?? null
   const post = slug ? getPostFromSlug(slug) : null
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main id="main-content" className="flex-1" role="main" aria-label="Blog" tabIndex={-1}>
-        {post ? <ArticleView post={post} /> : <BlogListView />}
+        {post ? (
+          <SEOOverrideProvider config={getArticleSEO(post)}>
+            <ArticleView post={post} />
+          </SEOOverrideProvider>
+        ) : (
+          <BlogListView />
+        )}
       </main>
       <Footer />
     </div>

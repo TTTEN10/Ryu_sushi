@@ -144,5 +144,13 @@ export const routes: RouteObject[] = [
       </RouteWithSEO>
     ),
   },
+  {
+    path: '/blog/:slug',
+    element: (
+      <RouteWithSEO>
+        <Blog />
+      </RouteWithSEO>
+    ),
+  },
   { path: '*', element: <Navigate to="/" replace /> },
 ]

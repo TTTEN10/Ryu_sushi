@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     root: __dirname,
-    base: '/beta/',
+    base: mode === 'production' ? '/beta/' : '/',
     plugins: [react(), cssBeforeModuleScriptPlugin()],
     ssr: {
       noExternal: ['react-helmet-async'],
