@@ -255,11 +255,12 @@ if [[ "$CHECK_LLM" == "1" ]]; then
   fi
 fi
 
-# App subdomain checks (app.polinapsycho.com/beta)
+# App subdomain checks (app.polinapsycho.com - beta app served at root)
 echo "Verifying app subdomain: $APP_DOMAIN_APP"
-check_http_code "App subdomain Homepage HTTPS" "https://${APP_DOMAIN_APP}/beta" "200"
+check_http_code "App subdomain Homepage HTTPS" "https://${APP_DOMAIN_APP}" "200"
 check_http_code "App subdomain API health" "https://${APP_DOMAIN_APP}/api/healthz" "200"
 check_http_code "App subdomain Subscription plans" "https://${APP_DOMAIN_APP}/api/subscription/plans" "200"
+check_http_code "App subdomain Chat route" "https://${APP_DOMAIN_APP}/chat" "200"
 
 echo
 if [[ "$fail" -eq 0 ]]; then

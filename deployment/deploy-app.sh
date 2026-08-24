@@ -523,9 +523,11 @@ WORKDIR /app
 COPY . .
   # apps/web currently has strict TS errors in some files; build production bundle via Vite.
   # API base: unset — browser uses same-origin /api (Caddy → node-api). Avoids www vs apex CORS.
+  # VITE_BASE_PATH: '/' for app subdomain (app.polinapsycho.com serves beta at root), '/beta/' for main domain
 ENV VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID}
 ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID}
 ENV VITE_RPC_URL=${WEB_VITE_RPC}
+ENV VITE_BASE_PATH=/
 RUN npm install --legacy-peer-deps && npx vite build
 RUN npm install -g serve
 CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"]
@@ -672,12 +674,9 @@ ${CADDY_SITE_NAMES} {
   reverse_proxy /* frontend:3000
 }
 
-# App subdomain (SPA at /beta, API routes proxied to same Docker services)
+# App subdomain (beta app served at root, API routes proxied to same Docker services)
 ${APP_DOMAIN_APP} {
   encode gzip
-  handle /beta/chat/completions* {
-    reverse_proxy node-api:3001
-  }
   handle /api/auth/* {
     reverse_proxy node-api:3001
   }
@@ -728,12 +727,6 @@ ${APP_DOMAIN_APP} {
   }
   handle_path /api/* {
     reverse_proxy backend:5000
-  }
-  handle_path /beta/* {
-    rewrite * /beta{uri}
-  }
-  handle_path /beta {
-    rewrite * /beta/index.html
   }
   reverse_proxy /* frontend:3000
 }
