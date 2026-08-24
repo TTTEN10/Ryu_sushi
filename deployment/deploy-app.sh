@@ -512,7 +512,7 @@ else
     run_ssh "${APP_IP}" "bash -lc 'tar -C ${APP_BASE_DIR}/node-api-src -xf -'"
 
   run_ssh "${APP_IP}" "bash -lc '
-  set -euo pipefail
+  set -eo pipefail
   export DEPLOY_FRESH=${DEPLOY_FRESH_CONTAINERS:-0}
   mkdir -p ${APP_BASE_DIR}/frontend ${APP_BASE_DIR}/backend
   cd ${APP_BASE_DIR}
