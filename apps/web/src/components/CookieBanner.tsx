@@ -13,15 +13,15 @@ const CookieBanner: React.FC<CookieBannerProps> = ({ onConsentChange }) => {
   })
 
   const [showCustomize, setShowCustomize] = useState(false)
-  const [consentCookies, setConsentCookies] = useState(false)
-  const [consentHealthData, setConsentHealthData] = useState(false)
+  const [consentCookies, setConsentCookies] = useState(true)
+  const [consentHealthData, setConsentHealthData] = useState(true)
   const [showConsentPanel, setShowConsentPanel] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
   const [preferences, setPreferences] = useState<CookiePreferences>({
     essential: true,
-    functional: false,
-    analytics: false,
-    healthData: false
+    functional: true,
+    analytics: true,
+    healthData: true
   })
 
   const { consentData, updateConsent, withdrawConsent, syncState, reConsentNeeded, isAuthenticated } = useCookieConsent()

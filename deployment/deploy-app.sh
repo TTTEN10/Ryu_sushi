@@ -518,19 +518,19 @@ else
   cd ${APP_BASE_DIR}
 
   # Build two separate frontend directories: beta (for /beta path) and app (for app subdomain at root)
-  cat > frontend/Dockerfile <<'DOCKERFILE'
+  cat > frontend/Dockerfile <<EOF
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN npm install --legacy-peer-deps
 
 # Build for /beta/ path (main domain polinapsycho.com/beta)
-ARG VITE_WALLETCONNECT_PROJECT_ID
-ARG VITE_DID_IDENTITY_TOKEN_ADDRESS
-ARG VITE_RPC_URL
-ENV VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID}
-ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=${VITE_DID_IDENTITY_TOKEN_ADDRESS}
-ENV VITE_RPC_URL=${VITE_RPC_URL}
+ARG VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID}
+ARG VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID}
+ARG VITE_RPC_URL=${WEB_VITE_RPC}
+ENV VITE_WALLETCONNECT_PROJECT_ID=\${VITE_WALLETCONNECT_PROJECT_ID}
+ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=\${VITE_DID_IDENTITY_TOKEN_ADDRESS}
+ENV VITE_RPC_URL=\${VITE_RPC_URL}
 ENV VITE_BASE_PATH=/beta/
 RUN npx vite build
 RUN mv /app/dist /app/dist-beta
@@ -547,8 +547,8 @@ RUN npm install -g serve
 WORKDIR /usr/share/nginx
 COPY --from=builder /app/dist-beta ./beta
 COPY --from=builder /app/dist-app ./app
-CMD ["sh", "-c", "serve -l 3000 ./beta & serve -l 3001 ./app"]
-DOCKERFILE
+CMD [\"sh\", \"-c\", \"serve -l 3000 ./beta & serve -l 3001 ./app\"]
+EOF
 
   cat > docker-compose.yml <<\"EOF\"
 services:
