@@ -89,6 +89,7 @@ export const paymentRateLimitMiddleware = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req: Request) => req.method === 'GET',
   keyGenerator: (req: Request) => {
     const walletAddress = req.headers['x-wallet-address'] as string;
     return walletAddress || req.ip || 'unknown';
