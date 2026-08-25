@@ -96,7 +96,7 @@ export const useCookieConsent = () => {
 
     setSyncState('loading')
     try {
-      const response = await apiFetch('/api/consent/status')
+      const response = await apiFetch('/consent/status')
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -171,7 +171,7 @@ export const useCookieConsent = () => {
       // Record health data processing consent
       if (preferences.healthData) {
         try {
-          await apiFetch('/api/consent/record', {
+          await apiFetch('/consent/record', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -187,7 +187,7 @@ export const useCookieConsent = () => {
       // Record analytics consent
       if (preferences.analytics) {
         try {
-          await apiFetch('/api/consent/record', {
+          await apiFetch('/consent/record', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -233,12 +233,12 @@ export const useCookieConsent = () => {
     // Withdraw in backend if authenticated
     if (isAuthenticated) {
       try {
-        await apiFetch('/api/consent/withdraw', {
+        await apiFetch('/consent/withdraw', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ consentType: 'HEALTH_DATA_PROCESSING' }),
         })
-        await apiFetch('/api/consent/withdraw', {
+        await apiFetch('/consent/withdraw', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ consentType: 'ANALYTICS' }),

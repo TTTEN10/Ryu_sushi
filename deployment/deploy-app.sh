@@ -719,6 +719,9 @@ ${CADDY_SITE_NAMES} {
   handle /api/subscribe {
     reverse_proxy node-api:3001
   }
+  handle /api/consent/* {
+    reverse_proxy node-api:3001
+  }
   handle_path /api/* {
     reverse_proxy backend:5000
   }
@@ -782,6 +785,9 @@ http://${APP_IP} {
     reverse_proxy node-api:3001
   }
   handle /api/subscribe {
+    reverse_proxy node-api:3001
+  }
+  handle /api/consent/* {
     reverse_proxy node-api:3001
   }
   handle_path /api/* {

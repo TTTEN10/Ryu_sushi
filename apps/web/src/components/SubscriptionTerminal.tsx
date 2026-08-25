@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, type PlanId, type BillingPeriod, type PaymentIntent } from '../hooks/useSubscription';
 import PaymentHistory from './PaymentHistory';
 
@@ -37,6 +38,7 @@ export default function SubscriptionTerminal({
   onClose,
 }: SubscriptionTerminalProps) {
   const { wallet, signer, connectWallet } = useWallet();
+  const { isAuthenticated, loginWithWallet } = useAuth();
   const {
     plans,
     subscription,
@@ -113,6 +115,15 @@ export default function SubscriptionTerminal({
 
   const handleCreatePaymentIntent = async () => {
     if (!selectedPlan || !wallet) return;
+
+    if (!isAuthenticated) {
+      try {
+        await loginWithWallet();
+      } catch {
+        setErrorMessage('Login required to subscribe — please sign in with your wallet first.');
+        return;
+      }
+    }
 
     setStep('paying');
     setErrorMessage(null);
@@ -865,6 +876,16 @@ export default function SubscriptionTerminal({
                 >
                   <Lock className="w-4 h-4" />
                   Connect Wallet to Continue
+                </button>
+              ) : !isAuthenticated ? (
+                <button
+                  onClick={async () => {
+                    try { await loginWithWallet(); } catch { setErrorMessage('Login failed — please try again.'); }
+                  }}
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  Sign In to Subscribe
                 </button>
               ) : (
                 <button
