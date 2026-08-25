@@ -21,12 +21,18 @@ const CENTS_PER_DOLLAR = 100;
 
 const PRICE_MONTHLY: Record<Exclude<PlanId, 'free'>, number> = {
   pro: 19 * CENTS_PER_DOLLAR,        // $19.00
-  unlimited: 79 * CENTS_PER_DOLLAR,  // $79.00
+  unlimited: 69 * CENTS_PER_DOLLAR,  // $69.00
 };
 
 const DISCOUNT_PERCENTAGE: Record<Exclude<PlanId, 'free'>, number> = {
-  pro: 10,
-  unlimited: 25,
+  pro: 30,
+  unlimited: 30,
+};
+
+// Yearly prices (hardcoded to match desired monthly equivalents)
+const PRICE_YEARLY: Record<Exclude<PlanId, 'free'>, number> = {
+  pro: 168 * CENTS_PER_DOLLAR,       // $168.00 ($14.00/mo equivalent)
+  unlimited: 588 * CENTS_PER_DOLLAR, // $588.00 ($49.00/mo equivalent)
 };
 
 // ─── Quota definitions ───────────────────────────────────────────────────────
@@ -78,10 +84,7 @@ const DEFAULT_PAYWALL_PROMPT_THRESHOLD = 5; // prompts before paywall appears (U
 // ─── Computed helpers ────────────────────────────────────────────────────────
 
 function computeYearlyPrice(planId: Exclude<PlanId, 'free'>): number {
-  const monthly = PRICE_MONTHLY[planId];
-  const annualRaw = monthly * 12;
-  const discount = DISCOUNT_PERCENTAGE[planId];
-  return Math.round(annualRaw * (1 - discount / 100));
+  return PRICE_YEARLY[planId];
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -141,8 +144,8 @@ export function getAllPrices(): PriceDefinition[] {
       usdDisplay: `$${(PRICE_MONTHLY[planId] / CENTS_PER_DOLLAR).toFixed(2)}`,
     });
 
-    // Yearly
-    const yearly = computeYearlyPrice(planId);
+    // Yearly (use hardcoded price)
+    const yearly = PRICE_YEARLY[planId];
     prices.push({
       planId,
       billingPeriod: 'yearly',
@@ -160,7 +163,7 @@ export function getAllPrices(): PriceDefinition[] {
  * Get the yearly price for a specific plan.
  */
 export function getYearlyPrice(planId: Exclude<PlanId, 'free'>): number {
-  return computeYearlyPrice(planId);
+  return PRICE_YEARLY[planId];
 }
 
 /**

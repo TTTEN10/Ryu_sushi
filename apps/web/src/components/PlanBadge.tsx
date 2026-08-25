@@ -78,7 +78,7 @@ export default function PlanBadge({
             #fde68a 78%
           );
           background-size: 200% 100%;
-          animation: goldShimmer 3s ease-in-out infinite, goldGlow 3s ease-in-out infinite;
+          animation: goldShimmer 8s ease-in-out infinite, goldGlow 8s ease-in-out infinite;
           color: #1c1917;
         }
         .btn-gold-shimmer:hover {
@@ -91,7 +91,7 @@ export default function PlanBadge({
             #fef3c7 78%
           );
           background-size: 200% 100%;
-          animation: goldShimmer 2s ease-in-out infinite, goldGlow 2s ease-in-out infinite;
+          animation: goldShimmer 6s ease-in-out infinite, goldGlow 6s ease-in-out infinite;
         }
       `}</style>
       <button
@@ -99,7 +99,7 @@ export default function PlanBadge({
         onClick={onOpenTerminal}
         className={`${baseClasses} btn-gold-shimmer`}
       >
-        <span>Subscribe</span>
+        <span>Premium</span>
       </button>
     </div>
   );

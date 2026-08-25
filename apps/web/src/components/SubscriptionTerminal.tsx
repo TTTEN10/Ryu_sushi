@@ -39,7 +39,7 @@ export default function SubscriptionTerminal({
   onActivate,
   onClose,
 }: SubscriptionTerminalProps) {
-  const { wallet, signer } = useWallet();
+  const { wallet, signer, connectWallet } = useWallet();
   const {
     plans,
     subscription,
@@ -101,13 +101,19 @@ export default function SubscriptionTerminal({
   const handleSelectPlan = useCallback(
     (planId: Exclude<PlanId, 'free'>) => {
       if (subscription?.status === 'active' && subscription.plan === planId) {
-        // Already on this plan — show info, not CTA
         return;
       }
-      setSelectedPlan(planId);
-      setStep('select');
+      // Already have wallet & signer — go straight to payment
+      if (wallet && signer) {
+        setSelectedPlan(planId);
+        setStep('select');
+      } else {
+        setSelectedPlan(planId);
+        setStep('select');
+        // Force re-render so payment summary shows connect button
+      }
     },
-    [subscription],
+    [subscription, wallet, signer],
   );
 
   const handleCreatePaymentIntent = async () => {
@@ -259,11 +265,23 @@ export default function SubscriptionTerminal({
         )}
 
         {planDef && (
-          <ul className="space-y-1.5 text-sm text-body mb-4">
-            <li>{planDef.quotas.daily} prompts / day</li>
-            <li>{planDef.quotas.weekly} prompts / week</li>
-            <li>{planDef.quotas.monthly} prompts / month</li>
-          </ul>
+          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+            <p className="text-xs font-semibold text-body uppercase tracking-wide">Quotas</p>
+            <ul className="space-y-1.5 text-sm text-body">
+              <li className="flex items-center justify-between">
+                <span>Daily</span>
+                <span className="font-medium text-heading">{planDef.quotas.daily} prompts</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span>Weekly</span>
+                <span className="font-medium text-heading">{planDef.quotas.weekly} prompts</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span>Monthly</span>
+                <span className="font-medium text-heading">{planDef.quotas.monthly} prompts</span>
+              </li>
+            </ul>
+          </div>
         )}
 
         {!isActive && (
@@ -286,6 +304,7 @@ export default function SubscriptionTerminal({
     const isActive = isCurrentPlan(planId);
     const isHighlighted = planId === highlightPlan;
     const discount = getDiscountBadge(planId);
+    const isSelected = selectedPlan === planId;
 
     const cardBase = isHighlighted
       ? 'border-primary-600 dark:border-primary-400 ring-1 ring-primary-600/20'
@@ -293,10 +312,13 @@ export default function SubscriptionTerminal({
 
     return (
       <div
-        className={`relative rounded-xl border-2 p-5 transition-all ${cardBase} ${
+        onClick={() => handleSelectPlan(planId)}
+        className={`relative rounded-xl border-2 p-5 cursor-pointer transition-all ${cardBase} ${
           isActive
             ? 'bg-primary-50 dark:bg-primary-900/10'
-            : 'bg-white dark:bg-gray-800'
+            : isSelected
+              ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-400'
+              : 'bg-white dark:bg-gray-800 hover:border-primary-300 dark:hover:border-primary-600'
         }`}
       >
         {/* Discount badge */}
@@ -318,15 +340,8 @@ export default function SubscriptionTerminal({
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-lg font-semibold text-heading">{planDef?.name}</h3>
-            {billingPeriod === 'yearly' && price?.monthlyEquivalentCents && (
-              <p className="text-xs text-body opacity-75">
-                Only {centsToUSD(price.monthlyEquivalentCents)}/mo
-              </p>
-            )}
-          </div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-heading">{planDef?.name}</h3>
           <div className="text-right">
             <span className="text-2xl font-bold text-heading">
               {price?.usdDisplay}
@@ -337,42 +352,57 @@ export default function SubscriptionTerminal({
           </div>
         </div>
 
-        {isActive ? (
+        {/* Monthly equivalent for yearly */}
+        {billingPeriod === 'yearly' && price?.monthlyEquivalentCents && (
+          <p className="text-xs text-body opacity-75 mb-3">
+            {centsToUSD(price.monthlyEquivalentCents)}/mo billed yearly
+          </p>
+        )}
+
+        {isActive && (
           <div className="mb-3 flex items-center gap-1.5 text-primary-600 dark:text-primary-400 text-sm font-medium">
             <CheckCircle2 className="w-4 h-4" />
-            Active until{' '}
-            {expirationDate?.toLocaleDateString('en-US', {
+            Current plan
+          </div>
+        )}
+
+        {expirationDate && !isActive && (
+          <p className="text-xs text-body mb-3">
+            Current plan active until{' '}
+            {expirationDate.toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
               year: 'numeric',
             })}
-          </div>
-        ) : (
-          <button
-            onClick={() => handleSelectPlan(planId)}
-            disabled={!wallet}
-            className="w-full py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-          >
-            Subscribe
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          </p>
         )}
 
+        {/* Quotas */}
         {planDef && (
-          <ul className="mt-4 space-y-1.5 text-sm text-body">
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400 flex-shrink-0" />
-              {planDef.quotas.daily} prompts / day
-            </li>
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400 flex-shrink-0" />
-              {planDef.quotas.weekly} prompts / week
-            </li>
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400 flex-shrink-0" />
-              {planDef.quotas.monthly} prompts / month
-            </li>
-          </ul>
+          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+            <p className="text-xs font-semibold text-body uppercase tracking-wide">Quotas</p>
+            <ul className="space-y-1.5 text-sm text-body">
+              <li className="flex items-center justify-between">
+                <span>Daily</span>
+                <span className="font-medium text-heading">{planDef.quotas.daily} prompts</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span>Weekly</span>
+                <span className="font-medium text-heading">{planDef.quotas.weekly} prompts</span>
+              </li>
+              <li className="flex items-center justify-between">
+                <span>Monthly</span>
+                <span className="font-medium text-heading">{planDef.quotas.monthly} prompts</span>
+              </li>
+            </ul>
+          </div>
+        )}
+
+        {isSelected && !isActive && (
+          <div className="mt-3 flex items-center gap-1.5 text-primary-600 dark:text-primary-400 text-sm font-medium">
+            <ArrowRight className="w-3.5 h-3.5" />
+            Selected — configure below
+          </div>
         )}
       </div>
     );
@@ -507,12 +537,25 @@ export default function SubscriptionTerminal({
             <h2 className="text-lg font-semibold text-heading">Wallet Required</h2>
           </div>
           <p className="text-sm text-body mb-6">
-            Connect your wallet to view and purchase subscription plans.
+            Connect your wallet to view and get a premium plan.
           </p>
+          <button
+            onClick={async () => {
+              try {
+                await connectWallet();
+              } catch {
+                setErrorMessage('Wallet connection failed. Please try again.');
+              }
+            }}
+            className="w-full py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg transition-all flex items-center justify-center gap-2"
+          >
+            <Lock className="w-4 h-4" />
+            Connect Wallet
+          </button>
           {!forced && (
             <button
               onClick={handleClose}
-              className="w-full py-2.5 text-sm font-medium text-body bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="mt-2 w-full py-2.5 text-sm font-medium text-body bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               Maybe Later
             </button>
@@ -645,9 +688,9 @@ export default function SubscriptionTerminal({
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-6 pt-6 pb-4 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-xl font-bold text-heading">Choose your SafeChat plan</h2>
+            <h2 className="text-xl font-bold text-heading">Get a premium plan</h2>
             <p className="text-sm text-body opacity-75 mt-0.5">
-              Unlock more prompts to continue
+              Upgrade to unlock more prompts
             </p>
           </div>
           {!forced && (
@@ -704,42 +747,87 @@ export default function SubscriptionTerminal({
           </div>
 
           {/* Payment CTA for selected plan */}
-          {selectedPlan && paymentIntent && step === 'select' && (
+          {selectedPlan && step === 'select' && (
             <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                <div className="flex items-center justify-between text-sm mb-2">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
+                {/* Wallet info */}
+                {wallet && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-body">Wallet</span>
+                    <span className="text-heading font-mono text-xs">
+                      {wallet.slice(0, 6)}…{wallet.slice(-4)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-body">Plan</span>
-                  <span className="text-heading font-medium capitalize">
-                    {selectedPlan} — {billingPeriod}
-                  </span>
+                  <span className="text-heading font-medium capitalize">{selectedPlan}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-body">Amount</span>
-                  <span className="text-heading font-semibold">{paymentIntent.usdDisplay}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-body">Billing</span>
+                  <span className="text-heading font-medium capitalize">{billingPeriod}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs text-body mb-2">
-                  <span>Network</span>
-                  <span>Sepolia Testnet</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-body">
-                  <span>Recipient</span>
-                  <span className="font-mono">
-                    {paymentIntent.treasuryAddress.slice(0, 6)}…
-                    {paymentIntent.treasuryAddress.slice(-4)}
-                  </span>
-                </div>
+
+                {paymentIntent && (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-body">Amount</span>
+                      <span className="text-heading font-semibold">{paymentIntent.usdDisplay}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-body">
+                      <span>Network</span>
+                      <span>Sepolia Testnet</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-body">
+                      <span>Recipient</span>
+                      <span className="font-mono">
+                        {paymentIntent.treasuryAddress.slice(0, 6)}…
+                        {paymentIntent.treasuryAddress.slice(-4)}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <button
-                onClick={handleCreatePaymentIntent}
-                disabled={!signer}
-                className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                <Lock className="w-4 h-4" />
-                Pay with {paymentIntent.treasuryAddress ? 'Wallet' : 'Connected Wallet'}
-              </button>
+              {!wallet ? (
+                <button
+                  onClick={async () => {
+                    try {
+                      await connectWallet();
+                      // After wallet connects, pre-create the payment intent for the selected plan
+                      if (selectedPlan) {
+                        const intent = await createPaymentIntent(selectedPlan, billingPeriod);
+                        if (intent) {
+                          setPaymentIntent(intent);
+                        }
+                      }
+                    } catch {
+                      setErrorMessage('Wallet connection failed. Please try again.');
+                    }
+                  }}
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  Connect Wallet to Continue
+                </button>
+              ) : (
+                <button
+                  onClick={handleCreatePaymentIntent}
+                  disabled={!signer || !paymentIntent}
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  {!paymentIntent ? 'Preparing payment...' : `Pay ${paymentIntent.usdDisplay} with Wallet`}
+                </button>
+              )}
 
-              {signer && (
+              {!wallet && (
+                <p className="text-xs text-center text-body opacity-55">
+                  Wallet connection required to subscribe. Your address will be shown during payment.
+                </p>
+              )}
+              {wallet && (
                 <p className="text-xs text-center text-body opacity-55">
                   You will be asked to confirm the transaction in your wallet.
                 </p>
