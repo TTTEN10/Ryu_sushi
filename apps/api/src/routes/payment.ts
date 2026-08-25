@@ -69,7 +69,7 @@ router.get('/pricing', async (_req: Request, res: Response) => {
             },
           },
           PRO: {
-            name: 'SafeChat Pro',
+            name: 'Pro',
             dailyLimit: plansResponse.plans.find((p) => p.id === 'pro')?.quotas.daily ?? 50,
             weeklyLimit: plansResponse.plans.find((p) => p.id === 'pro')?.quotas.weekly ?? 250,
             monthlyLimit: plansResponse.plans.find((p) => p.id === 'pro')?.quotas.monthly ?? 800,
@@ -85,7 +85,7 @@ router.get('/pricing', async (_req: Request, res: Response) => {
             },
           },
           UNLIMITED: {
-            name: 'SafeChat Unlimited',
+            name: 'Unlimited',
             dailyLimit: plansResponse.plans.find((p) => p.id === 'unlimited')?.quotas.daily ?? 350,
             weeklyLimit: plansResponse.plans.find((p) => p.id === 'unlimited')?.quotas.weekly ?? 2000,
             monthlyLimit: plansResponse.plans.find((p) => p.id === 'unlimited')?.quotas.monthly ?? 8000,

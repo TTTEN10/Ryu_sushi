@@ -283,15 +283,6 @@ export default function SubscriptionTerminal({
             </ul>
           </div>
         )}
-
-        {!isActive && (
-          <button
-            onClick={handleClose}
-            className="w-full py-2.5 text-sm font-medium text-body bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            Continue Free
-          </button>
-        )}
       </div>
     );
   };
@@ -384,15 +375,21 @@ export default function SubscriptionTerminal({
             <ul className="space-y-1.5 text-sm text-body">
               <li className="flex items-center justify-between">
                 <span>Daily</span>
-                <span className="font-medium text-heading">{planDef.quotas.daily} prompts</span>
+                <span className="font-medium text-heading">
+                  {planDef.id === 'unlimited' ? 'Unlimited' : `${planDef.quotas.daily} prompts`}
+                </span>
               </li>
               <li className="flex items-center justify-between">
                 <span>Weekly</span>
-                <span className="font-medium text-heading">{planDef.quotas.weekly} prompts</span>
+                <span className="font-medium text-heading">
+                  {planDef.id === 'unlimited' ? 'Unlimited' : `${planDef.quotas.weekly} prompts`}
+                </span>
               </li>
               <li className="flex items-center justify-between">
                 <span>Monthly</span>
-                <span className="font-medium text-heading">{planDef.quotas.monthly} prompts</span>
+                <span className="font-medium text-heading">
+                  {planDef.id === 'unlimited' ? 'Unlimited' : `${planDef.quotas.monthly} prompts`}
+                </span>
               </li>
             </ul>
           </div>
@@ -471,7 +468,7 @@ export default function SubscriptionTerminal({
       </div>
       <h3 className="text-xl font-semibold text-heading mb-2">Payment Confirmed!</h3>
       <p className="text-sm text-body mb-4">
-        Your subscription is now active. Enjoy SafeChat!
+        Your subscription is now active. Enjoy!
       </p>
       {paymentIntent && (
         <a

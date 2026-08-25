@@ -120,8 +120,8 @@ export function getPlanDefinitions(): PlanDefinition[] {
     const isFree = id === 'free';
     return {
       id,
-      name: id === 'pro' ? 'SafeChat Pro' : id === 'unlimited' ? 'SafeChat Unlimited' : 'Free',
-      marketingName: id === 'pro' ? 'SafeChat Pro' : id === 'unlimited' ? 'SafeChat Unlimited' : 'Free',
+      name: id === 'pro' ? 'Pro' : id === 'unlimited' ? 'Unlimited' : 'Free',
+       marketingName: id === 'pro' ? 'Pro' : id === 'unlimited' ? 'Unlimited' : 'Free',
       isFree,
       quotas: QUOTAS[id],
     };

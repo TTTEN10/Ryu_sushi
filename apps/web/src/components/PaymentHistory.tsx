@@ -37,8 +37,8 @@ function statusBadge(status: PaymentStatus): { label: string; cls: string } {
 
 function planLabel(plan: string): string {
   const labels: Record<string, string> = {
-    pro: 'SafeChat Pro',
-    unlimited: 'SafeChat Unlimited',
+    pro: 'Pro',
+    unlimited: 'Unlimited',
   };
   return labels[plan] ?? plan;
 }
