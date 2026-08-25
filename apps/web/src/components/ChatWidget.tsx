@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
-import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowUp, WifiOff, MessageSquare, CheckCircle, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -844,6 +844,7 @@ export default function ChatWidget() {
 
   const guestAtLimit = isGuest && guestPromptCount >= GUEST_PROMPT_LIMIT;
   const guestOneLeft = isGuest && guestPromptCount === GUEST_PROMPT_LIMIT - 1;
+  const freeUserAtQuota = !isGuest && !!quotaStatus && subscription?.plan === 'free' && !quotaStatus.canUse;
 
   return (
     <>
@@ -950,7 +951,7 @@ export default function ChatWidget() {
                   <button
                     key={line}
                     type="button"
-                    disabled={guestAtLimit || isOffline || isStreaming}
+                    disabled={guestAtLimit || freeUserAtQuota || isOffline || isStreaming}
                     onClick={() => void handleSend(line)}
                     className="w-full text-left text-sm px-4 py-3 rounded-xl border border-primary-200 dark:border-primary-800 bg-white/80 dark:bg-neutral-900/60 text-heading hover:bg-primary-50 dark:hover:bg-primary-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
@@ -1118,6 +1119,21 @@ export default function ChatWidget() {
           </p>
         )}
 
+        {/* Quota warning banner for free users */}
+        {freeUserAtQuota && (
+          <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs font-medium text-red-700 dark:text-red-300" role="alert">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>Daily limit reached.</span>
+            <button
+              type="button"
+              onClick={() => openSubscriptionTerminal(true)}
+              className="ml-auto underline text-primary-600 dark:text-primary-400 hover:text-primary-700 whitespace-nowrap"
+            >
+              Upgrade
+            </button>
+          </div>
+        )}
+
         <div className="flex space-x-2">
           <div className="flex-1 relative">
             <input
@@ -1146,7 +1162,8 @@ export default function ChatWidget() {
                 (!isGuest && (!symmetricKey || encryptionLoading)) ||
                 isOffline ||
                 requestInProgress ||
-                guestAtLimit
+                guestAtLimit ||
+                freeUserAtQuota
               }
               maxLength={MAX_MESSAGE_LENGTH}
               className="w-full px-4 py-2 border border-gray-300 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-neutral-950 text-heading placeholder:text-body placeholder:opacity-50"
@@ -1159,6 +1176,14 @@ export default function ChatWidget() {
               aria-label="Cancel streaming"
             >
               Cancel
+            </button>
+          ) : freeUserAtQuota ? (
+            <button
+              onClick={() => void openSubscriptionTerminal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-500/25 transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center min-h-[44px] min-w-[44px]"
+              aria-label="Upgrade to send messages"
+            >
+              <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
             <button

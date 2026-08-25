@@ -51,31 +51,31 @@ const Explore: React.FC = () => {
 
             {/* Values Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
-              <div className="space-y-4 text-center stagger-item group">
-                <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+              <div className="space-y-4 text-center stagger-item">
+                <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700">
                   <Shield className="w-8 h-8 text-primary-600 dark:text-primary-400 icon-hover" />
                 </div>
-                <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">Secure</h3>
+                <h3 className="text-xl text-heading">Secure</h3>
                 <p className="text-body">
                   Security is the foundation of SafePsy's ecosystem: Data is encrypted at rest and in transit, and encryption keys are controlled by you (derived from your wallet). Message content is processed by our AI provider to generate responses; we do not log or persistently store plaintext.
                 </p>
               </div>
 
-              <div className="space-y-4 text-center stagger-item group">
-                <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+              <div className="space-y-4 text-center stagger-item">
+                <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700">
                   <Heart className="w-8 h-8 text-secondary-600 dark:text-secondary-400 icon-hover" />
                 </div>
-                <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-secondary-600">Ethical</h3>
+                <h3 className="text-xl text-heading">Ethical</h3>
                 <p className="text-body">
                   We aim to operate in line with professional ethics and guidelines for psychological services. The AI assistant is not a substitute for professional care and does not provide medical advice, diagnosis, or treatment.
                 </p>
               </div>
 
-              <div className="space-y-4 text-center stagger-item group">
-                <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+              <div className="space-y-4 text-center stagger-item">
+                <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700">
                   <Users className="w-8 h-8 text-accent-600 dark:text-accent-400 icon-hover" />
                 </div>
-                <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-accent-600">Human-centered</h3>
+                <h3 className="text-xl text-heading">Human-centered</h3>
                 <p className="text-body">
                   At SafePsy, technology serves people, not the other way around. Human dignity and care are at the heart of everything we build.
                 </p>
@@ -94,31 +94,31 @@ const Explore: React.FC = () => {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                <div className="space-y-4 text-center stagger-item group">
-                  <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+                <div className="space-y-4 text-center stagger-item">
+                  <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700">
                     <Brain className="w-8 h-8 text-primary-600 dark:text-primary-400 icon-hover" />
                   </div>
-                  <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">AI-Powered</h3>
+                  <h3 className="text-xl text-heading">AI-Powered</h3>
                   <p className="text-body">
                     We do not use your chat content to train our models. The assistant supports reflection and session preparation, and is designed to complement (not replace) licensed care.
                   </p>
                 </div>
 
-                <div className="space-y-4 text-center stagger-item group">
-                  <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+                <div className="space-y-4 text-center stagger-item">
+                  <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700">
                     <Lock className="w-8 h-8 text-secondary-600 dark:text-secondary-400 icon-hover" />
                   </div>
-                  <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-secondary-600">Blockchain Security</h3>
+                  <h3 className="text-xl text-heading">Blockchain Security</h3>
                   <p className="text-body">
                     The backbone of our security: decentralized identity on the blockchain provides transparency and trust, and ensures users own and control their identity and encryption keys.
                   </p>
                 </div>
 
-                <div className="space-y-4 text-center stagger-item group">
-                  <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+                <div className="space-y-4 text-center stagger-item">
+                  <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700">
                     <Globe className="w-8 h-8 text-accent-600 dark:text-accent-400 icon-hover" />
                   </div>
-                  <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-accent-600">Global Access</h3>
+                  <h3 className="text-xl text-heading">Global Access</h3>
                   <p className="text-body">
                     Both psychologists and patients can use the platform from anywhere in the world with our accessible pricing.
                   </p>

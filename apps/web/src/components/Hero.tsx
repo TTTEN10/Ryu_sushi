@@ -63,7 +63,7 @@ const Hero: React.FC = () => {
 
         {/* Values Section */}
         <div className="text-center py-12 sm:py-16 fade-in">
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 xl:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20 card-hover">
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 xl:p-16 shadow-lg border border-neutral-dark/20 dark:bg-black/30 dark:border-white/20">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl text-heading mb-6 sm:mb-8 px-2">
               <span className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
                 Secure. Ethical. Human-centered.
@@ -71,31 +71,31 @@ const Hero: React.FC = () => {
             </h2>
             
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mt-8 sm:mt-12">
-              <div className="space-y-4 stagger-item group">
-                <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
-                  <Shield className="w-8 h-8 text-primary-600 dark:text-primary-400 icon-hover" />
+              <div className="space-y-4 stagger-item">
+                <div className="w-16 h-16 mx-auto bg-primary-100 rounded-full flex items-center justify-center border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700 transition-all duration-300">
+                  <Shield className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                 </div>
-                <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-primary-600">Secure</h3>
+                <h3 className="text-xl text-heading">Secure</h3>
                 <p className="text-body">
                   You own your data — chat is encrypted at rest (AES-256-GCM, ciphertext only), with keys derived from your wallet and not stored on our servers. For each AI reply, your browser sends message text over HTTPS (not strict end-to-end encryption).
                 </p>
               </div>
               
-              <div className="space-y-4 stagger-item group">
-                <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
-                  <Heart className="w-8 h-8 text-secondary-600 dark:text-secondary-400 icon-hover" />
+              <div className="space-y-4 stagger-item">
+                <div className="w-16 h-16 mx-auto bg-secondary-100 rounded-full flex items-center justify-center border border-secondary-200 dark:bg-secondary-900/30 dark:border-secondary-700 transition-all duration-300">
+                  <Heart className="w-8 h-8 text-secondary-600 dark:text-secondary-400" />
                 </div>
-                <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-secondary-600">Ethical</h3>
+                <h3 className="text-xl text-heading">Ethical</h3>
                 <p className="text-body">
                   Designed with professional ethics in mind and clear clinical boundaries: the AI assistant is not a substitute for professional care and does not provide medical advice, diagnosis, or treatment. We support HIPAA-style safeguards, but we are not a HIPAA-covered entity and do not hold HIPAA certification.
                 </p>
               </div>
               
-              <div className="space-y-4 stagger-item group">
-                <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
-                  <Users className="w-8 h-8 text-accent-600 dark:text-accent-400 icon-hover" />
+              <div className="space-y-4 stagger-item">
+                <div className="w-16 h-16 mx-auto bg-accent-100 rounded-full flex items-center justify-center border border-accent-200 dark:bg-accent-900/30 dark:border-accent-700 transition-all duration-300">
+                  <Users className="w-8 h-8 text-accent-600 dark:text-accent-400" />
                 </div>
-                <h3 className="text-xl text-heading transition-colors duration-200 group-hover:text-accent-600">Human-centered</h3>
+                <h3 className="text-xl text-heading">Human-centered</h3>
                 <p className="text-body">
                   Enhanced interface and pricing to enable global mental health accessibility
                 </p>
