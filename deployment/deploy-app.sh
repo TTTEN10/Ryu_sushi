@@ -788,7 +788,7 @@ EOF
   if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
     echo \"[deploy-app] Applying Prisma schema to Postgres (encrypted chat tables)\"
     for _p in \$(seq 1 30); do
-      if docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate 2>/dev/null; then
+      if docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>/dev/null; then
         break
       fi
       sleep 2

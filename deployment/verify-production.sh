@@ -255,10 +255,11 @@ if [[ "$CHECK_LLM" == "1" ]]; then
 fi
 
 # Beta app checks (served at /beta/ on main domain)
+# API routes are at root /api/*, not /beta/api/*
 echo "Verifying beta app on $APP_DOMAIN"
 check_http_code "Beta Homepage HTTPS" "https://${APP_DOMAIN}/beta/" "200"
-check_http_code "Beta API health" "https://${APP_DOMAIN}/beta/api/healthz" "200"
-check_http_code "Beta Subscription plans" "https://${APP_DOMAIN}/beta/api/subscription/plans" "200"
+check_http_code "API health" "https://${APP_DOMAIN}/api/healthz" "200"
+check_http_code "Subscription plans" "https://${APP_DOMAIN}/api/subscription/plans" "200"
 check_http_code "Beta Chat route" "https://${APP_DOMAIN}/beta/chat" "200"
 
 echo
