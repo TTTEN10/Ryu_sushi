@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 import { resolveDrSafeSystemPrompt } from './dr-safe-system-prompt';
 import { registerUpstreamUrls, isUpstreamHealthy } from './llm-upstream-health';
 import { shouldUseScalewayDirect } from './llm-routing';
-import { detectCrisisInMessages, CRISIS_PREPEND_TEXT, CRISIS_RESOURCES } from './crisis-detection';
+import { detectCrisisInMessages, CRISIS_PREPEND_TEXT, CRISIS_RESOURCES, CrisisDetectionResult } from './crisis-detection';
 import { getCachedResponse, cacheResponse, isResponseCacheEnabled } from './response-cache';
 import { logScalewayUsage, createUsageRecord } from './scaleway-metrics';
 import { Config } from './config';
@@ -363,6 +363,33 @@ class AIGatewayService {
     return cleanMessages;
   }
 
+  /** Safe wrapper around crisis detection — returns default result on any error. */
+  private safeDetectCrisis(
+    messages: Array<{ role: string; content: string }>
+  ): CrisisDetectionResult {
+    try {
+      return detectCrisisInMessages(messages);
+    } catch (error: unknown) {
+      logger.warn('Crisis detection failed, proceeding without crisis mode:', (error as Error).message);
+      return { isCrisis: false, prependText: '' };
+    }
+  }
+
+  /** Safe wrapper around message sanitization — returns original messages on any error. */
+  private safeSanitizeMessages(
+    request: ChatCompletionRequest
+  ): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
+    try {
+      return this.buildSanitizedMessages(request);
+    } catch (error: unknown) {
+      logger.warn('Message sanitization failed, using raw messages:', (error as Error).message);
+      return request.messages.map((msg) => ({
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+      }));
+    }
+  }
+
   /** Body for self-hosted OpenAI-compatible upstreams; includes optional session correlation for Redis on chatbot. */
   private buildOpenAIUpstreamPayload(
     request: ChatCompletionRequest,
@@ -678,9 +705,8 @@ class AIGatewayService {
       return;
     }
 
-    const crisisResult = detectCrisisInMessages(request.messages);
-
     try {
+      const crisisResult = detectCrisisInMessages(request.messages);
       const scalewayMessages = this.buildSanitizedMessages(request);
       const scalewayClient = this.getScalewayClient();
       const response = await scalewayClient.post(
@@ -931,64 +957,95 @@ class AIGatewayService {
       throw new Error('SCALEWAY_API_KEY not configured');
     }
 
-    const crisisResult = detectCrisisInMessages(request.messages);
-    const scalewayMessages = this.buildSanitizedMessages(request);
-    const scalewayClient = this.getScalewayClient();
-    const response = await scalewayClient.post('/chat/completions', {
-      model,
-      messages: scalewayMessages,
-      temperature,
-      top_p: request.topP ?? this.defaultTopP,
-      max_tokens: maxTokens,
-      stream: false,
-    });
+    const crisisResult = this.safeDetectCrisis(request.messages);
+    const scalewayMessages = this.safeSanitizeMessages(request);
+    try {
+      const scalewayClient = this.getScalewayClient();
+      const response = await scalewayClient.post('/chat/completions', {
+        model,
+        messages: scalewayMessages,
+        temperature,
+        top_p: request.topP ?? this.defaultTopP,
+        max_tokens: maxTokens,
+        stream: false,
+      });
 
-    const completion = response.data;
-    const choice = completion.choices?.[0];
-    if (!choice || !choice.message) {
-      throw new Error('No response from Scaleway');
-    }
+      const completion = response.data;
+      const choice = completion.choices?.[0];
+      if (!choice || !choice.message) {
+        throw new Error('No response from Scaleway');
+      }
 
-    let content = this.extractTextContent(choice.message.content);
-    if (crisisResult.isCrisis) {
-      content = crisisResult.prependText + content;
-    }
+      let content = this.extractTextContent(choice.message.content);
+      if (crisisResult.isCrisis) {
+        content = crisisResult.prependText + content;
+      }
 
-    const promptTokens = completion.usage?.prompt_tokens || 0;
-    const completionTokens = completion.usage?.completion_tokens || 0;
-    logScalewayUsage(createUsageRecord(model, promptTokens, completionTokens));
+      const promptTokens = completion.usage?.prompt_tokens || 0;
+      const completionTokens = completion.usage?.completion_tokens || 0;
+      logScalewayUsage(createUsageRecord(model, promptTokens, completionTokens));
 
-    if (isResponseCacheEnabled() && content) {
-      await cacheResponse(request.messages, content);
-    }
+      if (isResponseCacheEnabled() && content) {
+        await cacheResponse(request.messages, content);
+      }
 
-    return {
-      id: completion.id || `scaleway-${Date.now()}`,
-      model: completion.model || model,
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: choice.message.role as 'assistant',
-            content,
-            timestamp: new Date(),
+      return {
+        id: completion.id || `scaleway-${Date.now()}`,
+        model: completion.model || model,
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: choice.message.role as 'assistant',
+              content,
+              timestamp: new Date(),
+            },
+            finishReason: choice.finish_reason || 'stop',
           },
-          finishReason: choice.finish_reason || 'stop',
+        ],
+        usage: {
+          promptTokens,
+          completionTokens,
+          totalTokens: completion.usage?.total_tokens || promptTokens + completionTokens,
         },
-      ],
-      usage: {
-        promptTokens,
-        completionTokens,
-        totalTokens: completion.usage?.total_tokens || promptTokens + completionTokens,
-      },
       created: completion.created || Math.floor(Date.now() / 1000),
     };
-  }
+  } catch (error: unknown) {
+    const ax = error as {
+      message?: string;
+      name?: string;
+      response?: { status?: number; data?: { message?: string } };
+    };
+    logger.error('Scaleway non-streaming error:', {
+      error: ax.message ?? 'Unknown error',
+      name: ax.name,
+      status: ax.response?.status,
+    });
 
-  /**
-   * Generate completion response using GPU service or Scaleway API
-   * Streams tokens from the configured AI service
-   */
+    let errorMessage = 'Unknown error';
+    const msg = ax.message ?? '';
+    const st = ax.response?.status;
+    if (msg) {
+      errorMessage = msg;
+    }
+    if (msg.includes('API key') || msg.includes('auth') || st === 401) {
+      errorMessage = 'Scaleway API key is invalid or missing';
+    } else if (msg.includes('rate limit') || st === 429) {
+      errorMessage = 'Scaleway API rate limit exceeded. Please try again later.';
+    } else if (msg.includes('quota') || st === 403) {
+      errorMessage = 'Scaleway API quota exceeded. Please check your account.';
+    } else if (ax.response?.data?.message) {
+      errorMessage = ax.response.data.message;
+    }
+
+    throw new Error(`Scaleway API error: ${errorMessage}`);
+  }
+}
+
+/**
+ * Generate completion response using GPU service or Scaleway API
+ * Streams tokens from the configured AI service
+ */
   async *generateCompletionStream(
     request: ChatCompletionRequest
   ): AsyncGenerator<SSEMessage, void, unknown> {

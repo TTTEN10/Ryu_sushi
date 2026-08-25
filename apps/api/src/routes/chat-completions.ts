@@ -52,10 +52,15 @@ export function mountChatCompletions(router: Router, path: string = '/completion
     optionalQuotaMiddleware,
     validate(chatCompletionSchema),
     async (req: AuthenticatedRequest, res: Response) => {
-      try {
-        const request: ChatCompletionRequest = req.body;
-        const shouldStream = request.stream !== false;
-        const isGuestMode = request.mode === 'guest';
+    let request: ChatCompletionRequest = req.body;
+    let shouldStream: boolean = false;
+    let isGuestMode: boolean = false;
+    let withContext: boolean = false;
+
+    try {
+      request = req.body;
+      shouldStream = request.stream !== false;
+      isGuestMode = request.mode === 'guest';
 
         if (isGuestMode) {
           logger.debug('Chat completion: guest mode — skipping quota increment and persistence');
@@ -105,7 +110,7 @@ export function mountChatCompletions(router: Router, path: string = '/completion
           }
         }
 
-        const withContext =
+        withContext =
           req.query.withContext === 'true' || String(req.query.withContext) === 'true';
         const enhancedRequest = withContext ? await enhanceWithRAG(request) : request;
 
@@ -128,18 +133,35 @@ export function mountChatCompletions(router: Router, path: string = '/completion
               res.write(eventLine + dataLine + idLine + retryLine + '\n');
             }
           } catch (streamError: any) {
-            logger.error('Streaming error:', streamError);
+            logger.error('Streaming error:', {
+              message: streamError.message,
+              stack: streamError.stack,
+            });
             res.write(`event: error\n`);
             res.write(`data: ${JSON.stringify({ error: 'Streaming error', message: streamError.message })}\n\n`);
           } finally {
-            res.end();
+            try {
+              res.end();
+            } catch {
+              // Response already ended — ignore
+            }
           }
         } else {
           const completion = await aiGatewayService.generateCompletion(enhancedRequest);
           res.json(completion);
         }
       } catch (error: any) {
-        logger.error('Chat completion error:', error);
+        logger.error('Chat completion error:', {
+          message: error.message,
+          stack: error.stack,
+          code: error.code,
+          name: error.name,
+          status: error.status || error.response?.status,
+          isGuestMode,
+          hasMessages: !!request.messages,
+          messageCount: request.messages?.length,
+          withContext: withContext,
+        });
         if (!res.headersSent) {
           res.status(500).json({
             success: false,
