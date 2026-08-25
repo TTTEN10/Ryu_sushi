@@ -69,44 +69,55 @@ export function mountChatCompletions(router: Router, path: string = '/completion
         if (!isGuestMode && req.quota && req.wallet) {
           const { walletAddress } = req.quota;
           const requestId = crypto.randomUUID();
-          const recordResult = await subscriptionService.recordUsage(walletAddress, requestId);
+          let usageRecorded = false;
 
-          if (!recordResult.recorded) {
-            // Idempotent: already recorded — get current quota status
-            const quotaCheck = await subscriptionService.checkQuota(walletAddress);
-            const allPrices = getAllPrices();
+          try {
+            const recordResult = await subscriptionService.recordUsage(walletAddress, requestId);
+            usageRecorded = recordResult.recorded;
 
-            if (!quotaCheck.allowed) {
-              const paywallData = {
-                error: 'QUOTA_EXCEEDED',
-                message: 'Chat quota exceeded. Upgrade your plan to continue.',
-                quota: {
-                  dailyUsed: quotaCheck.daily.used,
-                  dailyLimit: quotaCheck.daily.limit,
-                  weeklyUsed: quotaCheck.weekly.used,
-                  weeklyLimit: quotaCheck.weekly.limit,
-                  monthlyUsed: quotaCheck.monthly.used,
-                  monthlyLimit: quotaCheck.monthly.limit,
-                },
-                paywall: {
-                  showPaywall: true,
-                  pricing: allPrices,
-                  paymentRecipient: process.env.PAYMENT_TREASURY_ADDRESS || null,
-                },
-              };
+            if (!recordResult.recorded) {
+              // Idempotent: already recorded — get current quota status
+              const quotaCheck = await subscriptionService.checkQuota(walletAddress);
+              const allPrices = getAllPrices();
 
-              if (shouldStream) {
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-                res.write(`event: error\n`);
-                res.write(`data: ${JSON.stringify(paywallData)}\n\n`);
-                res.end();
-              } else {
-                res.status(429).json(paywallData);
+              if (!quotaCheck.allowed) {
+                const paywallData = {
+                  error: 'QUOTA_EXCEEDED',
+                  message: 'Chat quota exceeded. Upgrade your plan to continue.',
+                  quota: {
+                    dailyUsed: quotaCheck.daily.used,
+                    dailyLimit: quotaCheck.daily.limit,
+                    weeklyUsed: quotaCheck.weekly.used,
+                    weeklyLimit: quotaCheck.weekly.limit,
+                    monthlyUsed: quotaCheck.monthly.used,
+                    monthlyLimit: quotaCheck.monthly.limit,
+                  },
+                  paywall: {
+                    showPaywall: true,
+                    pricing: allPrices,
+                    paymentRecipient: process.env.PAYMENT_TREASURY_ADDRESS || null,
+                  },
+                };
+
+                if (shouldStream) {
+                  res.setHeader('Content-Type', 'text/event-stream');
+                  res.setHeader('Cache-Control', 'no-cache');
+                  res.setHeader('Connection', 'keep-alive');
+                  res.write(`event: error\n`);
+                  res.write(`data: ${JSON.stringify(paywallData)}\n\n`);
+                  res.end();
+                } else {
+                  res.status(429).json(paywallData);
+                }
+                return;
               }
-              return;
             }
+          } catch (usageError: any) {
+            logger.warn('Subscription usage tracking failed, continuing without persistent quota:', {
+              walletAddress,
+              error: usageError.message,
+              code: usageError.code,
+            });
           }
         }
 

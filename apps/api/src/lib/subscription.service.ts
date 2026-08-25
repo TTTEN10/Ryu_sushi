@@ -55,34 +55,39 @@ function isSubscriptionActive(status: SubscriptionStatus, expiresAt: Date | null
  * Returns FREE if no paid subscription is active.
  */
 export async function resolvePlan(walletAddress: string): Promise<SubscriptionPlan> {
-  const normalized = normalizeAddress(walletAddress);
+  try {
+    const normalized = normalizeAddress(walletAddress);
 
-  const subscription = await prisma.subscription.findUnique({
-    where: { walletAddress: normalized },
-  });
+    const subscription = await prisma.subscription.findUnique({
+      where: { walletAddress: normalized },
+    });
 
-  if (!subscription) {
+    if (!subscription) {
+      return SubscriptionPlan.FREE;
+    }
+
+    if (isSubscriptionActive(subscription.status, subscription.expiresAt)) {
+      return subscription.plan;
+    }
+
+    // Expired — fall back to FREE
+    // Mark as expired in DB
+    if (subscription.status === SubscriptionStatus.ACTIVE) {
+      try {
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { status: SubscriptionStatus.EXPIRED },
+        });
+      } catch {
+        // Best effort; dynamic check below will catch it
+      }
+    }
+
+    return SubscriptionPlan.FREE;
+  } catch (error: any) {
+    logger.error(`resolvePlan failed for ${walletAddress}, returning FREE: ${error.message}`);
     return SubscriptionPlan.FREE;
   }
-
-  if (isSubscriptionActive(subscription.status, subscription.expiresAt)) {
-    return subscription.plan;
-  }
-
-  // Expired — fall back to FREE
-  // Mark as expired in DB
-  if (subscription.status === SubscriptionStatus.ACTIVE) {
-    try {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: { status: SubscriptionStatus.EXPIRED },
-      });
-    } catch {
-      // Best effort; dynamic check below will catch it
-    }
-  }
-
-  return SubscriptionPlan.FREE;
 }
 
 /**
@@ -220,40 +225,45 @@ export async function activateSubscription(
  * Get the current usage counts for a wallet.
  */
 export async function getUsageCounts(walletAddress: string, now = new Date()) {
-  const normalized = normalizeAddress(walletAddress);
+  try {
+    const normalized = normalizeAddress(walletAddress);
 
-  // Daily: today 00:00 UTC
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  // Weekly: Monday of current ISO week in UTC
-  const dayOfWeek = now.getUTCDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStart = new Date(todayStart);
-  weekStart.setUTCDate(todayStart.getUTCDate() + mondayOffset);
-  // Monthly: first of current month in UTC
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    // Daily: today 00:00 UTC
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    // Weekly: Monday of current ISO week in UTC
+    const dayOfWeek = now.getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = new Date(todayStart);
+    weekStart.setUTCDate(todayStart.getUTCDate() + mondayOffset);
+    // Monthly: first of current month in UTC
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-  const [daily, weekly, monthly] = await Promise.all([
-    prisma.promptUsage.count({
-      where: {
-        walletAddress: normalized,
-        timestamp: { gte: todayStart },
-      },
-    }),
-    prisma.promptUsage.count({
-      where: {
-        walletAddress: normalized,
-        timestamp: { gte: weekStart },
-      },
-    }),
-    prisma.promptUsage.count({
-      where: {
-        walletAddress: normalized,
-        timestamp: { gte: monthStart },
-      },
-    }),
-  ]);
+    const [daily, weekly, monthly] = await Promise.all([
+      prisma.promptUsage.count({
+        where: {
+          walletAddress: normalized,
+          timestamp: { gte: todayStart },
+        },
+      }),
+      prisma.promptUsage.count({
+        where: {
+          walletAddress: normalized,
+          timestamp: { gte: weekStart },
+        },
+      }),
+      prisma.promptUsage.count({
+        where: {
+          walletAddress: normalized,
+          timestamp: { gte: monthStart },
+        },
+      }),
+    ]);
 
-  return { daily, weekly, monthly };
+    return { daily, weekly, monthly };
+  } catch (error: any) {
+    logger.error(`getUsageCounts failed for ${walletAddress}: ${error.message}`);
+    return { daily: 0, weekly: 0, monthly: 0 };
+  }
 }
 
 /**
@@ -266,9 +276,9 @@ export async function recordUsage(
   subscriptionId?: string,
   metadata?: Record<string, unknown>,
 ): Promise<{ recorded: boolean; daily?: number; weekly?: number; monthly?: number }> {
-  const normalized = normalizeAddress(walletAddress);
-
   try {
+    const normalized = normalizeAddress(walletAddress);
+
     await prisma.promptUsage.create({
       data: {
         walletAddress: normalized,
@@ -282,10 +292,12 @@ export async function recordUsage(
     if (error.code === 'P2002') {
       return { recorded: false };
     }
-    throw error;
+    // Any other DB error — log and return not recorded to avoid blocking the request
+    logger.error(`recordUsage failed for wallet ${walletAddress}, requestId ${requestId}: ${error.message}`);
+    return { recorded: false };
   }
 
-  // Return current usage counts
+  // Return current usage counts (gracefully handle errors here too)
   const now = new Date();
   const counts = await getUsageCounts(walletAddress, now);
   return { recorded: true, daily: counts.daily, weekly: counts.weekly, monthly: counts.monthly };
