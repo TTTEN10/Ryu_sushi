@@ -7,6 +7,8 @@
  * - Activate subscriptions after verification
  * - Prevent replay attacks (unique txHash)
  * - Integer arithmetic only (no floating-point)
+ * - Support ETH (native) and USDT (ERC-20) on Ethereum mainnet
+ * - 1% fee on top of USD equivalent to avoid conversion loss
  *
  * The backend controls:
  * - Treasury address (from env config)
@@ -14,8 +16,9 @@
  * - Token/currency (from env config)
  * - Pricing (from subscription-config.ts)
  * - Duration (from subscription-config.ts)
+ * - Fee percentage (from env config, default 1%)
  *
- * The frontend only says: "I want to purchase Pro yearly"
+ * The frontend only says: "I want to purchase Pro yearly with USDT"
  * The backend determines what that means.
  */
 
@@ -28,6 +31,10 @@ import * as subscriptionConfig from './subscription-config';
 import { subscriptionService } from './subscription.service';
 
 // ─── Treasury & chain configuration ──────────────────────────────────────────
+
+function isConfigured(): boolean {
+  return Boolean(getTreasuryAddress());
+}
 
 function getTreasuryAddress(): string | null {
   return process.env.PAYMENT_TREASURY_ADDRESS || null;
@@ -51,6 +58,11 @@ function getRequiredConfirmations(): number {
   return Number(process.env.PAYMENT_CONFIRMATIONS_REQUIRED || '12');
 }
 
+/** Fee percentage added on top of USD equivalent (e.g. 1 = 1%). */
+function getFeePercent(): number {
+  return Number(process.env.PAYMENT_FEE_PERCENT || '1');
+}
+
 // ─── Payment intent model ────────────────────────────────────────────────────
 
 const PAYMENT_INTENT_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -58,6 +70,7 @@ const PAYMENT_INTENT_TTL_MS = 15 * 60 * 1000; // 15 minutes
 export interface PaymentIntentRequest {
   plan: subscriptionConfig.PlanId;
   billingPeriod: subscriptionConfig.BillingPeriod;
+  currency?: 'ETH' | 'USDT';
 }
 
 export interface PaymentIntentResponse {
@@ -70,6 +83,16 @@ export interface PaymentIntentResponse {
   treasuryAddress: string;
   expiresAt: Date;
   tokenAddress: string | null;
+  selectedCurrency: 'ETH' | 'USDT';
+}
+
+/**
+ * Calculate amount in cents with fee applied.
+ * Base price in cents * (1 + feePercent / 100), rounded up.
+ */
+function addFee(amountCents: number, feePercent: number): number {
+  const feeMultiplier = 1 + feePercent / 100;
+  return Math.ceil(amountCents * feeMultiplier);
 }
 
 /**
@@ -108,9 +131,15 @@ export async function createPaymentIntent(
   // Get expected price from backend config
   const plan = request.plan.toUpperCase() as SubscriptionPlan;
   const billingPeriod = request.billingPeriod.toUpperCase() as SubscriptionBillingPeriod;
-  const amountCents = subscriptionConfig.getExpectedPriceCents(request.plan, request.billingPeriod);
+  const baseAmountCents = subscriptionConfig.getExpectedPriceCents(request.plan, request.billingPeriod);
+
+  // Apply 1% fee on top of USD equivalent
+  const feePercent = getFeePercent();
+  const amountCents = addFee(baseAmountCents, feePercent);
+
   const chainId = getChainId();
   const tokenAddress = getTokenAddress();
+  const selectedCurrency = request.currency || 'ETH';
 
   // Check for existing pending intent
   const existing = await prisma.paymentIntent.findFirst({
@@ -125,6 +154,7 @@ export async function createPaymentIntent(
     if (
       existing.plan === plan &&
       existing.billingPeriod === billingPeriod &&
+      existing.selectedCurrency === selectedCurrency &&
       new Date() < existing.expiresAt
     ) {
       return {
@@ -137,6 +167,7 @@ export async function createPaymentIntent(
         treasuryAddress: existing.treasuryAddress,
         expiresAt: existing.expiresAt,
         tokenAddress,
+        selectedCurrency,
       };
     }
     // Expired or different plan — cancel and create new
@@ -158,10 +189,11 @@ export async function createPaymentIntent(
       chainId,
       treasuryAddress,
       expiresAt,
+      selectedCurrency,
     },
   });
 
-  logger.info(`Payment intent created: ${intent.id} (${plan}/${billingPeriod}) for ${normalized}`);
+  logger.info(`Payment intent created: ${intent.id} (${plan}/${billingPeriod}/${selectedCurrency}) for ${normalized} — amount: ${amountCents} cents (${feePercent}% fee applied)`);
 
   return {
     paymentId: intent.id,
@@ -173,6 +205,7 @@ export async function createPaymentIntent(
     treasuryAddress: intent.treasuryAddress,
     expiresAt: intent.expiresAt,
     tokenAddress,
+    selectedCurrency,
   };
 }
 
@@ -186,6 +219,81 @@ interface VerificationResult {
   recipient: string;
   amountWei: bigint;
   currency: string;
+}
+
+/** Get USDT price in USD (should be ~1.0). */
+let usdtPriceCache: { price: number; cachedAt: number } | null = null;
+
+async function getUsdtPriceUsd(): Promise<number> {
+  const now = Date.now();
+  if (usdtPriceCache && (now - usdtPriceCache.cachedAt) < 60_000) {
+    return usdtPriceCache.price;
+  }
+
+  try {
+    const response = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=usd',
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok) throw new Error(`CoinGecko error: ${response.status}`);
+    const data = (await response.json()) as { tether?: { usd?: number } };
+    const price = data.tether?.usd;
+    if (!price || typeof price !== 'number') throw new Error('Invalid price from CoinGecko');
+    usdtPriceCache = { price, cachedAt: now };
+    return price;
+  } catch {
+    if (usdtPriceCache) return usdtPriceCache.price;
+    // USDT is pegged to $1
+    usdtPriceCache = { price: 1.0, cachedAt: now };
+    return 1.0;
+  }
+}
+
+/** Get ETH price in USD (with caching). */
+let ethPriceCache: { price: number; cachedAt: number } | null = null;
+
+async function getEthPriceUsd(): Promise<number> {
+  const now = Date.now();
+  if (ethPriceCache && (now - ethPriceCache.cachedAt) < 60_000) {
+    return ethPriceCache.price;
+  }
+
+  try {
+    const response = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok) throw new Error(`CoinGecko error: ${response.status}`);
+    const data = (await response.json()) as { ethereum?: { usd?: number } };
+    const price = data.ethereum?.usd;
+    if (!price || typeof price !== 'number') throw new Error('Invalid price from CoinGecko');
+    ethPriceCache = { price, cachedAt: now };
+    return price;
+  } catch {
+    if (ethPriceCache) return ethPriceCache.price;
+    throw new Error('Unable to fetch ETH price for payment verification');
+  }
+}
+
+/**
+ * Convert USD cents to wei based on current ETH price.
+ * Uses integer arithmetic to avoid floating-point issues.
+ */
+function usdCentsToWei(amountCents: number, ethPriceUsd: number): bigint {
+  // amountCents / 100 = USD
+  // USD / ethPriceUsd = ETH
+  // ETH * 1e18 = wei
+  const usd = amountCents / 100;
+  const eth = usd / ethPriceUsd;
+  return BigInt(Math.round(eth * 1e18));
+}
+
+/**
+ * Convert USD cents to USDT amount (in token units with 6 decimals).
+ */
+function usdCentsToUsdt(amountCents: number): bigint {
+  const usd = amountCents / 100;
+  return BigInt(Math.round(usd * 1e6));
 }
 
 async function verifyTransaction(
@@ -258,7 +366,7 @@ async function verifyTransaction(
       throw new Error(`Wrong amount: expected ~${expectedWei} wei, got ${amountWei} wei`);
     }
   } else {
-    // ERC-20 token transfer
+    // ERC-20 token transfer (USDT)
     const tokenAddress = getTokenAddress();
     if (!tokenAddress) {
       throw new Error('Token address not configured for ERC-20 payment');
@@ -300,6 +408,15 @@ async function verifyTransaction(
     sender = fromAddress.toLowerCase();
     recipient = expectedTreasury.toLowerCase();
     amountWei = transferAmount;
+
+    // Verify USDT amount (USDT has 6 decimals)
+    const expectedUsdt = usdCentsToUsdt(expectedAmountCents);
+    const tolerance = BigInt(100_000); // $0.10 tolerance for USDT (100 units of 6-decimal)
+    const diff = transferAmount > expectedUsdt ? transferAmount - expectedUsdt : expectedUsdt - transferAmount;
+
+    if (diff > tolerance) {
+      throw new Error(`Wrong USDT amount: expected ~${expectedUsdt}, got ${transferAmount}`);
+    }
   }
 
   return {
@@ -311,47 +428,6 @@ async function verifyTransaction(
     amountWei,
     currency: expectedCurrency,
   };
-}
-
-/**
- * Get ETH price in USD (with caching).
- */
-let ethPriceCache: { price: number; cachedAt: number } | null = null;
-
-async function getEthPriceUsd(): Promise<number> {
-  const now = Date.now();
-  if (ethPriceCache && (now - ethPriceCache.cachedAt) < 60_000) {
-    return ethPriceCache.price;
-  }
-
-  try {
-    const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
-      { signal: AbortSignal.timeout(10_000) },
-    );
-    if (!response.ok) throw new Error(`CoinGecko error: ${response.status}`);
-    const data = (await response.json()) as { ethereum?: { usd?: number } };
-    const price = data.ethereum?.usd;
-    if (!price || typeof price !== 'number') throw new Error('Invalid price from CoinGecko');
-    ethPriceCache = { price, cachedAt: now };
-    return price;
-  } catch {
-    if (ethPriceCache) return ethPriceCache.price;
-    throw new Error('Unable to fetch ETH price for payment verification');
-  }
-}
-
-/**
- * Convert USD cents to wei based on current ETH price.
- * Uses integer arithmetic to avoid floating-point issues.
- */
-function usdCentsToWei(amountCents: number, ethPriceUsd: number): bigint {
-  // amountCents / 100 = USD
-  // USD / ethPriceUsd = ETH
-  // ETH * 1e18 = wei
-  const usd = amountCents / 100;
-  const eth = usd / ethPriceUsd;
-  return BigInt(Math.round(eth * 1e18));
 }
 
 // ─── Payment verification (main entry point) ─────────────────────────────────
@@ -380,7 +456,7 @@ export interface PaymentVerificationResult {
  * - txHash must be unique (unique DB constraint)
  * - Sender must match authenticated wallet
  * - Recipient must be treasury
- * - Amount must be correct (±1% tolerance for price drift)
+ * - Amount must be correct (includes 1% fee)
  * - Chain must be correct
  * - Required confirmations must be reached
  * - Payment intent must still be valid
@@ -457,8 +533,10 @@ export async function verifyPayment(
     throw new Error('Transaction hash has already been used for a payment');
   }
 
-  // 6. Verify blockchain transaction
-  const currency = getTokenAddress() ? 'ERC20' : 'ETH';
+  // 6. Determine currency from payment intent
+  const currency = intent.selectedCurrency === 'USDT' ? 'ERC20' : 'ETH';
+
+  // 7. Verify blockchain transaction
   const verification = await verifyTransaction(
     request.txHash,
     intent.treasuryAddress,
@@ -467,12 +545,12 @@ export async function verifyPayment(
     currency,
   );
 
-  // 7. Verify sender matches authenticated wallet
+  // 8. Verify sender matches authenticated wallet
   if (verification.sender !== normalizedWallet) {
     throw new Error('Transaction sender does not match authenticated wallet');
   }
 
-  // 8. Record payment as confirmed
+  // 9. Record payment as confirmed
   const plan = intent.plan;
   const billingPeriod = intent.billingPeriod;
   const walletAddress = intent.walletAddress;
@@ -496,7 +574,7 @@ export async function verifyPayment(
     include: { subscription: true },
   });
 
-  // 9. Activate subscription
+  // 10. Activate subscription
   const subResult = await subscriptionService.activateSubscription(
     normalizedWallet,
     plan,
@@ -505,14 +583,14 @@ export async function verifyPayment(
     verification.blockNumber,
   );
 
-  // 10. Mark payment intent as confirmed
+  // 11. Mark payment intent as confirmed
   await prisma.paymentIntent.update({
     where: { id: intent.id },
     data: { status: PaymentIntentStatus.CONFIRMED },
   });
 
   logger.info(
-    `Payment confirmed: ${request.txHash} → subscription ${subResult.subscriptionId} (${plan}/${billingPeriod}) for ${normalizedWallet}`,
+    `Payment confirmed: ${request.txHash} (${verification.currency}) → subscription ${subResult.subscriptionId} (${plan}/${billingPeriod}) for ${normalizedWallet}`,
   );
 
   return {
@@ -593,12 +671,10 @@ export async function updateLegacyPaymentStatus(
 }
 
 export const cryptoPaymentService = {
+  isConfigured,
   createPaymentIntent,
   verifyPayment,
   verifyLegacyPayment,
   createPaymentRecord,
   updateLegacyPaymentStatus,
-  getTreasuryAddress,
-  getChainId,
-  isConfigured: () => !!getRpcUrl() && !!getTreasuryAddress(),
 };

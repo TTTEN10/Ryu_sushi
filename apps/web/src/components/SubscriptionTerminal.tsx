@@ -7,6 +7,7 @@ import {
   Zap,
   ArrowRight,
   Lock,
+  Info,
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
@@ -27,6 +28,9 @@ interface SubscriptionTerminalProps {
 type PaymentStep = 'select' | 'paying' | 'verify' | 'success' | 'error';
 
 // ─── Component ──────────────────────────────────────────────────────────────
+
+const USDT_CONTRACT_ADDRESS = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+const USDT_DECIMALS = 6;
 
 export default function SubscriptionTerminal({
   forced = false,
@@ -55,6 +59,7 @@ export default function SubscriptionTerminal({
   const [txHash, setTxHash] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(error);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [currency, setCurrency] = useState<'ETH' | 'USDT'>('ETH');
 
   // Reset state on wallet change
   useEffect(() => {
@@ -97,17 +102,14 @@ export default function SubscriptionTerminal({
       if (subscription?.status === 'active' && subscription.plan === planId) {
         return;
       }
-      // Already have wallet & signer — go straight to payment
-      if (wallet && signer) {
-        setSelectedPlan(planId);
-        setStep('select');
-      } else {
-        setSelectedPlan(planId);
-        setStep('select');
-        // Force re-render so payment summary shows connect button
-      }
+      setSelectedPlan(planId);
+      setStep('select');
+      // Reset payment state when switching plans
+      setPaymentIntent(null);
+      setTxHash('');
+      setErrorMessage(null);
     },
-    [subscription, wallet, signer],
+    [subscription],
   );
 
   const handleCreatePaymentIntent = async () => {
@@ -117,14 +119,14 @@ export default function SubscriptionTerminal({
     setErrorMessage(null);
 
     try {
-      const intent = await createPaymentIntent(selectedPlan, billingPeriod);
+      const intent = await createPaymentIntent(selectedPlan, billingPeriod, currency);
       if (!intent) {
         setStep('error');
         return;
       }
       setPaymentIntent(intent);
 
-      // Initiate wallet transaction
+      // Initiate wallet transaction with selected currency
       await executeWalletTransaction(intent);
     } catch {
       setStep('error');
@@ -139,26 +141,60 @@ export default function SubscriptionTerminal({
     }
 
     try {
-      const amountWei = ethers.parseUnits(intent.usdDisplay, 18);
-      const tx = await signer.sendTransaction({
-        to: intent.treasuryAddress,
-        value: amountWei,
-      });
+      const selectedCurrency = intent.selectedCurrency || currency;
 
-      setTxHash(tx.hash);
-      setPaymentIntent(intent);
-      setStep('verify');
+      if (selectedCurrency === 'USDT') {
+        // USDT ERC-20 transfer
+        const usdtAbi = [
+          'function approve(address spender, uint256 amount) returns (bool)',
+          'function transfer(address to, uint256 amount) returns (bool)',
+        ];
+        const usdtContract = new ethers.Contract(USDT_CONTRACT_ADDRESS, usdtAbi, signer);
 
-      // Start polling for blockchain confirmation (up to 120s)
-      startPaymentPolling(
-        intent.paymentId,
-        () => {
-          setStep('success');
-          refreshAll();
-          if (onActivate) onActivate();
-        },
-        120_000,
-      );
+        // Calculate USDT amount (6 decimals)
+        const usdtAmount = Math.ceil((intent.amountCents / 100) * Math.pow(10, USDT_DECIMALS));
+
+        // First approve the treasury to spend USDT
+        const approveTx = await usdtContract.approve(intent.treasuryAddress, usdtAmount);
+        await approveTx.wait();
+
+        // Then transfer USDT to treasury
+        const transferTx = await usdtContract.transfer(intent.treasuryAddress, usdtAmount);
+        setTxHash(transferTx.hash);
+        setPaymentIntent(intent);
+        setStep('verify');
+
+        startPaymentPolling(
+          intent.paymentId,
+          () => {
+            setStep('success');
+            refreshAll();
+            if (onActivate) onActivate();
+          },
+          120_000,
+        );
+      } else {
+        // Native ETH transfer
+        const amountWei = ethers.parseUnits(intent.usdDisplay, 18);
+        const tx = await signer.sendTransaction({
+          to: intent.treasuryAddress,
+          value: amountWei,
+        });
+
+        setTxHash(tx.hash);
+        setPaymentIntent(intent);
+        setStep('verify');
+
+        startPaymentPolling(
+          intent.paymentId,
+          () => {
+            setStep('success');
+            refreshAll();
+            if (onActivate) onActivate();
+          },
+          120_000,
+        );
+      }
     } catch (err: any) {
       if (err.code === 'ACTION_REJECTED') {
         setErrorMessage('Transaction rejected by user');
@@ -332,15 +368,13 @@ export default function SubscriptionTerminal({
 
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-heading">{planDef?.name}</h3>
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end">
             <span className="text-2xl font-bold text-heading">
               {displayPrice}
             </span>
-            {displaySuffix ? (
-              <span className="text-sm text-body opacity-75 ml-0.5">{displaySuffix}</span>
-            ) : (
-              <span className="text-sm text-body opacity-75 ml-0.5">/mo</span>
-            )}
+            <span className="text-sm text-body opacity-75 leading-tight mt-0.5">
+              {displaySuffix || '/mo'}
+            </span>
           </div>
         </div>
 
@@ -433,7 +467,7 @@ export default function SubscriptionTerminal({
         {txHash && (
           <>
             <a
-              href={`https://sepolia.etherscan.io/tx/${txHash}`}
+              href={`https://etherscan.io/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-mono break-all mb-3"
@@ -466,7 +500,7 @@ export default function SubscriptionTerminal({
       </p>
       {paymentIntent && (
         <a
-          href={`https://sepolia.etherscan.io/tx/${txHash}`}
+          href={`https://etherscan.io/tx/${txHash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-mono mb-4"
@@ -751,16 +785,14 @@ export default function SubscriptionTerminal({
           {selectedPlan && step === 'select' && (
             <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
-                {/* Wallet info */}
                 {wallet && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-body">Wallet</span>
                     <span className="text-heading font-mono text-xs">
-                      {wallet.slice(0, 6)}…{wallet.slice(-4)}
+                      {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
                     </span>
                   </div>
                 )}
-
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-body">Plan</span>
                   <span className="text-heading font-medium capitalize">{selectedPlan}</span>
@@ -770,21 +802,59 @@ export default function SubscriptionTerminal({
                   <span className="text-heading font-medium capitalize">{billingPeriod}</span>
                 </div>
 
+                {/* Currency selector — shown before intent is created */}
+                {!paymentIntent && wallet && (
+                  <div className="space-y-2">
+                    <span className="text-sm text-body">Pay with</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrency('ETH')}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                          currency === 'ETH'
+                            ? 'bg-primary-600 text-white shadow-sm'
+                            : 'bg-white dark:bg-gray-700 text-body border border-gray-200 dark:border-gray-600 hover:border-primary-400'
+                        }`}
+                      >
+                        <span className="text-lg">⟠</span> ETH
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCurrency('USDT')}
+                        className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                          currency === 'USDT'
+                            ? 'bg-primary-600 text-white shadow-sm'
+                            : 'bg-white dark:bg-gray-700 text-body border border-gray-200 dark:border-gray-600 hover:border-primary-400'
+                        }`}
+                      >
+                        <span className="text-lg font-bold">₮</span> USDT
+                      </button>
+                    </div>
+                    <div className="flex items-start gap-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
+                      <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>A 1% fee is applied to all crypto payments.</span>
+                    </div>
+                  </div>
+                )}
+
                 {paymentIntent && (
                   <>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-body">Amount</span>
                       <span className="text-heading font-semibold">{paymentIntent.usdDisplay}</span>
                     </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-body">Currency</span>
+                      <span className="text-heading font-medium">{paymentIntent.selectedCurrency || currency}</span>
+                    </div>
                     <div className="flex items-center justify-between text-xs text-body">
                       <span>Network</span>
-                      <span>Sepolia Testnet</span>
+                      <span>Ethereum Mainnet</span>
                     </div>
                     <div className="flex items-center justify-between text-xs text-body">
                       <span>Recipient</span>
                       <span className="font-mono">
-                        {paymentIntent.treasuryAddress.slice(0, 6)}…
-                        {paymentIntent.treasuryAddress.slice(-4)}
+                        {paymentIntent.treasuryAddress.slice(0, 6)}…{paymentIntent.treasuryAddress.slice(-4)}
                       </span>
                     </div>
                   </>
@@ -794,20 +864,9 @@ export default function SubscriptionTerminal({
               {!wallet ? (
                 <button
                   onClick={async () => {
-                    try {
-                      await connectWallet();
-                      // After wallet connects, pre-create the payment intent for the selected plan
-                      if (selectedPlan) {
-                        const intent = await createPaymentIntent(selectedPlan, billingPeriod);
-                        if (intent) {
-                          setPaymentIntent(intent);
-                        }
-                      }
-                    } catch {
-                      setErrorMessage('Wallet connection failed. Please try again.');
-                    }
+                    try { await connectWallet(); } catch { setErrorMessage('Wallet connection failed.'); }
                   }}
-                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg transition-all flex items-center justify-center gap-2"
                 >
                   <Lock className="w-4 h-4" />
                   Connect Wallet to Continue
@@ -815,22 +874,29 @@ export default function SubscriptionTerminal({
               ) : (
                 <button
                   onClick={handleCreatePaymentIntent}
-                  disabled={!signer || !paymentIntent}
-                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  disabled={!paymentIntent}
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   <Lock className="w-4 h-4" />
-                  {!paymentIntent ? 'Preparing payment...' : `Pay ${paymentIntent.usdDisplay} with Wallet`}
+                  {!paymentIntent
+                    ? `Continue with ${currency}`
+                    : `Pay ${paymentIntent.usdDisplay} with ${paymentIntent.selectedCurrency || currency}`}
                 </button>
               )}
 
               {!wallet && (
                 <p className="text-xs text-center text-body opacity-55">
-                  Wallet connection required to subscribe. Your address will be shown during payment.
+                  Wallet connection required to subscribe.
                 </p>
               )}
-              {wallet && (
+              {wallet && !paymentIntent && (
                 <p className="text-xs text-center text-body opacity-55">
-                  You will be asked to confirm the transaction in your wallet.
+                  Select ETH or USDT above, then click continue to create your payment.
+                </p>
+              )}
+              {wallet && paymentIntent && (
+                <p className="text-xs text-center text-body opacity-55">
+                  You will be asked to approve and confirm the transaction in your wallet.
                 </p>
               )}
             </div>

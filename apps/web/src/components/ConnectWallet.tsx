@@ -271,7 +271,7 @@ export default function ConnectWallet({ variant = 'default' }: { variant?: Conne
                         <Copy className="w-4 h-4" />
                       </button>
                       <a
-                        href={`https://sepolia.etherscan.io/address/${wallet.address}`}
+                        href={`https://etherscan.io/address/${wallet.address}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

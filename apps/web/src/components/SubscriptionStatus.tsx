@@ -178,7 +178,7 @@ export default function SubscriptionStatus({ compact = false }: SubscriptionStat
             <div className="flex items-center gap-2 text-xs pt-2 border-t border-gray-100 dark:border-gray-800">
               <CreditCard className="w-3.5 h-3.5 text-body opacity-50" />
               <a
-                href={`https://sepolia.etherscan.io/tx/${subscription.cryptoPaymentTxHash}`}
+                href={`https://etherscan.io/tx/${subscription.cryptoPaymentTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary-600 hover:text-primary-700 font-mono flex items-center gap-1"

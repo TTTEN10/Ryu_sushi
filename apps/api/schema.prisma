@@ -79,18 +79,19 @@ model Subscription {
 }
 
 model PaymentIntent {
-  id            String              @id @default(cuid())
-  walletAddress String
-  plan          SubscriptionPlan
-  billingPeriod SubscriptionBillingPeriod
-  amountCents   Int
-  currency      String              @default("USD")
-  chainId       Int
-  treasuryAddress String
-  status        PaymentIntentStatus @default(PENDING)
-  expiresAt     DateTime
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id               String              @id @default(cuid())
+  walletAddress    String
+  plan             SubscriptionPlan
+  billingPeriod    SubscriptionBillingPeriod
+  amountCents      Int
+  currency         String              @default("USD")
+  chainId          Int
+  treasuryAddress  String
+  status           PaymentIntentStatus @default(PENDING)
+  expiresAt        DateTime
+  selectedCurrency String              @default("ETH")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@index([walletAddress])
   @@index([status])

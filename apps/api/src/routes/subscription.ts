@@ -27,6 +27,7 @@ router.use(paymentRateLimitMiddleware);
 const paymentIntentSchema = Joi.object({
   plan: Joi.string().valid('pro', 'unlimited').required(),
   billingPeriod: Joi.string().valid('monthly', 'yearly').required(),
+  currency: Joi.string().valid('ETH', 'USDT').optional().default('ETH'),
 });
 
 const paymentVerifySchema = Joi.object({
@@ -174,12 +175,12 @@ router.post(
       if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Sepolia Testnet is supported',
+          message: 'Only Ethereum Mainnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }
 
-      const { plan, billingPeriod } = req.body;
+      const { plan, billingPeriod, currency } = req.body;
       const walletAddress = req.wallet.walletAddress.toLowerCase();
 
       // Verify plan + billing period are valid
@@ -202,6 +203,7 @@ router.post(
       const intent = await cryptoPaymentService.createPaymentIntent(walletAddress, {
         plan,
         billingPeriod,
+        currency: currency || 'ETH',
       });
 
       res.json({
@@ -215,6 +217,8 @@ router.post(
           chainId: intent.chainId,
           treasuryAddress: intent.treasuryAddress,
           expiresAt: intent.expiresAt.toISOString(),
+          selectedCurrency: intent.selectedCurrency,
+          tokenAddress: intent.tokenAddress,
         },
       });
     } catch (error: any) {
@@ -246,7 +250,7 @@ router.post(
       if (req.wallet.chainId !== SUPPORTED_CHAIN_ID) {
         return res.status(400).json({
           success: false,
-          message: 'Only Sepolia Testnet is supported',
+          message: 'Only Ethereum Mainnet is supported',
           error: 'UNSUPPORTED_CHAIN',
         });
       }

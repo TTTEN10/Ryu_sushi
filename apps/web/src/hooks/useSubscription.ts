@@ -93,6 +93,8 @@ export interface PaymentIntent {
   treasuryAddress: string;
   expiresAt: string;
   createdAt: string;
+  selectedCurrency: 'ETH' | 'USDT';
+  tokenAddress: string | null;
 }
 
 export interface PaymentRecord {
@@ -291,18 +293,22 @@ export function useSubscription() {
   // ─── Create Payment Intent ───────────────────────────────────────────────
 
   const createPaymentIntent = useCallback(
-    async (plan: Exclude<PlanId, 'free'>, billingPeriod: BillingPeriod) => {
+    async (plan: Exclude<PlanId, 'free'>, billingPeriod: BillingPeriod, currency: 'ETH' | 'USDT' = 'ETH') => {
       setState((prev) => ({ ...prev, error: null }));
       try {
         const response = await apiFetch('/subscription/payment/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan, billingPeriod }),
+          body: JSON.stringify({ plan, billingPeriod, currency }),
         });
         const data = await response.json();
         if (response.ok && data.success) {
           activePaymentIdRef.current = data.data.paymentId;
-          return data.data as PaymentIntent;
+          const intent = data.data as PaymentIntent;
+          return {
+            ...intent,
+            usdDisplay: `$${Math.round(intent.amountCents / 100)}`,
+          } as PaymentIntent;
         }
         const errMsg = data.error
           ? `${data.message} (${data.error})`

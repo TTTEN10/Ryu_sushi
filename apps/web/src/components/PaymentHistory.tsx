@@ -144,7 +144,7 @@ function PaymentRow({ payment }: { payment: PaymentRecord }) {
       {/* Etherscan link */}
       {payment.txHash && isConfirmed && (
         <a
-          href={`https://sepolia.etherscan.io/tx/${payment.txHash}`}
+          href={`https://etherscan.io/tx/${payment.txHash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-shrink-0 text-primary-600 hover:text-primary-700 transition-colors"

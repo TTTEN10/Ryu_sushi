@@ -1,14 +1,14 @@
 /**
- * Single source of truth for the app-supported EVM network (API).
- * When moving to Ethereum mainnet: set SUPPORTED_CHAIN_ID = 1, SUPPORTED_CHAIN_ID_HEX = '0x1', update SUPPORTED_NETWORK_NAME.
+ * Ethereum Mainnet configuration.
+ * Treasury address: 0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c
  */
-export const SUPPORTED_NETWORK_NAME = 'Sepolia Testnet';
+export const SUPPORTED_NETWORK_NAME = 'Ethereum Mainnet';
 
 /** Decimal chain ID */
-export const SUPPORTED_CHAIN_ID = 11155111;
+export const SUPPORTED_CHAIN_ID = 1;
 
 /** For wallet_switchEthereumChain / wallet_addEthereumChain */
-export const SUPPORTED_CHAIN_ID_HEX = '0xAA36A7';
+export const SUPPORTED_CHAIN_ID_HEX = '0x1';
 
 /**
  * Main governance/admin address for the app
