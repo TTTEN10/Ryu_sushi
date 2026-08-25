@@ -7,7 +7,6 @@ import {
   Zap,
   ArrowRight,
   Lock,
-  Info,
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
@@ -829,10 +828,6 @@ export default function SubscriptionTerminal({
                       >
                         <span className="text-lg font-bold">₮</span> USDT
                       </button>
-                    </div>
-                    <div className="flex items-start gap-2 p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300">
-                      <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      <span>A 1% fee is applied to all crypto payments.</span>
                     </div>
                   </div>
                 )}
