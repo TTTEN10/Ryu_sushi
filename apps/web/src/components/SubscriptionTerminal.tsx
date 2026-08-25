@@ -869,12 +869,11 @@ export default function SubscriptionTerminal({
               ) : (
                 <button
                   onClick={handleCreatePaymentIntent}
-                  disabled={!paymentIntent}
-                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg transition-all flex items-center justify-center gap-2"
                 >
                   <Lock className="w-4 h-4" />
                   {!paymentIntent
-                    ? `Continue with ${currency}`
+                    ? `Pay with ${currency}`
                     : `Pay ${paymentIntent.usdDisplay} with ${paymentIntent.selectedCurrency || currency}`}
                 </button>
               )}
@@ -886,7 +885,7 @@ export default function SubscriptionTerminal({
               )}
               {wallet && !paymentIntent && (
                 <p className="text-xs text-center text-body opacity-55">
-                  Select ETH or USDT above, then click continue to create your payment.
+                  Select ETH or USDT above, then click Pay to create your payment.
                 </p>
               )}
               {wallet && paymentIntent && (
