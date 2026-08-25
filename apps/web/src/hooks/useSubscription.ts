@@ -192,6 +192,12 @@ export function useSubscription() {
     }
   }, []);
 
+  // ─── Auto-fetch plans on mount ───────────────────────────────────────────
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+
   // ─── Fetch Subscription Status ───────────────────────────────────────────
 
   const fetchSubscription = useCallback(async () => {
