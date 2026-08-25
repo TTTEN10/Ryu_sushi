@@ -533,13 +533,10 @@ WORKDIR /app
 COPY . .
 RUN npm install --legacy-peer-deps
 
-# Build for /beta/ path
-ARG VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID:-391299af5aedd1d51ef83d5e79e1a46d}
-ARG VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID:-0x103eAd096f898132E138ad228E35296db983A053}
-ARG VITE_RPC_URL=${WEB_VITE_RPC:-https://ethereum-rpc.publicnode.com}
-ENV VITE_WALLETCONNECT_PROJECT_ID=\${VITE_WALLETCONNECT_PROJECT_ID}
-ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=\${VITE_DID_IDENTITY_TOKEN_ADDRESS}
-ENV VITE_RPC_URL=\${VITE_RPC_URL}
+# Build for /beta/ path (Vite build-time env vars baked in at deploy time)
+ENV VITE_WALLETCONNECT_PROJECT_ID=${VITE_WALLETCONNECT_PROJECT_ID:-391299af5aedd1d51ef83d5e79e1a46d}
+ENV VITE_DID_IDENTITY_TOKEN_ADDRESS=${WEB_VITE_DID:-0x103eAd096f898132E138ad228E35296db983A053}
+ENV VITE_RPC_URL=${WEB_VITE_RPC:-https://ethereum-rpc.publicnode.com}
 ENV VITE_BASE_PATH=/beta/
 RUN npx vite build
 
@@ -556,10 +553,6 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_WALLETCONNECT_PROJECT_ID: ${VITE_WALLETCONNECT_PROJECT_ID}
-        VITE_DID_IDENTITY_TOKEN_ADDRESS: ${WEB_VITE_DID}
-        VITE_RPC_URL: ${WEB_VITE_RPC}
     restart: unless-stopped
     deploy:
       resources:
