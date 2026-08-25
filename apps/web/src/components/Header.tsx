@@ -15,6 +15,7 @@ const Header: React.FC = () => {
     showSubscriptionTerminal,
     subscriptionTerminalForced,
     openSubscriptionTerminal,
+    closeSubscriptionTerminal,
   } = useSubscriptionTerminal()
 
   return (
@@ -49,7 +50,7 @@ const Header: React.FC = () => {
                 <SubscriptionTerminal
                   forced={subscriptionTerminalForced}
                   onActivate={() => openSubscriptionTerminal(false)}
-                  onClose={() => openSubscriptionTerminal(false)}
+                  onClose={() => closeSubscriptionTerminal()}
                 />
               )}
             </div>

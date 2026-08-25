@@ -36,7 +36,6 @@ export default defineConfig(({ mode }) => {
   return {
     root: __dirname,
     // Use /beta/ base only for polinapsycho.com production (served from /beta path)
-    // For app.polinapsycho.com subdomain, use / since beta app is at root
     base: mode === 'production' ? (process.env.VITE_BASE_PATH || '/beta/') : '/',
     plugins: [react(), cssBeforeModuleScriptPlugin()],
     ssr: {

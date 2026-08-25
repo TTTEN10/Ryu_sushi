@@ -119,9 +119,9 @@ METRICS_SECRET="${METRICS_SECRET:-}"
 IP_SALT="${IP_SALT:-}"
 IP_HASHING_ENABLED="${IP_HASHING_ENABLED:-true}"
 if [[ "${APP_DOMAIN}" == www.* ]]; then
-  NODE_API_FRONTEND_URL="https://${APP_DOMAIN},https://app.polinapsycho.com"
+  NODE_API_FRONTEND_URL="https://${APP_DOMAIN}"
 else
-  NODE_API_FRONTEND_URL="https://${APP_DOMAIN},https://www.${APP_DOMAIN},https://app.polinapsycho.com"
+  NODE_API_FRONTEND_URL="https://${APP_DOMAIN},https://www.${APP_DOMAIN}"
 fi
 SIWE_DOMAIN="${SIWE_DOMAIN:-${APP_DOMAIN}}"
 SIWE_URI="${SIWE_URI:-https://${APP_DOMAIN}}"

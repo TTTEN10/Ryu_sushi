@@ -21,7 +21,6 @@ set -euo pipefail
 VERIFY_LOCAL="${VERIFY_LOCAL:-0}"
 LOCAL_HTTP_PORT="${LOCAL_HTTP_PORT:-9080}"
 APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
-APP_DOMAIN_APP="${APP_DOMAIN_APP:-app.polinapsycho.com}"
 APP_IP="${APP_IP:-151.115.151.231}"
 LOCAL_BASE_URL="http://127.0.0.1:${LOCAL_HTTP_PORT}"
 TIMEOUT="${TIMEOUT:-15}"
@@ -255,12 +254,12 @@ if [[ "$CHECK_LLM" == "1" ]]; then
   fi
 fi
 
-# App subdomain checks (app.polinapsycho.com - beta app served at root)
-echo "Verifying app subdomain: $APP_DOMAIN_APP"
-check_http_code "App subdomain Homepage HTTPS" "https://${APP_DOMAIN_APP}" "200"
-check_http_code "App subdomain API health" "https://${APP_DOMAIN_APP}/api/healthz" "200"
-check_http_code "App subdomain Subscription plans" "https://${APP_DOMAIN_APP}/api/subscription/plans" "200"
-check_http_code "App subdomain Chat route" "https://${APP_DOMAIN_APP}/chat" "200"
+# Beta app checks (served at /beta/ on main domain)
+echo "Verifying beta app on $APP_DOMAIN"
+check_http_code "Beta Homepage HTTPS" "https://${APP_DOMAIN}/beta/" "200"
+check_http_code "Beta API health" "https://${APP_DOMAIN}/beta/api/healthz" "200"
+check_http_code "Beta Subscription plans" "https://${APP_DOMAIN}/beta/api/subscription/plans" "200"
+check_http_code "Beta Chat route" "https://${APP_DOMAIN}/beta/chat" "200"
 
 echo
 if [[ "$fail" -eq 0 ]]; then

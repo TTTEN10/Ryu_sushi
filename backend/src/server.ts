@@ -53,7 +53,7 @@ const isProdCors = process.env.NODE_ENV === 'production';
 function parseAllowedOrigins(): string[] {
   const raw = (process.env.FRONTEND_URL || '').trim();
   const defaults = isProdCors
-    ? ['https://polinapsycho.com', 'https://www.polinapsycho.com', 'https://chat.polinapsycho.com', 'https://app.polinapsycho.com']
+    ? ['https://polinapsycho.com', 'https://www.polinapsycho.com', 'https://chat.polinapsycho.com']
     : ['http://localhost:3000', 'http://localhost:3001'];
 
   const origins = raw

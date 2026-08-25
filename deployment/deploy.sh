@@ -37,7 +37,6 @@ DEPLOY_JSONL="${DEPLOY_LOG_DIR}/deploy.jsonl"
 DEBUG_NDJSON="${DEPLOY_LOG_DIR}/debug-fcc1a0.log"
 
 APP_DOMAIN="${APP_DOMAIN:-polinapsycho.com}"
-APP_DOMAIN_APP="${APP_DOMAIN_APP:-app.polinapsycho.com}"
 CADDY_SITE_NAMES="${CADDY_SITE_NAMES:-polinapsycho.com, www.polinapsycho.com}"
 CHATBOT_HOST="${CHATBOT_HOST:-151.115.151.231}"
 APP_HOST="${APP_HOST:-151.115.151.231}"
