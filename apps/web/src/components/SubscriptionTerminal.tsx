@@ -26,12 +26,6 @@ interface SubscriptionTerminalProps {
 
 type PaymentStep = 'select' | 'paying' | 'verify' | 'success' | 'error';
 
-// ─── Helper: format cents to USD ────────────────────────────────────────────
-
-function centsToUSD(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function SubscriptionTerminal({
@@ -230,7 +224,7 @@ export default function SubscriptionTerminal({
 
     return (
       <div
-        className={`relative rounded-xl border-2 p-5 transition-all ${
+        className={`relative rounded-xl border-2 p-4 h-full transition-all ${
           isActive
             ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/10'
             : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
@@ -239,7 +233,6 @@ export default function SubscriptionTerminal({
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-lg font-semibold text-heading">Free</h3>
-            <p className="text-sm text-body opacity-75">Try before you subscribe</p>
           </div>
           <div className="text-right">
             <span className="text-2xl font-bold text-heading">$0</span>
@@ -297,6 +290,12 @@ export default function SubscriptionTerminal({
     const discount = getDiscountBadge(planId);
     const isSelected = selectedPlan === planId;
 
+    // For yearly billing, display the monthly equivalent for easy comparison
+    const displayPrice = billingPeriod === 'yearly' && price?.monthlyEquivalentCents
+      ? `$${Math.round(price.monthlyEquivalentCents / 100)}`
+      : price?.usdDisplay;
+    const displaySuffix = billingPeriod === 'yearly' ? 'billed yearly' : (billingPeriod === 'monthly' ? '/mo' : '');
+
     const cardBase = isHighlighted
       ? 'border-primary-600 dark:border-primary-400 ring-1 ring-primary-600/20'
       : 'border-gray-200 dark:border-gray-700';
@@ -304,7 +303,7 @@ export default function SubscriptionTerminal({
     return (
       <div
         onClick={() => handleSelectPlan(planId)}
-        className={`relative rounded-xl border-2 p-5 cursor-pointer transition-all ${cardBase} ${
+        className={`relative rounded-xl border-2 p-4 h-full cursor-pointer transition-all ${cardBase} ${
           isActive
             ? 'bg-primary-50 dark:bg-primary-900/10'
             : isSelected
@@ -335,20 +334,15 @@ export default function SubscriptionTerminal({
           <h3 className="text-lg font-semibold text-heading">{planDef?.name}</h3>
           <div className="text-right">
             <span className="text-2xl font-bold text-heading">
-              {price?.usdDisplay}
+              {displayPrice}
             </span>
-            <span className="text-sm text-body opacity-75">
-              /{billingPeriod === 'monthly' ? 'mo' : 'yr'}
-            </span>
+            {displaySuffix ? (
+              <span className="text-sm text-body opacity-75 ml-0.5">{displaySuffix}</span>
+            ) : (
+              <span className="text-sm text-body opacity-75 ml-0.5">/mo</span>
+            )}
           </div>
         </div>
-
-        {/* Monthly equivalent for yearly */}
-        {billingPeriod === 'yearly' && price?.monthlyEquivalentCents && (
-          <p className="text-xs text-body opacity-75 mb-3">
-            {centsToUSD(price.monthlyEquivalentCents)}/mo billed yearly
-          </p>
-        )}
 
         {isActive && (
           <div className="mb-3 flex items-center gap-1.5 text-primary-600 dark:text-primary-400 text-sm font-medium">
@@ -681,7 +675,7 @@ export default function SubscriptionTerminal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-6 pt-6 pb-4 flex items-center justify-between z-10">
           <div>
@@ -732,15 +726,25 @@ export default function SubscriptionTerminal({
           </div>
 
           {/* Plan cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {/* Free plan */}
-            {renderFreePlan()}
+            <div className="h-full">
+              {renderFreePlan()}
+            </div>
 
             {/* Pro */}
-            {plans && renderPaidPlan('pro')}
+            {plans && (
+              <div className="h-full">
+                {renderPaidPlan('pro')}
+              </div>
+            )}
 
             {/* Unlimited */}
-            {plans && renderPaidPlan('unlimited')}
+            {plans && (
+              <div className="h-full">
+                {renderPaidPlan('unlimited')}
+              </div>
+            )}
           </div>
 
           {/* Payment CTA for selected plan */}

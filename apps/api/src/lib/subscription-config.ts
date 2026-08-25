@@ -141,7 +141,7 @@ export function getAllPrices(): PriceDefinition[] {
       billingPeriod: 'monthly',
       amountCents: PRICE_MONTHLY[planId],
       annualDiscountPercent: DISCOUNT_PERCENTAGE[planId],
-      usdDisplay: `$${(PRICE_MONTHLY[planId] / CENTS_PER_DOLLAR).toFixed(2)}`,
+      usdDisplay: `$${(PRICE_MONTHLY[planId] / CENTS_PER_DOLLAR).toFixed(0)}`,
     });
 
     // Yearly (use hardcoded price)
@@ -151,7 +151,7 @@ export function getAllPrices(): PriceDefinition[] {
       billingPeriod: 'yearly',
       amountCents: yearly,
       annualDiscountPercent: DISCOUNT_PERCENTAGE[planId],
-      usdDisplay: `$${(yearly / CENTS_PER_DOLLAR).toFixed(2)}`,
+      usdDisplay: `$${(yearly / CENTS_PER_DOLLAR).toFixed(0)}`,
       monthlyEquivalentCents: Math.round(yearly / 12),
     });
   }
