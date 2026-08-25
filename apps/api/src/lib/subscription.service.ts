@@ -67,7 +67,7 @@ export async function resolvePlan(walletAddress: string): Promise<SubscriptionPl
     }
 
     if (isSubscriptionActive(subscription.status, subscription.expiresAt)) {
-      return subscription.plan;
+      return subscription.plan || SubscriptionPlan.FREE;
     }
 
     // Expired — fall back to FREE
@@ -143,7 +143,7 @@ export async function getOrCreateSubscription(walletAddress: string): Promise<{
 
   return {
     id: subscription.id,
-    plan: subscription.plan,
+    plan: subscription.plan || SubscriptionPlan.FREE,
     status: subscription.status,
     expiresAt: subscription.expiresAt,
     startedAt: subscription.startedAt,

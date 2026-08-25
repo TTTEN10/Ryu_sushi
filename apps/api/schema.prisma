@@ -37,44 +37,45 @@ model ContactMessage {
 model EncryptedChat {
   id                  String    @id @default(cuid())
   walletAddress       String    @unique
-  didTokenId          String?
   encryptedBlob       String
   encryptedBlobHash   String
-  encryptedKey        String?
+  didTokenId          String?
   encryptedSummaryRef String?
+  encryptedKey        String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  expiresAt           DateTime?
   retentionDays       Int?
+  expiresAt           DateTime?
 
-  @@index([walletAddress])
-  @@index([didTokenId])
   @@index([expiresAt])
   @@map("encrypted_chats")
 }
 
 model Subscription {
-  id                  String             @id @default(cuid())
-  walletAddress       String             @unique
-  didTokenId          String?            @unique
-  plan                SubscriptionPlan   @default(FREE)
-  billingPeriod       SubscriptionBillingPeriod?
-  status              SubscriptionStatus @default(ACTIVE)
-  startedAt           DateTime?
-  expiresAt           DateTime?
-  cryptoPaymentTxHash String?            @unique
-  cryptoBlockNumber   BigInt?
-  paymentId           String?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  payments            Payment[]
+  id                   String             @id @default(cuid())
+  walletAddress        String             @unique
+  didTokenId           String?            @unique
+  tier                 SubscriptionTier   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  paymentMethod        PaymentMethod      @default(NONE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  cryptoPaymentTxHash  String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  @@index([walletAddress])
-  @@index([didTokenId])
-  @@index([status])
-  @@index([walletAddress, status])
-  @@index([expiresAt])
-  @@index([cryptoPaymentTxHash])
+  plan                 SubscriptionPlan?
+  billingPeriod        SubscriptionBillingPeriod?
+  expiresAt            DateTime?
+  startedAt            DateTime?
+  cryptoBlockNumber    BigInt?
+
+  payments               Payment[]
+
   @@map("subscriptions")
 }
 
@@ -87,71 +88,144 @@ model PaymentIntent {
   currency         String              @default("USD")
   chainId          Int
   treasuryAddress  String
+  selectedCurrency String
+  paymentMethod    PaymentMethod       @default(NONE)
   status           PaymentIntentStatus @default(PENDING)
   expiresAt        DateTime
-  selectedCurrency String              @default("ETH")
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
+  payments         Payment[]
 
-  @@index([walletAddress])
-  @@index([status])
   @@index([walletAddress, status])
+  @@index([status, expiresAt])
   @@map("payment_intents")
 }
 
 model Payment {
-  id                  String        @id @default(cuid())
-  walletAddress       String
-  didTokenId          String?
-  subscriptionId      String?
-  paymentIntentId     String?
-  plan                SubscriptionPlan
-  billingPeriod       SubscriptionBillingPeriod
-  amountCents         Int
-  currency            String        @default("USD")
-  chainId             Int
-  treasuryAddress     String
-  paymentMethod       PaymentMethod
-  status              PaymentStatus @default(PENDING)
-  cryptoTxHash        String        @unique
-  cryptoBlockNumber   BigInt?
-  senderAddress       String?
-  tokenAddress        String?
-  metadata            String?
-  createdAt           DateTime      @default(now())
-  confirmedAt         DateTime?
-  updatedAt           DateTime      @updatedAt
-  subscription        Subscription? @relation(fields: [subscriptionId], references: [id])
+  id               String            @id @default(cuid())
+  walletAddress    String
+  subscriptionId   String?
+  paymentIntentId  String?
+  plan             SubscriptionPlan
+  billingPeriod    SubscriptionBillingPeriod
+  amountCents      Int
+  currency         String            @default("USD")
+  chainId          Int
+  treasuryAddress  String
+  paymentMethod    PaymentMethod     @default(NONE)
+  status           PaymentStatus     @default(PENDING)
+  cryptoTxHash     String?           @unique
+  cryptoBlockNumber BigInt?
+  senderAddress    String?
+  confirmedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  subscription     Subscription?     @relation(fields: [subscriptionId], references: [id])
+  paymentIntent    PaymentIntent?    @relation(fields: [paymentIntentId], references: [id])
 
   @@index([walletAddress])
-  @@index([status])
   @@index([cryptoTxHash])
-  @@index([walletAddress, status])
+  @@index([status])
+  @@index([paymentIntentId])
   @@map("payments")
 }
 
-/**
- * PromptUsage — records every prompt request for quota accounting.
- * Each row is keyed by a unique requestId so retries are idempotent.
- */
 model PromptUsage {
   id             String   @id @default(cuid())
   walletAddress  String
-  requestId      String   // UUID supplied by the frontend or server
+  requestId      String   @unique
   subscriptionId String?
-  timestamp      DateTime @default(now())
   metadata       String?
+  timestamp      DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  @@unique([requestId])
   @@index([walletAddress, timestamp])
-  @@index([subscriptionId, timestamp])
   @@map("prompt_usages")
 }
 
-model RAGAuditLog {
-  id            String       @id @default(cuid())
-  operation     RAGOperation
+model UserConsent {
+  id              String         @id @default(cuid())
+  walletAddress   String
+  consentType     consenttype
+  consentVersion  String
+  consentTextHash String
+  status          consentstatus      @default(GRANTED)
+  source          consentsource?
+  ipAddressHash   String?
+  userAgent       String?
+  createdAt       DateTime       @default(now())
+  withdrawnAt     DateTime?
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@unique([walletAddress, consentType, consentVersion], map: "user_consents_walletAddress_consentType_consentVersion")
+  @@index([walletAddress, consentType])
+  @@index([status])
+  @@index([withdrawnAt])
+  @@index([createdAt])
+  @@map("user_consents")
+}
+
+model CrisisOptIn {
+  id                String    @id @default(cuid())
+  walletAddress     String    @unique
+  email             String?
+  fullName          String?
+  emergencyContact  String?
+  language          String?
+  country           String?
+  consentHash       String?
+  expiresAt         DateTime?
+  triggerCount      Int       @default(0)
+  lastCrisisTrigger DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("crisis_opt_in")
+}
+
+model SecurityAuditLog {
+  id          String   @id @default(cuid())
   walletAddress String?
+  eventType   String
+  actor       String?
+  resource    String?
+  success     Boolean
+  ipAddress   String?
+  userAgent   String?
+  details     String?
+  timestamp   DateTime @default(now())
+
+  @@index([walletAddress, timestamp])
+  @@index([timestamp])
+  @@index([eventType, timestamp])
+  @@map("security_audit_logs")
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  walletHash  String?
+  eventName   String
+  visitorId   String?
+  sessionId   String?
+  timestamp   DateTime @default(now())
+  pageUrl     String?
+  referrer    String?
+  userAgent   String?
+  deviceType  String?
+  country     String?
+  metadata    String?
+
+  @@index([walletHash, timestamp])
+  @@index([eventName, timestamp])
+  @@index([timestamp])
+  @@map("analytics_events")
+}
+
+model RAGAuditLog {
+  id            String   @id @default(cuid())
+  walletAddress String?
+  operation     RAGOperation
   documentId    String?
   source        String?
   documentSize  Int?
@@ -159,91 +233,54 @@ model RAGAuditLog {
   errorMessage  String?
   ipAddress     String?
   userAgent     String?
-  createdAt     DateTime     @default(now())
+  createdAt     DateTime @default(now())
 
-  @@index([operation])
-  @@index([walletAddress])
-  @@index([documentId])
-  @@index([source])
+  @@index([walletAddress, createdAt])
   @@index([createdAt])
+  @@index([operation, createdAt])
   @@map("rag_audit_logs")
 }
 
-/**
- * Crisis Safety Net - Opt-in PII storage for users who voluntarily
- * provide contact info for crisis follow-up. Auto-purged after 30 days.
- */
-model CrisisOptIn {
-  id                String    @id @default(cuid())
-  walletAddress     String    @unique // Pseudonymous link to user (unique - one per wallet)
-  email             String?   // Encrypted at rest via application layer
-  fullName          String?   // Encrypted at rest via application layer
-  emergencyContact  String?   // Encrypted at rest via application layer
-  language          String    // Detected language code (en, zh, hi, etc.)
-  consentHash       String    // Hash of consent data for audit/proof
-  createdAt         DateTime  @default(now())
-  expiresAt         DateTime  // Auto-purge target (created + 30 days)
-  lastCrisisTrigger DateTime? // Last time crisis was detected
-  triggerCount      Int       @default(0) // Number of crisis detections
+model EncryptedKey {
+  id            String   @id @default(cuid())
+  walletAddress String
+  encryptedKey  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  @@index([expiresAt])
-  @@map("crisis_opt_in")
-}
-
-model SecurityAuditLog {
-  id        String   @id @default(cuid())
-  eventType String
-  actor     String?
-  resource  String?
-  success   Boolean
-  ipAddress String?
-  userAgent String?
-  details   String?
-  createdAt DateTime @default(now())
-
-  @@index([eventType])
-  @@index([actor])
-  @@index([createdAt])
-  @@map("security_audit_logs")
-}
-
-model AnalyticsEvent {
-  id         String   @id @default(cuid())
-  eventName  String
-  visitorId  String?
-  sessionId  String?
-  walletHash String?
-  timestamp  DateTime @default(now())
-  pageUrl    String?
-  referrer   String?
-  userAgent  String?
-  deviceType String?
-  country    String?
-  metadata   String?
-
-  @@index([eventName])
-  @@index([visitorId])
-  @@index([timestamp])
-  @@index([sessionId])
-  @@index([walletHash])
-  @@map("analytics_events")
-}
-
-enum SubscriptionPlan {
-  FREE
-  PRO
-  UNLIMITED
-}
-
-enum SubscriptionBillingPeriod {
-  MONTHLY
-  YEARLY
+  @@unique([walletAddress])
+  @@map("encrypted_keys")
 }
 
 enum SubscriptionStatus {
   ACTIVE
-  EXPIRED
+  TRIALING
+  PAST_DUE
   CANCELLED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  NONE
+  STRIPE
+  CRYPTO
+}
+
+enum RAGOperation {
+  INDEX
+  BATCH_INDEX
+  DELETE
+  QUERY
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+}
+
+enum SubscriptionPlan {
+  FREE
+  PREMIUM
 }
 
 enum PaymentIntentStatus {
@@ -253,63 +290,31 @@ enum PaymentIntentStatus {
   CANCELLED
 }
 
-enum PaymentMethod {
-  NONE
-  STRIPE
-  CRYPTO
-}
-
 enum PaymentStatus {
   PENDING
   CONFIRMED
   FAILED
-  REJECTED
-  REFUNDED
-  CANCELLED
 }
 
-enum RAGOperation {
-  INDEX
-  DELETE
-  BATCH_INDEX
+enum SubscriptionBillingPeriod {
+  MONTHLY
+  YEARLY
 }
 
-enum ConsentType {
-  HEALTH_DATA_PROCESSING
-  ANALYTICS
-  MARKETING
-}
-
-enum ConsentStatus {
-  GRANTED
-  WITHDRAWN
-}
-
-enum ConsentSource {
+enum consentsource {
   WEB_COOKIE_BANNER
   MOBILE
   EMAIL_SUBSCRIPTION
   CONTACT_FORM
 }
 
-model UserConsent {
-  id             String          @id @default(cuid())
-  walletAddress  String
-  consentType    ConsentType
-  consentVersion String          // e.g. "1.0" — matches the legal document version at consent time
-  consentTextHash String          // Hash of the consent text presented to the user
-  status         ConsentStatus   @default(GRANTED)
-  source         ConsentSource   // Where the consent was captured
-  ipAddressHash  String?         // Hash of the IP at time of consent
-  userAgent      String?
-  createdAt      DateTime        @default(now())
-  withdrawnAt    DateTime?
-  updatedAt      DateTime        @updatedAt
+enum consentstatus {
+  GRANTED
+  WITHDRAWN
+}
 
-  @@unique([walletAddress, consentType, consentVersion])
-  @@index([walletAddress, consentType])
-  @@index([status])
-  @@index([withdrawnAt])
-  @@index([createdAt])
-  @@map("user_consents")
+enum consenttype {
+  HEALTH_DATA_PROCESSING
+  ANALYTICS
+  MARKETING
 }

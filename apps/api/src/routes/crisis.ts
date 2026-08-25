@@ -350,7 +350,7 @@ router.get(
           isOptedIn: true,
           language: crisisOptIn.language,
           createdAt: crisisOptIn.createdAt.toISOString(),
-          expiresAt: crisisOptIn.expiresAt.toISOString(),
+          expiresAt: crisisOptIn.expiresAt?.toISOString() ?? null,
           triggerCount: crisisOptIn.triggerCount,
           lastCrisisTrigger: crisisOptIn.lastCrisisTrigger?.toISOString(),
           hotline: getHotlineForLanguage(
