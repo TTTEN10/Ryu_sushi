@@ -218,7 +218,7 @@ export default function SubscriptionTerminal({
     return planId === 'pro' ? '10%' : '25%';
   };
 
-  const getHighlightPlan = (): Exclude<PlanId, 'free'> | null => 'pro';
+  const getHighlightPlan = (): Exclude<PlanId, 'free'> | null => null;
 
   const highlightPlan = getHighlightPlan();
 
