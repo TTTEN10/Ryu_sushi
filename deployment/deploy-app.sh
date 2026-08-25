@@ -548,7 +548,7 @@ COPY --from=builder /app/dist ./beta
 CMD [\"sh\", \"-c\", \"serve -l 3000 ./beta\"]
 EOF
 
-  cat > docker-compose.yml <<\"EOF\"
+  cat > docker-compose.yml <<EOF
 services:
   frontend:
     build:
