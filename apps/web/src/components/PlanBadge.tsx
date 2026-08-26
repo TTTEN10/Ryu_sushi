@@ -3,7 +3,7 @@
  * - No active subscription: gold "Subscribe" button with shimmer → opens SubscriptionTerminal.
  * - Active subscription: shows plan type + expiration date, click opens SubscriptionTerminal.
  */
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, Shield } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 
 export default function PlanBadge({
@@ -28,16 +28,15 @@ export default function PlanBadge({
     );
   }
 
-  // ─── Active subscription ────────────────────────────────────────────────
+  // ─── Active subscription (non-clickable badge) ──────────────────────────
 
   if (isActive) {
     return (
-      <button
-        type="button"
-        onClick={onOpenTerminal}
-        className={`${baseClasses} bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:from-primary-700 hover:to-secondary-700`}
-        title="View subscription details"
+      <div
+        className="inline-flex items-center justify-center gap-2 px-4 py-2 sm:py-3 text-sm font-semibold rounded-xl min-h-[44px] whitespace-nowrap select-none bg-gradient-to-r from-primary-600 to-secondary-600 text-white shadow-md"
+        title="Your current subscription"
       >
+        <Shield className="w-4 h-4" />
         <span className="capitalize">{subscription.plan}</span>
         {expirationDate && (
           <>
@@ -51,7 +50,7 @@ export default function PlanBadge({
             </span>
           </>
         )}
-      </button>
+      </div>
     );
   }
 
