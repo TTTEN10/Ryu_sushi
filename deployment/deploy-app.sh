@@ -814,7 +814,8 @@ EOF
     # Wait for PostgreSQL readiness via docker compose healthcheck
     _db_ready=0
     for _r in \$(seq 1 60); do
-      if docker compose ps postgres --format json 2>/dev/null | grep -q '\"Health\":\"healthy\"'; then
+      _health=\$(docker compose ps postgres --format json 2>/dev/null | grep -o '\"Health\":\"[^\"]*\"' | cut -d'\"' -f4)
+      if [[ \"\$_health\" == \"healthy\" ]]; then
         _db_ready=1
         echo \"[deploy-app] PostgreSQL ready\"
         break
