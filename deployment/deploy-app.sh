@@ -811,10 +811,10 @@ EOF
   if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
     echo \"[deploy-app] Applying Prisma schema to Postgres (payment + encrypted chat tables)\"
 
-    # Wait for PostgreSQL readiness via pg_isready
+    # Wait for PostgreSQL readiness via docker compose healthcheck
     _db_ready=0
     for _r in \$(seq 1 60); do
-      if docker compose exec -T node-api pg_isready -h postgres -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" >/dev/null 2>&1; then
+      if docker compose ps postgres --format json 2>/dev/null | grep -q '\"Health\":\"healthy\"'; then
         _db_ready=1
         echo \"[deploy-app] PostgreSQL ready\"
         break
@@ -822,7 +822,7 @@ EOF
       sleep 1
     done
     if [[ \"\$_db_ready\" -ne 1 ]]; then
-      echo \"[ERROR] PostgreSQL did not become ready (pg_isready) after 60s. Aborting deployment.\" >&2; exit 1
+      echo \"[ERROR] PostgreSQL did not become ready after 60s. Aborting deployment.\" >&2; exit 1
     fi
 
     # Run Prisma db push with proper logging; abort on failure
