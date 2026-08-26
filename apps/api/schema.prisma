@@ -280,7 +280,8 @@ enum SubscriptionTier {
 
 enum SubscriptionPlan {
   FREE
-  PREMIUM
+  PRO
+  UNLIMITED
 }
 
 enum PaymentIntentStatus {
