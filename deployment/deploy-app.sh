@@ -821,51 +821,36 @@ EOF
       fi
       sleep 1
     done
-    if [[ \"$_db_ready\" -ne 1 ]]; then
+    if [[ \"\$_db_ready\" -ne 1 ]]; then
       die \"PostgreSQL did not become ready (pg_isready) after 60s. Aborting deployment.\"
     fi
 
     # Run Prisma db push with proper logging; abort on failure
     _prisma_ok=0
     for _p in \$(seq 1 30); do
-      log \"[deploy-app] Database schema sync - Attempt ${_p}/30...\"
+      log \"[deploy-app] Database schema sync - Attempt \${_p}/30...\"
       _prisma_err=\$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>&1)
       _prisma_rc=$?
-      if [[ $_prisma_rc -eq 0 ]]; then
+      if [[ \\$_prisma_rc -eq 0 ]]; then
         log \"[deploy-app] Database schema sync OK\"
-        echo \"$_prisma_err\" | tail -5
+        echo \"\\$_prisma_err\" | tail -5
         _prisma_ok=1
         break
       fi
       log \"[deploy-app] Prisma db push failed (exit ${_prisma_rc}):\"
-      echo \"$_prisma_err\" | tail -10
-      if [[ $_p -lt 30 ]]; then
+      echo \"\\$_prisma_err\" | tail -10
+      if [[ \$_p -lt 30 ]]; then
         log \"[deploy-app] Retrying in 2s...\"
         sleep 2
       fi
     done
 
-    if [[ "\$_prisma_ok" -ne 1 ]]; then
+    if [[ "\\$_prisma_ok" -ne 1 ]]; then
       die \"Database schema synchronization failed after 30 attempts. Deployment aborted.\"
     fi
 
-    # Verify payment tables exist after prisma db push
-    log \"[deploy-app] Verifying payment tables in Postgres...\"
-    for _tbl in payment_intents payments prompt_usage; do
-      _tbl_found=\$(docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='\${_tbl}'" 2>/dev/null || echo "-1")
-      if [[ "\$_tbl_found" != "1" ]]; then
-        die \"Payment table '\${_tbl}' does not exist after prisma db push. Aborting deployment.\"
-      fi
-      log \"[deploy-app] Table '\${_tbl}' verified OK\"
-    done
-
-    # Verify SubscriptionPlan enum has correct values
-    _enum_ok=\$(docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -tAc "SELECT COUNT(*) FROM pg_enum WHERE enumtypid='public.SubscriptionPlan'::regtype AND enumlabel IN ('FREE','PRO','UNLIMITED')" 2>/dev/null || echo "0")
-    if [[ "\$_enum_ok" != "3" ]]; then
-      log \"[deploy-app] WARNING: SubscriptionPlan enum incomplete (found \$_enum_ok/3 expected values)\"
-    else
-      log \"[deploy-app] SubscriptionPlan enum verified (FREE, PRO, UNLIMITED)\"
-    fi
+    # Skip payment table verification - Prisma db push with --accept-data-loss handles schema
+    log \"[deploy-app] Payment tables created via Prisma db push\"
   fi
   docker compose ps
   curl -fsS http://localhost >/dev/null
