@@ -813,16 +813,16 @@ if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
 
     # Wait for PostgreSQL readiness via docker compose healthcheck
     _db_ready=0
-    for _r in $(seq 1 60); do
-      if docker compose ps postgres 2>/dev/null | grep -q "healthy"; then
+    for _r in \$(seq 1 60); do
+      if docker compose ps postgres 2>/dev/null | grep -q \"healthy\"; then
         _db_ready=1
         echo \"[deploy-app] PostgreSQL ready\"
         break
       fi
       sleep 1
     done
-    if [[ \"$_db_ready\" -ne 1 ]]; then
-      echo \"[ERROR] PostgreSQL did not become ready after 60s. Aborting deployment.\"
+    if [[ \"\$_db_ready\" -ne 1 ]]; then
+      echo \"[ERROR] PostgreSQL did not become ready after 60s. Aborting deployment.\" >&2
       exit 1
     fi
     # Use prisma db push (NOT migrate reset): project intentionally has no migration history
