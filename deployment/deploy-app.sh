@@ -853,8 +853,7 @@ if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
     # Verify payment tables exist after prisma db push
     echo \"[deploy-app] Verifying payment tables in Postgres...\"
     for _tbl in payment_intents payments prompt_usage; do
-      _tbl_found=\$(docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -tAc \"SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='\$_tbl' LIMIT 1\" 2>/dev/null)
-      if [[ -z \"\$_tbl_found\" ]]; then
+      if ! docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -c \"\\dt \$_tbl\" >/dev/null 2>&1; then
         echo \"[ERROR] Payment table \$_tbl does not exist after prisma db push. Aborting deployment.\" >&2
         exit 1
       fi
