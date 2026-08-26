@@ -845,7 +845,7 @@ EOF
       fi
     done
 
-    if [[ "\\$_prisma_ok" -ne 1 ]]; then
+    if [[ "\$_prisma_ok" -ne 1 ]]; then
       die \"Database schema synchronization failed after 30 attempts. Deployment aborted.\"
     fi
 
