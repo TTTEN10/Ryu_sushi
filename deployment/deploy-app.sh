@@ -825,31 +825,15 @@ EOF
       echo \"[ERROR] PostgreSQL did not become ready after 60s. Aborting deployment.\" >&2; exit 1
     fi
 
-    # Run Prisma db push with proper logging; abort on failure
-    _prisma_ok=0
-    for _p in \$(seq 1 30); do
-      echo \"[deploy-app] Database schema sync - Attempt \${_p}/30...\"
-      _prisma_err=\$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>&1)
-      _prisma_rc=\$?
-      if [[ \$_prisma_rc -eq 0 ]]; then
-        echo \"[deploy-app] Database schema sync OK\"
-        echo \"\$_prisma_err\" | tail -5
-        _prisma_ok=1
-        break
-      fi
-      echo \"[deploy-app] Prisma db push failed (exit \$_prisma_rc):\"
-      echo \"\$_prisma_err\" | tail -10
-      if [[ \$_p -lt 30 ]]; then
-        echo \"[deploy-app] Retrying in 2s...\"
-        sleep 2
-      fi
-    done
 
-    if [[ "\$_prisma_ok" -ne 1 ]]; then
-      echo \"[ERROR] Database schema synchronization failed after 30 attempts. Deployment aborted.\" >&2; exit 1
+    # Run Prisma migrate reset to apply schema
+    echo "[deploy-app] Running Prisma migrate reset..."
+    if docker compose exec -T node-api npx prisma migrate reset --force 2>&1 | tail -20; then
+      echo "[deploy-app] Database schema applied successfully"
+    else
+      echo "[ERROR] Prisma migrate reset failed" >&2
+      exit 1
     fi
-
-    echo \"[deploy-app] Payment tables created via Prisma db push\"
   fi
   docker compose ps
   curl -fsS http://localhost >/dev/null
