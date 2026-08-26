@@ -65,7 +65,7 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 | :red_circle: **Remove/replace default JWT_SECRET marker** | You | T-28 days | None | 30 min |
 | ✅ **Add rate limiting to `/api/crisis/opt-in`** | You | Done | None | Done |
 | ✅ **Set up error monitoring — web Sentry** | You | Done | @sentry/react wired into App.tsx, lib/sentry.ts created | Done |
-| ✅ **GA4 analytics integration** | You | Done | Consent-gated, VITE_PUBLIC_GA4_MEASUREMENT_ID in env.example | Done |
+| ✅ **Full analytics system (privacy-first)** | You | Done | SDK + backend ingestion + dashboard API — tracks 8 funnel stages (landing→first reply), conversion rates, D1/D7/D30 retention, device distribution; GDPR consent-gated, SHA-256 wallet hashing, sendBeacon transport. GA4 also wired into App.tsx | Done |
 | ✅ **Database indexes on expiresAt** | You | Done | @@index on CrisisOptIn + EncryptedChat in schema.prisma | Done |
 | :red_circle: **Configure database backups** | You | T-10 days | Hosting access | €20/month |
 | :red_circle: **Remove console.log from production code** | You | T-14 days | None | 2 hours |
@@ -112,7 +112,6 @@ SafePsy/Polinapsycho is a mental health platform with AI chatbot functionality, 
 | Action | Owner | Deadline | Dependencies | Cost |
 |--------|-------|----------|--------------|------|
 | **Finalize beta landing page** | You | T-14 days | App screenshots | €200 (design) |
-| **Set up analytics (GA4 + Mixpanel)** | You | T-10 days | Dev access | Free |
 | **Launch LinkedIn/Twitter teaser campaign** | You | T-7 days | Design assets | Free |
 | **Write user guides/tutorials** | You | T-7 days | Final UI | 1 day |
 | **Set up helpdesk (Zendesk/Intercom)** | You | T-5 days | None | €0-50/month |
@@ -190,7 +189,8 @@ Week 1 (T-28 to T-22)          Week 2 (T-21 to T-15)          Week 3 (T-14 to T-
 | ✅ Database indexes on expiresAt | Aug 20, 2026 | ✅ Complete (@@index in schema.prisma) |
 | ✅ Mobile Sentry integration | Aug 20, 2026 | ✅ Complete |
 | ✅ Web Sentry integration | Aug 20, 2026 | ✅ Complete (@sentry/react wired into App.tsx) |
-| ✅ GA4 analytics integration | Aug 20, 2026 | ✅ Complete (consent-gated) |
+| ✅ Full analytics system | Aug 26, 2026 | ✅ Complete — SDK, ingestion API, dashboard endpoints (funnel, daily, devices, retention, summary), 8-event conversion funnel |
+| ✅ GA4 analytics integration | Aug 20, 2026 | ✅ Complete (consent-gated, wired into App.tsx) |
 | ⏳ Stripe account approved | July 28, 2026 | ⏳ Pending |
 | ⏳ Beta testers recruited (50-100) | August 27, 2026 | ⏳ Pending |
 | ⏳ Beta Launch | August 27 - September 3, 2026 | ⏳ Pending |
@@ -241,7 +241,7 @@ Add **20% buffer** to all estimates. For a 4-week timeline, plan for **5 weeks**
 | Sentry (error monitoring) | Free-€29/month |
 | Uptime monitoring | Free-€20/month |
 | Helpdesk (Zendesk/Intercom) | €0-50/month |
-| Analytics (GA4 + Mixpanel) | Free |
+| Analytics (custom SDK + GA4) | Free |
 | Stripe fees | 1.4% + €0.25 per transaction |
 | **Total Recurring** | **€95-289/month** |
 
@@ -338,6 +338,7 @@ Define "beta-ready" as meeting ALL of the following:
 - [ ] CI/CD pipeline running tests
 - [x] Database indexes on expiresAt — CrisisOptIn + EncryptedChat
 - [x] GA4 analytics integration — consent-gated, wired into App.tsx
+- [x] Full analytics system — 8-event conversion funnel, dashboard API, privacy-first (sendBeacon, SHA-256 hashing, GDPR consent gating)
 
 ### User Experience ✅
 - [ ] Beta tester onboarding email drafted
