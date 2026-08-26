@@ -132,9 +132,22 @@ export async function createPaymentIntent(
     throw new Error('Payment system not configured: PAYMENT_TREASURY_ADDRESS is not set');
   }
 
-  // Get expected price from backend config
-  const plan = request.plan.toUpperCase() as SubscriptionPlan;
-  const billingPeriod = request.billingPeriod.toUpperCase() as SubscriptionBillingPeriod;
+  // Validate and map plan to Prisma enum (avoid unsafe toUpperCase cast)
+  const PLAN_MAP: Record<subscriptionConfig.PlanId, SubscriptionPlan> = {
+    free: SubscriptionPlan.FREE,
+    pro: SubscriptionPlan.PRO,
+    unlimited: SubscriptionPlan.UNLIMITED,
+  };
+  const plan = PLAN_MAP[request.plan];
+  if (!plan) {
+    throw new Error(`Invalid plan: ${request.plan}`);
+  }
+
+  const BILLING_PERIOD_MAP: Record<subscriptionConfig.BillingPeriod, SubscriptionBillingPeriod> = {
+    monthly: SubscriptionBillingPeriod.MONTHLY,
+    yearly: SubscriptionBillingPeriod.YEARLY,
+  };
+  const billingPeriod = BILLING_PERIOD_MAP[request.billingPeriod];
   const baseAmountCents = subscriptionConfig.getExpectedPriceCents(request.plan, request.billingPeriod);
 
   // Apply 1% fee on top of USD equivalent

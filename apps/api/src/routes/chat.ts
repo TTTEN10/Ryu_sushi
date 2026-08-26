@@ -11,7 +11,7 @@ import { safetyResponseInterceptor } from '../middleware/safety';
 import { optionalQuotaMiddleware } from '../middleware/quota';
 import { chatConcurrencyMiddleware } from '../middleware/concurrency';
 import { QuotaService } from '../lib/quota.service';
-import { subscriptionService } from '../lib/subscription.service';
+import { subscriptionService, planIdFromPrisma } from '../lib/subscription.service';
 import { storageService } from '../lib/storage.service';
 import { encryptAES256GCM, generateEncryptionKey } from '../lib/crypto';
 import { prisma } from '../lib/prisma';
@@ -547,7 +547,7 @@ router.get(
       // Get subscription info
       const subscription = await subscriptionService.getOrCreateSubscription(walletAddress);
       const prismaPlan = await subscriptionService.resolvePlan(walletAddress);
-      const effectivePlan = prismaPlan.toLowerCase() as import('../lib/subscription-config').PlanId;
+      const effectivePlan = planIdFromPrisma(prismaPlan);
       const quotas = (await import('../lib/subscription-config')).getQuotas(effectivePlan);
 
       res.json({

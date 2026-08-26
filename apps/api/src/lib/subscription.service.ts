@@ -31,6 +31,22 @@ function normalizeAddress(address: string): string {
 }
 
 /**
+ * Map a Prisma SubscriptionPlan enum to the config PlanId type.
+ * Uses explicit mapping instead of toUpperCase/toLowerCase casts to
+ * prevent arbitrary strings from reaching Prisma.
+ */
+export function planIdFromPrisma(plan: SubscriptionPlan): config.PlanId {
+  const reverse: Record<string, config.PlanId> = {
+    FREE: 'free',
+    PRO: 'pro',
+    UNLIMITED: 'unlimited',
+  };
+  const id = reverse[plan];
+  if (!id) throw new Error(`Unknown SubscriptionPlan value: ${plan}`);
+  return id;
+}
+
+/**
  * Compute the expiresAt date given a billing period.
  */
 function computeExpiresAt(billingPeriod: config.BillingPeriod): Date {
@@ -170,7 +186,13 @@ export async function activateSubscription(
 }> {
   const normalized = normalizeAddress(walletAddress);
   const expiresAt = computeExpiresAt(billingPeriod);
-  const prismaBillingPeriod = billingPeriod.toUpperCase() as SubscriptionBillingPeriod;
+  const prismaBillingPeriod = (function (bp: config.BillingPeriod): SubscriptionBillingPeriod {
+    const m: Record<config.BillingPeriod, SubscriptionBillingPeriod> = {
+      monthly: SubscriptionBillingPeriod.MONTHLY,
+      yearly: SubscriptionBillingPeriod.YEARLY,
+    };
+    return m[bp];
+  })(billingPeriod);
 
   let subscription = await prisma.subscription.findUnique({
     where: { walletAddress: normalized },
@@ -407,7 +429,7 @@ export class SubscriptionService {
 
   async getSubscriptionLimits(walletAddress: string) {
     const prismaPlan = await resolvePlan(walletAddress);
-    const planId = prismaPlan.toLowerCase() as config.PlanId;
+    const planId = planIdFromPrisma(prismaPlan);
     const quotas = config.getQuotas(planId);
     return {
       dailyLimit: quotas.daily,

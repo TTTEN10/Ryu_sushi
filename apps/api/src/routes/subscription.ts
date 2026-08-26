@@ -3,14 +3,8 @@ import Joi from 'joi';
 import logger from '../lib/logger';
 import { authenticateWallet, AuthenticatedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import {
-  getPlanDefinitions,
-  getAllPlans,
-  getExpectedPriceCents,
-  isValidPlanPlanId,
-  isValidBillingPeriod,
-} from '../lib/subscription-config';
-import { subscriptionService } from '../lib/subscription.service';
+import { isValidPlanPlanId, isValidBillingPeriod, getAllPlans, getExpectedPriceCents, getPlanDefinitions, getQuotas } from '../lib/subscription-config';
+import { subscriptionService, planIdFromPrisma } from '../lib/subscription.service';
 import { cryptoPaymentService } from '../lib/crypto-payment.service';
 import { QuotaService } from '../lib/quota.service';
 import { SUPPORTED_CHAIN_ID } from '../lib/constants';
@@ -70,9 +64,9 @@ router.get(
       const walletAddress = req.wallet.walletAddress.toLowerCase();
       const subscription = await subscriptionService.getOrCreateSubscription(walletAddress);
       const prismaPlan = await subscriptionService.resolvePlan(walletAddress);
-      const plan = prismaPlan.toLowerCase() as import('../lib/subscription-config').PlanId;
+      const plan = planIdFromPrisma(prismaPlan);
       const usageCounts = await subscriptionService.getUsageCounts(walletAddress);
-      const quotas = (await import('../lib/subscription-config')).getQuotas(plan);
+      const quotas = getQuotas(plan);
       const quotaService = QuotaService.getInstance();
       const quotaStatus = await quotaService.getQuotaStatus(walletAddress);
 
@@ -131,9 +125,9 @@ router.get(
 
       const walletAddress = req.wallet.walletAddress.toLowerCase();
       const prismaPlan = await subscriptionService.resolvePlan(walletAddress);
-      const plan = prismaPlan.toLowerCase() as import('../lib/subscription-config').PlanId;
+      const plan = planIdFromPrisma(prismaPlan);
       const usageCounts = await subscriptionService.getUsageCounts(walletAddress);
-      const quotas = (await import('../lib/subscription-config')).getQuotas(plan);
+      const quotas = getQuotas(plan);
 
       res.json({
         success: true,

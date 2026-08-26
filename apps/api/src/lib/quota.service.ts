@@ -237,8 +237,8 @@ export class QuotaService {
 
     // Resolve plan and limits
     const prismaPlan = await resolvePlan(walletAddress);
-    // Convert Prisma enum (FREE/PRO/UNLIMITED) to config type (free/pro/unlimited)
-    const plan = prismaPlan.toLowerCase() as config.PlanId;
+    const { planIdFromPrisma } = await import('./subscription.service');
+    const plan = planIdFromPrisma(prismaPlan);
     const quotas = config.getQuotas(plan);
 
     // Try Redis counters first

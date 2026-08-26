@@ -93,7 +93,7 @@ export interface PaymentIntent {
   treasuryAddress: string;
   expiresAt: string;
   createdAt: string;
-  selectedCurrency: 'ETH' | 'USDT';
+  selectedCurrency: 'USDC' | 'USDT';
   tokenAddress: string | null;
 }
 
