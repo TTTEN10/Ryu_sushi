@@ -145,7 +145,7 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | P1 | Manual testing suite execution | 4 hours | ⏳ In Progress — BETA_MANUAL_TEST_CHECKLIST.md created (47 tests) |
 | P2 | SubscriptionTerminal modal fix | 1 hour | ✅ Done — payment states now wrapped in modal overlay |
 | P2 | Deploy script fixes (postgres enum, prisma push) | 2 hours | ✅ Done — deployment/heredoc escaping stabilized |
-| P2 | Repository cleanup | 1 hour | ⏳ Pending — delete backup files, old logs, superseded docs |
+| P2 | Repository cleanup | 1 hour | ✅ Done — deleted backup files, old logs, superseded docs, deprecated deploy scripts |
 | P2 | Documentation URL updates | 2 hours | ⏳ Pending — replace localhost with production URLs |
 
 ### Migration Planning (Pre-Mainnet)
@@ -157,7 +157,7 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | P1 | Update contract addresses in docs | 1 hour | ⏳ Pending — replace Sepolia addresses with mainnet |
 | P1 | Update RPC endpoints | 1 hour | ⏳ Pending — switch from Sepolia RPC to mainnet RPC |
 | P1 | Fund backend signer for mainnet | 30 min | ⏳ Pending — load ETH for gas sponsorship on mainnet |
-| P2 | Create mainnet migration guide | 2 hours | ⏳ Pending — step-by-step migration runbook |
+| P2 | Create mainnet migration guide | 2 hours | ✅ Done — comprehensive migration.md with wave-based rollout plan |
 | P2 | Test mainnet flow in staging | 4 hours | ⏳ Pending — full E2E test with real ETH |
 
 ### Beta Sprint Goals (August 20-27, 2026)
@@ -169,8 +169,70 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 5. **Manual testing** — ⏳ 47 test cases created (BETA_MANUAL_TEST_CHECKLIST.md), execution in progress
 6. **Deploy script stabilization** — ✅ Fixed: postgres heredoc escaping, prisma db push, payment table verification, enum checks
 7. **Subscription UI fix** — ✅ Fixed: payment states now render in modal overlay (SubscriptionTerminal.tsx)
-8. **Repository cleanup** — ⏳ Pending: delete backup files, old logs, superseded docs
+8. **Repository cleanup** — ✅ Done: deleted backup files, old logs, superseded docs, deprecated deploy scripts
 9. **Recruit first 10 beta testers** — Manual onboarding, observe friction
+
+
+### Analytics Implementation (2026-08-26)
+
+A complete privacy-first analytics system is implemented for SafePsy, tracking user activation funnel, feature usage, and conversion rates, all GDPR-compliant with explicit consent gating.
+
+**Architecture:**
+- Frontend SDK (analytics.ts) fires events via sendBeacon to POST /api/analytics/event
+- Backend validates, rate-limits, and persists to PostgreSQL via Prisma
+- Dashboard API (analytics-dashboard.ts) exposes funnel, daily, retention, device, and summary metrics
+
+**Files:**
+- `apps/web/src/lib/analytics.ts` — Core SDK (visitor/session IDs, event queue, sendBeacon)
+- `apps/web/src/lib/analytics-consent.ts` — GDPR consent management
+- `apps/web/src/lib/wallet-hash.ts` — Browser-side SHA-256 wallet hashing
+- `apps/web/src/hooks/useAnalytics.ts` — React analytics hook
+- `apps/web/src/hooks/useAuthAnalytics.ts` — Auth flow tracking
+- `apps/web/src/hooks/useChatAnalytics.ts` — Chat flow tracking
+- `apps/api/src/routes/analytics.ts` — Event ingestion (rate-limited, validated)
+- `apps/api/src/routes/analytics-dashboard.ts` — Dashboard metrics API
+- `apps/api/src/lib/wallet-hash.ts` — Server-side wallet hashing
+- `apps/api/src/lib/analytics-queries.ts` — Dashboard query helpers
+- `apps/api/schema.prisma` — AnalyticsEvent model + indexes
+
+**Tracked Events (8 funnel stages):**
+- landing_visit — First page render
+- wallet_click — User clicks connect wallet (before popup)
+- wallet_success — Wallet connected
+- session_success — JWT session confirmed
+- did_success — DID identity authenticated
+- first_message_sent — First user chat message
+- first_reply_received — First AI response
+- return_24h — User revisits within 24h
+
+**Funnel Metrics (from GET /api/analytics/dashboard/funnel):**
+- Conversion rates at each stage (wallet_click -> success -> session -> DID -> message -> reply)
+- Overall landing-to-first-reply conversion
+- D1/D7/D30 retention
+- Device type distribution
+- Funnel drop-off analysis
+
+**Privacy Guarantees:**
+- Explicit opt-in consent required
+- NEVER tracks: conversation content, PII, raw wallet addresses, raw IPs
+- ALWAYS anonymized: visitor IDs (UUIDv4), wallet hashes (SHA-256), device category only, coarse country from timezone
+- Fire-and-forget (never blocks UX), sendBeacon transport, retry queue with exponential backoff
+
+**Dashboard API Endpoints:**
+- GET /api/analytics/dashboard/funnel?days=30 — Funnel metrics + conversion rates
+- GET /api/analytics/dashboard/daily — Daily event breakdown
+- GET /api/analytics/dashboard/devices — Device type distribution
+- GET /api/analytics/dashboard/retention?date=YYYY-MM-DD — D1/D7/D30 retention
+- GET /api/analytics/dashboard/summary — Complete analytics summary
+
+**Setup:**
+- Env var: VITE_PUBLIC_GA4_MEASUREMENT_ID (Google Analytics 4, separate from in-app analytics)
+- Database: analytics_events table (auto-migrated via Prisma)
+- Consent: Respects existing cookie consent banner (CookieBanner.tsx)
+
+**Documentation:**
+- Setup guide: documentation/private documentation/ANALYTICS_SETUP.md
+- Implementation details: documentation/private documentation/ANALYTICS_IMPLEMENTATION.md
 
 ### Migration Goals (September 2026)
 
