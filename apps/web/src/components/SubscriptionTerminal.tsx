@@ -455,12 +455,14 @@ export default function SubscriptionTerminal({
   // ─── Payment states ──────────────────────────────────────────────────────
 
   const renderPaymentPaying = () => (
-    <div className="text-center py-8">
-      <Loader2 className="w-14 h-14 animate-spin text-primary-600 mx-auto mb-4" />
-      <h3 className="text-lg font-semibold text-heading mb-2">Confirm in Your Wallet</h3>
-      <p className="text-sm text-body max-w-sm mx-auto">
-        Please approve the transaction in your wallet popup. Do not close this page.
-      </p>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-8">
+        <Loader2 className="w-14 h-14 animate-spin text-primary-600 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-heading text-center mb-2">Confirm in Your Wallet</h3>
+        <p className="text-sm text-body max-w-sm mx-auto text-center">
+          Please approve the transaction in your wallet popup. Do not close this page.
+        </p>
+      </div>
     </div>
   );
 
@@ -470,100 +472,108 @@ export default function SubscriptionTerminal({
     const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
     return (
-      <div className="text-center py-8">
-        <div className="relative w-20 h-20 mx-auto mb-4">
-          <Loader2 className="w-20 h-20 animate-spin text-primary-600" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs font-semibold text-heading">{timeStr}</span>
-          </div>
-        </div>
-        <h3 className="text-lg font-semibold text-heading mb-2">Confirming Payment</h3>
-        <p className="text-sm text-body mb-4 max-w-sm mx-auto">
-          Waiting for blockchain confirmation… this usually takes a few seconds.
-          <br />
-          Please keep this page open.
-        </p>
-        {txHash && (
-          <>
-            <a
-              href={`https://etherscan.io/tx/${txHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-mono break-all mb-3"
-            >
-              {txHash.slice(0, 10)}…{txHash.slice(-8)}
-              <ArrowRight className="w-3 h-3" />
-            </a>
-            <div className="mt-2">
-              <button
-                onClick={handleManualVerification}
-                className="text-xs text-body underline hover:text-heading transition-colors"
-              >
-                I already confirmed — verify manually
-              </button>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-8">
+          <div className="relative w-20 h-20 mx-auto mb-4">
+            <Loader2 className="w-20 h-20 animate-spin text-primary-600" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-semibold text-heading">{timeStr}</span>
             </div>
-          </>
-        )}
+          </div>
+          <h3 className="text-lg font-semibold text-heading text-center mb-2">Confirming Payment</h3>
+          <p className="text-sm text-body mb-4 max-w-sm mx-auto text-center">
+            Waiting for blockchain confirmation… this usually takes a few seconds.
+            <br />
+            Please keep this page open.
+          </p>
+          {txHash && (
+            <>
+              <a
+                href={`https://etherscan.io/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-mono break-all mb-3"
+              >
+                {txHash.slice(0, 10)}…{txHash.slice(-8)}
+                <ArrowRight className="w-3 h-3" />
+              </a>
+              <div className="mt-2">
+                <button
+                  onClick={handleManualVerification}
+                  className="text-xs text-body underline hover:text-heading transition-colors"
+                >
+                  I already confirmed — verify manually
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   };
 
   const renderPaymentSuccess = () => (
-    <div className="text-center py-8">
-      <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-        <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-8">
+        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-heading text-center mb-2">Payment Confirmed!</h3>
+        <p className="text-sm text-body mb-4 text-center">
+          Your subscription is now active. Enjoy!
+        </p>
+        {paymentIntent && (
+          <a
+            href={`https://etherscan.io/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-mono mb-4"
+          >
+            View on Sepolia Etherscan
+            <ArrowRight className="w-3 h-3" />
+          </a>
+        )}
       </div>
-      <h3 className="text-xl font-semibold text-heading mb-2">Payment Confirmed!</h3>
-      <p className="text-sm text-body mb-4">
-        Your subscription is now active. Enjoy!
-      </p>
-      {paymentIntent && (
-        <a
-          href={`https://etherscan.io/tx/${txHash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-mono mb-4"
-        >
-          View on Sepolia Etherscan
-          <ArrowRight className="w-3 h-3" />
-        </a>
-      )}
     </div>
   );
 
   const renderPaymentError = () => (
-    <div className="space-y-4 py-4">
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">Payment Failed</h3>
-            <p className="text-sm text-red-700 dark:text-red-400">
-              {errorMessage || 'Something went wrong with your payment.'}
-            </p>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6">
+        <div className="space-y-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">Payment Failed</h3>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  {errorMessage || 'Something went wrong with your payment.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setStep('select');
+                setErrorMessage(null);
+                if (!paymentIntent) return;
+              }}
+              className="flex-1 py-2.5 text-sm font-medium text-body bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Try Again
+            </button>
+            {paymentIntent && (
+              <button
+                onClick={handleManualVerification}
+                className="flex-1 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all"
+              >
+                Verify {txHash?.slice(0, 6)}…
+              </button>
+            )}
           </div>
         </div>
-      </div>
-
-      <div className="flex gap-3">
-        <button
-          onClick={() => {
-            setStep('select');
-            setErrorMessage(null);
-            if (!paymentIntent) return;
-          }}
-          className="flex-1 py-2.5 text-sm font-medium text-body bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-        >
-          Try Again
-        </button>
-        {paymentIntent && (
-          <button
-            onClick={handleManualVerification}
-            className="flex-1 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-600 rounded-lg hover:from-primary-700 hover:to-secondary-700 transition-all"
-          >
-            Verify {txHash?.slice(0, 6)}…
-          </button>
-        )}
       </div>
     </div>
   );
