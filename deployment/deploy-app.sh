@@ -830,15 +830,15 @@ EOF
     for _p in \$(seq 1 30); do
       log \"[deploy-app] Database schema sync - Attempt \${_p}/30...\"
       _prisma_err=\$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>&1)
-      _prisma_rc=$?
-      if [[ \\$_prisma_rc -eq 0 ]]; then
+      _prisma_rc=\$?
+      if [[ \$_prisma_rc -eq 0 ]]; then
         log \"[deploy-app] Database schema sync OK\"
-        echo \"\\$_prisma_err\" | tail -5
+        echo \"\$_prisma_err\" | tail -5
         _prisma_ok=1
         break
       fi
-      log \"[deploy-app] Prisma db push failed (exit ${_prisma_rc}):\"
-      echo \"\\$_prisma_err\" | tail -10
+      log \"[deploy-app] Prisma db push failed (exit \$_prisma_rc):\"
+      echo \"\$_prisma_err\" | tail -10
       if [[ \$_p -lt 30 ]]; then
         log \"[deploy-app] Retrying in 2s...\"
         sleep 2
