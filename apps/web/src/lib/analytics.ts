@@ -691,6 +691,13 @@ class AnalyticsSDK {
   }
 
   /**
+   * Check if analytics SDK is enabled.
+   */
+  get isEnabled(): boolean {
+    return this.config.enabled;
+  }
+
+  /**
    * Enable analytics.
    * Also attempts to initialise GA4 if consent permits.
    */
