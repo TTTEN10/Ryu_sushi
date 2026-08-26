@@ -860,16 +860,15 @@ if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
       fi
       echo \"[deploy-app] Table '\${_tbl}' verified OK\"
     done
-    _enum_ok=$(docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -tAc "SELECT COUNT(*) FROM pg_enum WHERE enumtypid='public.SubscriptionPlan'::regtype AND enumlabel IN ('FREE','PRO','UNLIMITED')" 2>/dev/null || echo "0")
-    if [[ \"$_enum_ok\" != \"3\" ]]; then
-      echo "[WARN] SubscriptionPlan enum incomplete (found ${_enum_ok}/3 expected values: FREE, PRO, UNLIMITED)" >&2
+    _enum_ok=\$(docker compose exec -T postgres psql -U "\${APP_PG_USER}" -d "\${APP_PG_DB}" -tAc "SELECT COUNT(*) FROM pg_enum WHERE enumtypid='public.SubscriptionPlan'::regtype AND enumlabel IN ('FREE','PRO','UNLIMITED')" 2>/dev/null || echo "0")
+    if [[ "\$_enum_ok" != "3" ]]; then
+      echo "[WARN] SubscriptionPlan enum incomplete (found \$_enum_ok/3 expected values: FREE, PRO, UNLIMITED)" >&2
     else
       echo "[deploy-app] SubscriptionPlan enum verified (FREE, PRO, UNLIMITED)"
     fi
   fi
   docker compose ps
   curl -fsS http://localhost >/dev/null
-'"
 '"
 fi
 
