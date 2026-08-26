@@ -816,41 +816,40 @@ EOF
     for _r in \$(seq 1 60); do
       if docker compose exec -T node-api pg_isready -h postgres -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" >/dev/null 2>&1; then
         _db_ready=1
-        log \"[deploy-app] PostgreSQL ready\"
+        echo \"[deploy-app] PostgreSQL ready\"
         break
       fi
       sleep 1
     done
     if [[ \"\$_db_ready\" -ne 1 ]]; then
-      die \"PostgreSQL did not become ready (pg_isready) after 60s. Aborting deployment.\"
+      echo \"[ERROR] PostgreSQL did not become ready (pg_isready) after 60s. Aborting deployment.\" >&2; exit 1
     fi
 
     # Run Prisma db push with proper logging; abort on failure
     _prisma_ok=0
     for _p in \$(seq 1 30); do
-      log \"[deploy-app] Database schema sync - Attempt \${_p}/30...\"
+      echo \"[deploy-app] Database schema sync - Attempt \${_p}/30...\"
       _prisma_err=\$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>&1)
       _prisma_rc=\$?
       if [[ \$_prisma_rc -eq 0 ]]; then
-        log \"[deploy-app] Database schema sync OK\"
+        echo \"[deploy-app] Database schema sync OK\"
         echo \"\$_prisma_err\" | tail -5
         _prisma_ok=1
         break
       fi
-      log \"[deploy-app] Prisma db push failed (exit \$_prisma_rc):\"
+      echo \"[deploy-app] Prisma db push failed (exit \$_prisma_rc):\"
       echo \"\$_prisma_err\" | tail -10
       if [[ \$_p -lt 30 ]]; then
-        log \"[deploy-app] Retrying in 2s...\"
+        echo \"[deploy-app] Retrying in 2s...\"
         sleep 2
       fi
     done
 
     if [[ "\$_prisma_ok" -ne 1 ]]; then
-      die \"Database schema synchronization failed after 30 attempts. Deployment aborted.\"
+      echo \"[ERROR] Database schema synchronization failed after 30 attempts. Deployment aborted.\" >&2; exit 1
     fi
 
-    # Skip payment table verification - Prisma db push with --accept-data-loss handles schema
-    log \"[deploy-app] Payment tables created via Prisma db push\"
+    echo \"[deploy-app] Payment tables created via Prisma db push\"
   fi
   docker compose ps
   curl -fsS http://localhost >/dev/null
