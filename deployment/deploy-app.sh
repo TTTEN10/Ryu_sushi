@@ -146,7 +146,7 @@ NODE_API_DATABASE_URL="${DATABASE_URL:-}"
 APP_ENABLE_POSTGRES=0
 APP_PG_USER="safepsy_user"
 APP_PG_PASS=""
-APP_PG_DB="safepsy"
+APP_PG_DB="safepsy_dev"
 if [[ -n "${NODE_API_DATABASE_URL}" ]]; then
   eval "$(
     DATABASE_URL="${NODE_API_DATABASE_URL}" node <<'NODE'
