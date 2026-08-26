@@ -126,7 +126,7 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 
 | Priority | Task | Effort | Status |
 |----------|------|--------|--------|
-| P0 | Privacy Policy + Terms of Service — **impl. complete; needs lawyer review for health data processing scope** | — | ✅ Done (pending legal review) |
+| P0 | Privacy Policy + Terms of Service — **impl. complete** | — | ✅ Done |
 | P0 | Consent checkbox for health data (GDPR Art. 9) — **impl. complete in CookieBanner.tsx** | — | ✅ Done |
 | P0 | Account deletion (GDPR Art. 17) — **impl. complete; endpoint + UI functional** | — | ✅ Done — transactional deletion of chats/subscriptions/crisis data + audit logging |
 | P0 | Cookie consent banner — **impl. complete in CookieBanner.tsx** | — | ✅ Done — with health data consent gate |
@@ -145,6 +145,20 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | P1 | Manual testing suite execution | 4 hours | ⏳ In Progress — BETA_MANUAL_TEST_CHECKLIST.md created (47 tests) |
 | P2 | SubscriptionTerminal modal fix | 1 hour | ✅ Done — payment states now wrapped in modal overlay |
 | P2 | Deploy script fixes (postgres enum, prisma push) | 2 hours | ✅ Done — deployment/heredoc escaping stabilized |
+| P2 | Repository cleanup | 1 hour | ⏳ Pending — delete backup files, old logs, superseded docs |
+| P2 | Documentation URL updates | 2 hours | ⏳ Pending — replace localhost with production URLs |
+
+### Migration Planning (Pre-Mainnet)
+
+| Priority | Task | Effort | Status |
+|----------|------|--------|--------|
+| P1 | Alpha → Beta URL migration | 2 hours | ⏳ Pending — redirect `polinapsycho.com/beta/chat` → `app.polinapsycho.com/beta` |
+| P1 | Sepolia → Mainnet contract deployment | 4 hours | ⏳ Pending — deploy DID contracts to Ethereum mainnet |
+| P1 | Update contract addresses in docs | 1 hour | ⏳ Pending — replace Sepolia addresses with mainnet |
+| P1 | Update RPC endpoints | 1 hour | ⏳ Pending — switch from Sepolia RPC to mainnet RPC |
+| P1 | Fund backend signer for mainnet | 30 min | ⏳ Pending — load ETH for gas sponsorship on mainnet |
+| P2 | Create mainnet migration guide | 2 hours | ⏳ Pending — step-by-step migration runbook |
+| P2 | Test mainnet flow in staging | 4 hours | ⏳ Pending — full E2E test with real ETH |
 
 ### Beta Sprint Goals (August 20-27, 2026)
 
@@ -155,7 +169,14 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 5. **Manual testing** — ⏳ 47 test cases created (BETA_MANUAL_TEST_CHECKLIST.md), execution in progress
 6. **Deploy script stabilization** — ✅ Fixed: postgres heredoc escaping, prisma db push, payment table verification, enum checks
 7. **Subscription UI fix** — ✅ Fixed: payment states now render in modal overlay (SubscriptionTerminal.tsx)
-8. **Recruit first 10 beta testers** — Manual onboarding, observe friction
+8. **Repository cleanup** — ⏳ Pending: delete backup files, old logs, superseded docs
+9. **Recruit first 10 beta testers** — Manual onboarding, observe friction
+
+### Migration Goals (September 2026)
+
+1. **Alpha → Beta URL migration** — Redirect landing page beta links to app subdomain
+2. **Sepolia → Mainnet migration** — Deploy DID contracts, update addresses, fund backend signer
+3. **Production documentation** — Replace all localhost references with production URLs
 
 ---
 
