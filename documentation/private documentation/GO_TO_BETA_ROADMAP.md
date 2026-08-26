@@ -267,7 +267,7 @@ Given today's progress (consent checkbox ✅, account deletion ✅, GA4 ✅, mob
 
 1. **Remove console.log from production code** — ~250 `console.log` in `apps/api/src/contracts/scripts/` (deployment scripts, acceptable) and ~80 in `apps/web/src/` (runtime code, replace with `logger.info` or remove). Run `npm run lint --max-warnings 0` for the API. ~2 hours.
 
-2. **:red_circle: Uptime monitoring** — No external monitor configured. Set up UptimeRobot (or equivalent) to poll `https://polinapsycho.com/healthz` and `https://polinapsycho.com/api/chat/health` every 5 minutes. Email alert on failure. ~1 hour.
+2. **:red_circle: Uptime monitoring** — No external monitor configured. Set up UptimeRobot (or equivalent) to poll `https://app.polinapsycho.com/healthz` and `https://app.polinapsycho.com/api/chat/health` every 5 minutes. Email alert on failure. ~1 hour.
 
 3. **:red_circle: Database backup verification** — Confirm `pg_dump` cron or Scaleway managed backup is running on production PostgreSQL. Verify retention is 30+ days. Add a health-check to `scripts/verify-production-setup.js` that alerts if latest backup is stale. ~1 hour.
 

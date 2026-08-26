@@ -467,7 +467,7 @@ Create a `.env` file in `apps/web/`:
 ```env
 # API Configuration (optional)
 # Unset = same-origin /api (Vite proxy in dev). Or full API base or origin:
-# VITE_API_URL=https://polinapsycho.com/api
+# VITE_API_URL=https://app.polinapsycho.com/api
 # VITE_API_URL=http://localhost:3001
 
 # WalletConnect Configuration

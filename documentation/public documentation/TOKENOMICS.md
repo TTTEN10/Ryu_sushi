@@ -16,9 +16,10 @@ No therapist marketplace (for now). This simplifies token logic and regulatory e
 
 **Revenue sources:**
 
-- $19/month Premium  
-- $69/month Gold  
-- Corporate AI wellness subscriptions  
+- **Pro** plan: $19/month (live)
+- **Unlimited** plan: $69/month (live)
+- **Gold** tier: Planned — enhanced benefits with $PSY cashback (see [Implementation status](#implementation-status))
+- Corporate AI wellness subscriptions
 - API / enterprise privacy integrations (future)
 
 The token **enhances** this SaaS model — it does not replace it.
@@ -44,6 +45,8 @@ Fiat remains first-class to avoid friction. However, **$PSY unlocks structural a
 | **Advanced Privacy Layer** (deep encryption features) | No | **Yes** |
 | **Early Access to Experimental AI Features** | No | **Yes** |
 | **Governance Participation** (Community Advisory) | No | **Yes** |
+
+> **Note**: $PSY payments and discounts are **planned, not yet implemented**. See [Implementation status](#implementation-status).
 
 ### Strategic Framing
 
@@ -180,8 +183,27 @@ To strengthen long-term scarcity: **Buyback + Burn**.
 
 ---
 
+## 10. Implementation Status
+
+The following tokenomics features are **planned, not yet implemented**:
+
+| Feature | Status |
+|---------|--------|
+| Fiat subscriptions (Stripe) | ✅ Live (Pro $19/mo, Unlimited $69/mo) |
+| Crypto payments (USDC/USDT) | ✅ Live |
+| $PSY token payments | Planned |
+| $PSY 10% discount | Planned |
+| Gold tier cashback | Planned |
+| Staking rewards | Planned |
+| Treasury revenue sharing | Planned |
+| Buyback + burn | Planned |
+| Airdrop program | Planned |
+| ICO / public sale | Planned |
+
+---
+
 ## Related documentation
 
-- [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md) — Tier pricing ($19 Premium, $69 Gold), current implementation, and **dependencies** (treasury, staking, cashback, buyback+burn, airdrop, dual payment).
+- [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md) — Tier pricing ($19 Pro, $69 Unlimited), current implementation status, and dependencies.
 
-**Docs that depend on this tokenomics:** [DEPLOYMENT_FILES_INDEX.md](DEPLOYMENT_FILES_INDEX.md), [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md), [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md), [wallpaper/whitepaper.md](wallpaper/whitepaper.md), [DID_COMPLETE_GUIDE.md](DID_COMPLETE_GUIDE.md), [TECHNICAL_REVIEW.md](../private%20documentation/TECHNICAL_REVIEW.md), [DEPENDENCIES.md](../private%20documentation/DEPENDENCIES.md).
+**Docs that depend on this tokenomics:** [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md), [api/SSE_STREAMING_CONTRACT.md](api/SSE_STREAMING_CONTRACT.md), [whitepaper/whitepaper.md](whitepaper/whitepaper.md), [DID_COMPLETE_GUIDE.md](DID_COMPLETE_GUIDE.md), [TECHNICAL_REVIEW.md](../private%20documentation/TECHNICAL_REVIEW.md), [DEPENDENCIES.md](../private%20documentation/DEPENDENCIES.md).

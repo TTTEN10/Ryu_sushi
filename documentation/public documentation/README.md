@@ -46,7 +46,6 @@ Documentation for users, contributors, and external audiences.
 | Document | Description |
 |----------|-------------|
 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) | Contributor code of conduct |
-| [CHANGELOG.md](./CHANGELOG.md) | Changelog |
 | [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) | Third-party notices |
 
 ## Roadmap

@@ -41,8 +41,8 @@ SafePsy is a **monorepo-based web application** that provides:
 3. **AI Chat Interface**: OpenAI-powered chat with streaming responses
 4. **Encrypted Storage**: Client-side encryption of chat history (AES-256-GCM)
 5. **RAG System**: Retrieval-augmented generation using FAQs and Terms of Service
-6. **Subscription Management**: Free trial and Premium tiers ($19/month, $69/month Gold) with usage limits
-7. **Payment Processing**: Stripe and cryptocurrency; premium tied to **$PSY token** (see [Tokenomics](../TOKENOMICS.md))
+6. **Subscription Management**: Free, Pro ($19/mo), Unlimited ($69/mo) with usage limits
+7. **Payment Processing**: Stripe and crypto (USDC/USDT); planned $PSY token integration (see [Tokenomics](../TOKENOMICS.md))
 
 ### 1.2 What SafePsy Does NOT Do
 
@@ -94,7 +94,7 @@ SafePsy is a **monorepo-based web application** that provides:
        │              │              │              │
 ┌──────▼──────┐ ┌────▼──────┐ ┌────▼──────┐ ┌────▼──────┐
 │ PostgreSQL  │ │  Qdrant    │ │  OpenAI    │ │ Ethereum  │
-│  Database   │ │  Vector DB │ │    API     │ │ Mainnet   │
+│  Database   │ │  Vector DB │ │    API     │ │ Sepolia   │
 └─────────────┘ └────────────┘ └────────────┘ └───────────┘
 ```
 
@@ -116,7 +116,7 @@ SafePsy is a **monorepo-based web application** that provides:
 - Rate limiting middleware
 
 **Blockchain**:
-- Ethereum Mainnet (Chain ID: 1)
+- **Sepolia testnet** (Chain ID: 11155111)
 - Solidity 0.8.20
 - OpenZeppelin contracts
 - Hardhat for development
@@ -241,26 +241,23 @@ SPappv1.1/
 
 **Pricing model** (see [Tokenomics](../TOKENOMICS.md) and [PRICING_COMPLETE_GUIDE](../PRICING_COMPLETE_GUIDE.md)):
 
-1. **Free trial** (Freemium):
-   - Limited quota (e.g. 10 requests/day, 100 requests/month in current implementation)
-   - Upgrade to premium for $20/month
+1. **Free** (Freemium):
+   - Limited quota (10 requests/day, 100 requests/month in current implementation)
+   - Upgrade to Pro for $19/mo
 
-2. **$19/month** (Premium):
-   - Extended quotas
-   - Users buy **$PSY token** directly or indirectly when paying
+2. **Pro** ($19/month, $168/year):
+   - Extended quotas (50/day, 800/month)
 
-3. **$69/month (Gold)** (Premium):
-   - Unlimited quotas
-   - Users buy **$PSY token** directly or indirectly when paying
-   - **Token cashback** is credited **to the user’s wallet**
+3. **Unlimited** ($69/month, $588/year):
+   - High quotas (350/day, 8000/month)
 
 **Payment methods**:
 - Stripe (credit card)
-- Cryptocurrency (ETH, USDT, USDC)
+- Cryptocurrency (USDC, USDT only on Ethereum mainnet)
 
-**Current implementation**: A single premium tier at $20/30 days is implemented; the full 3-tier model and $PSY/cashback are documented as target behaviour.
+**Current implementation**: Full 3-tier model (Free, Pro, Unlimited) with monthly and yearly billing is implemented. ETH native payments were removed. $PSY token integration and Gold tier benefits are planned (see [TOKENOMICS.md](../TOKENOMICS.md) and [PRICING_COMPLETE_GUIDE.md](../PRICING_COMPLETE_GUIDE.md)).
 
-**Status**: Functional (single tier); 3-tier + tokenomics in progress
+**Status**: **Implemented** (3-tier with Stripe + USDC/USDT crypto)
 
 ### 3.6 Encryption Implementation
 

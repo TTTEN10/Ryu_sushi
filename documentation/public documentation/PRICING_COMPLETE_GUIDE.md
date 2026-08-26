@@ -1,325 +1,150 @@
 # Pricing Model & Implementation Guide
 
-For the **$PSY token** (revised LLM-first tokenomics), tier roles, dual payment (fiat or $PSY), and **cashback to user wallet** (Gold), see [TOKENOMICS.md](TOKENOMICS.md).
+For the **$PSY token** (revised LLM-first tokenomics), tier roles, and **planned** token cashback, see [TOKENOMICS.md](TOKENOMICS.md).
 
 ## Pricing model overview
 
-The product uses a **three-tier** pricing structure: one freemium tier and two premium tiers. Premium payments are tied to the **$PSY token** (users buy $PSY directly or indirectly when paying).
+SafePsy uses a **three-tier** pricing structure:
 
-| Tier | Model | Price | Quotas | Description |
-|------|--------|-------|--------|-------------|
-| **Free trial** | Freemium | $0 | Limited | Free trial with limited quota; upgrade to premium for **$20/month**. |
-| **$19/month** | Premium | $19/month | Extended | Premium for extended quotas. Users buy **$PSY token** directly or indirectly when paying. |
-| **$69/month (Gold)** | Premium | $69/month | Unlimited | Unlimited quotas. Users buy **$PSY token** directly or indirectly when paying and receive **token cashback** (see below). |
+| Tier | Model | Price (monthly) | Price (yearly) | Quotas |
+|------|--------|-----------------|----------------|--------|
+| **Free** | Freemium | $0 | — | 10/day, 50/week, 100/month |
+| **Pro** | Paid | $19/mo | $168/yr ($14/mo) | 50/day, 250/week, 800/month |
+| **Unlimited** | Paid | $69/mo | $588/yr ($49/mo) | 350/day, 2000/week, 8000/month |
 
-### Summary
+All plans include a **30% annual discount** when billed yearly.
 
-- **Quota levels**: Limited (free) → Extended ($19) → Unlimited ($69).
-- **$PSY token**: Premium plans ($19 and $69) involve purchasing $PSY (directly or indirectly).
-- **Token cashback (Gold / $69)**: Only the $69/month tier includes token cashback. **Cashback is credited to the user’s wallet.**
-- **Upgrade from free**: Documented upgrade path is **$20/month** (may align with $19 plan as a rounded or promotional price; clarify in product copy if needed).
-
-### Gold tier ($69/month) — cashback
-
-For subscribers on the **Gold** plan ($69/month), token cashback is credited **to the user’s wallet**. The cashback is sent to the same wallet used for the subscription (or the linked wallet associated with the account).
+**Plan IDs** (internal): `free`, `pro`, `unlimited`. **DB enum** values: `FREE`, `PRO`, `UNLIMITED`.
 
 ---
 
-## Current implementation (single premium tier)
+## Current implementation
 
-The codebase currently implements a **single premium tier at $20 USD** for 30 days. ETH pricing is **dynamically calculated** from the current market price so the subscription stays at **$20 USD** regardless of ETH fluctuations.
+**Payment methods**: **USDC** and **USDT** (ERC-20) on Ethereum mainnet, plus **Stripe** (credit card) for fiat.
 
-## Implementation
+ETH native payments were removed (see [PAYMENT_ERRORS.md](../PAYMENT_ERRORS.md) in the repo root).
 
-### Price Oracle Service
-- **Location**: `apps/api/src/lib/price-oracle.service.ts`
-- **Features**:
-  - Fetches current ETH price from CoinGecko API
-  - 1-minute cache to reduce API calls
-  - Fallback to environment variable if API fails
-  - Calculates ETH amount: `$20 USD / current ETH price`
+### Configuration
 
-### Updated Services
+Central source of truth: `apps/api/src/lib/subscription-config.ts`
 
-1. **Crypto Payment Service** (`apps/api/src/lib/crypto-payment.service.ts`)
-   - `getTierPricing()` now async and uses dynamic ETH price
-   - Payment verification uses current market price
-
-2. **Quota Middleware** (`apps/api/src/middleware/quota.ts`)
-   - Returns dynamic ETH price in paywall response
-
-3. **Chat Route** (`apps/api/src/routes/chat.ts`)
-   - Returns dynamic ETH price when quota exceeded
-
-4. **Payment Route** (`apps/api/src/routes/payment.ts`)
-   - `/api/payment/pricing` endpoint returns dynamic ETH price
-
-5. **Paywall Component** (`apps/web/src/components/Paywall.tsx`)
-   - Handles price strings with or without currency suffix
-   - Parses ETH amount correctly
-
-## How It Works
-
-### Price Calculation Flow
-
-1. **User triggers paywall** (quota exceeded or manual upgrade)
-2. **Backend fetches current ETH price** from CoinGecko
-3. **Calculate ETH amount**: `$20 / ETH_price_in_USD`
-4. **Return pricing** to frontend
-5. **User pays** the calculated ETH amount
-6. **Backend verifies** payment matches expected amount
-
-### Example
-
-If ETH is trading at $3,500:
-- ETH amount = $20 / $3,500 = **0.005714 ETH**
-
-If ETH is trading at $4,000:
-- ETH amount = $20 / $4,000 = **0.005 ETH**
-
-## API Integration
-
-### CoinGecko API
-- **Endpoint**: `https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd`
-- **Rate Limit**: Free tier allows 10-50 calls/minute
-- **Cache**: 1 minute to stay within limits
-- **Fallback**: Environment variable if API fails
-
-### Alternative Sources
-- Can be extended to use CoinMarketCap, Uniswap, or Chainlink oracles
-- Currently uses CoinGecko (free, reliable)
-
-## Configuration
-
-### Environment Variables (Optional Fallback)
-```env
-# These are only used if price oracle fails
-CRYPTO_PRICE_PREMIUM_ETH=0.005714
-CRYPTO_PRICE_PREMIUM_USDT=20.00
-CRYPTO_PRICE_PREMIUM_USDC=20.00
-```
-
-### Premium subscription (current single tier)
-- **Fixed USD Price**: $20 (target model also has $19/month and $69/month; see [Pricing model overview](#pricing-model-overview))
-- **Period**: 30 days
-- **ETH Amount**: Dynamically calculated
-- **USDT/USDC**: Fixed at $20 (1:1 with USD)
-
-## Testing
-
-### Test Price Oracle
 ```typescript
-import { priceOracleService } from './lib/price-oracle.service';
+// Plan IDs
+type PlanId = 'free' | 'pro' | 'unlimited';
 
-// Get current pricing
-const pricing = await priceOracleService.getPremiumPricing();
-console.log(pricing);
-// Output: { ETH: '0.005714', USDT: '20.00', USDC: '20.00', USD: 20, period: '30 days' }
+// Monthly prices (USD cents)
+const PRICE_MONTHLY = { pro: 1900, unlimited: 6900 };
+
+// Yearly prices (USD cents)
+const PRICE_YEARLY = { pro: 16800, unlimited: 58800 };
 ```
 
-### Test Payment Flow
-1. Trigger quota exceeded
-2. Check paywall shows current ETH price
-3. Complete payment
-4. Verify backend accepts payment at current market rate
+### Payment flow
 
-## Benefits
+1. **Stripe** (primary): Standard checkout → webhook confirms subscription → activates plan.
+2. **Crypto (USDC/USDT)**: User selects plan + currency → backend creates payment intent → user sends ERC-20 tokens to the recipient contract → backend verifies transaction → activates plan. A 1% platform fee is added to the crypto amount (configurable via `PAYMENT_FEE_PERCENT`).
 
-✅ **Always $20 USD**: Subscription price stays constant in USD
-✅ **Fair for users**: Users pay fair market rate in ETH
-✅ **Automatic updates**: No manual price adjustments needed
-✅ **Cached**: Reduces API calls with 1-minute cache
-✅ **Resilient**: Falls back to env variable if API fails
+Legacy crypto route (`/api/payment/crypto`) is **deprecated** and returns 410 Gone.
 
-## Monitoring
+### Plan names
 
-- Price cache is logged for debugging
-- API failures are logged with warnings
-- Fallback to cached/static price if API unavailable
+| Internal ID | Display name | DB enum |
+|-------------|-------------|---------|
+| `free` | Free | `FREE` |
+| `pro` | Pro | `PRO` |
+| `unlimited` | Unlimited | `UNLIMITED` |
 
-## Future Enhancements
+### Payment recipient
 
-- Add multiple price sources (CoinGecko, CoinMarketCap, Chainlink)
-- Use median price from multiple sources
-- Add price volatility alerts
-- Implement price smoothing to avoid rapid fluctuations
-- Implement full 3-tier model ($19/month, $69/month) and $PSY token integration (see Dependencies below)
+USDC (ERC-20, 6 decimals): `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48`
+USDT (ERC-20, 6 decimals): `0xdAC17F958D2ee523a2206206994597C13D831ec7`
 
 ---
 
-## Dependencies and implementation status (3-tier model)
+## Quotas
 
-To support the full pricing model (Free trial, $19/month, $69/month) with $PSY token and cashback:
+| Plan | Daily | Weekly | Monthly |
+|------|-------|--------|---------|
+| Free | 10 | 50 | 100 |
+| Pro | 50 | 250 | 800 |
+| Unlimited | 350 | 2,000 | 8,000 |
 
-| Area | File / component | Current state | Required for 3-tier + $PSY |
-|------|-------------------|----------------|-----------------------------|
-| **Tiers** | `apps/api/schema.prisma` | `SubscriptionTier`: FREE, PREMIUM | Add tier(s), e.g. PREMIUM_EXTENDED ($19), PREMIUM_UNLIMITED ($69), or single PREMIUM with planId/pricePoint. |
-| **Limits** | `apps/api/src/lib/subscription.service.ts` | `SUBSCRIPTION_LIMITS`: FREE, PREMIUM only | Add limits for extended ($19) and unlimited ($69). |
-| **Pricing API** | `apps/api/src/lib/price-oracle.service.ts` | Single `PREMIUM_USD_PRICE = 20` | Support multiple USD prices ($19, $69) and optionally $PSY equivalent. |
-| **Payment** | `apps/api/src/lib/crypto-payment.service.ts` | `getTierPricing(tier: 'PREMIUM', …)` | Support tier/plan (e.g. $19 vs $69), and $PSY payment path. |
-| **Payment route** | `apps/api/src/routes/payment.ts` | `tier: Joi.string().valid('PREMIUM')`, single tier in `/pricing` | Validate multiple tiers; return 3-tier pricing from GET `/pricing`. |
-| **Quota** | `apps/api/src/middleware/quota.ts` | Returns single premium price | Return pricing per tier when quota exceeded. |
-| **Chat** | `apps/api/src/routes/chat.ts` | Uses single `getPremiumPricing()` | Use tier-specific pricing when returning paywall. |
-| **Frontend** | `apps/web/src/components/Paywall.tsx` | Single premium option | Display Free / $19 / $69 and upgrade from free ($20). |
-| **$PSY token** | — | Not implemented | Payment flow where fiat/crypto converts to or is tied to $PSY; 10% discount when paying in $PSY (see [TOKENOMICS.md](TOKENOMICS.md)). |
-| **Cashback** | — | Not implemented | Gold ($69/month): 10% cashback in $PSY credited to the user’s wallet. |
+Quotas are enforced in `apps/api/src/lib/subscription.service.ts`.
 
-### Tokenomics dependencies (see [TOKENOMICS.md](TOKENOMICS.md) — revised LLM-first model)
+---
 
-Implementation areas required for the full tokenomics model:
+## API endpoints
 
-| Area | Current state | Required |
-|------|----------------|----------|
-| **Dual payment** | Fiat (Stripe) + crypto (ETH/USDT/USDC) | Fiat (Stripe) **or** $PSY; $PSY unlocks 10% discount, unlimited Memory Vault, Advanced Privacy Layer, early AI features, governance. |
-| **$PSY utility** | — | Enforce feature gates: AI Memory Vault (limited vs unlimited by payment type), Advanced Privacy Layer, early-access features, governance participation. |
-| **Revenue-sharing** | — | 9% platform net revenue → Treasury; 3% of Treasury → stakers. Treasury and distribution logic. |
-| **Staking** | — | Staking contract or integration; yield from Treasury (3%); enhanced multiplier for Gold members. |
-| **Gold benefits** | — | 10% $PSY cashback to wallet; enhanced staking multiplier; early feature access; governance proposal rights. |
-| **Deflationary (buyback + burn)** | — | 5% platform net revenue → buy $PSY from market → permanent burn. Accounting and execution path. |
-| **Airdrop** | — | Proof-of-Mental-Health score (holding, activity, staking duration, referral, subscription longevity, session consistency); 20% of supply from Ecosystem over 3 years. |
-| **ICO / phases** | — | Phase 0 (private), Phase 1 (product-led pre-sale), Phase 2 (public after 20k users + $100k MRR). Metrics tracking and gating. |
-| **Token allocation** | — | Fixed supply; allocation per [TOKENOMICS.md](TOKENOMICS.md) (Public 25%, Team 22%, Ecosystem 21%, Treasury 7%, Liquidity 10%, User Growth 10%, Foundation 5%). |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/subscription/plans` | GET | Return all plans + prices + paywall threshold |
+| `/api/subscription/create` | POST | Create a payment intent (Stripe or crypto) |
+| `/api/subscription/verify` | POST | Verify payment completion |
+| `/api/subscription/cancel` | POST | Cancel current subscription |
 
-### Environment variables (for 3-tier and tokenomics)
+---
 
-When extending to multiple tiers and tokenomics, consider:
+## Environment variables
 
 ```env
-# Optional fallbacks per tier (if price oracle fails)
-CRYPTO_PRICE_PREMIUM_ETH=0.005714
-CRYPTO_PRICE_PREMIUM_USDT=20.00
-CRYPTO_PRICE_PREMIUM_USDC=20.00
-# Future: PREMIUM_19_*, PREMIUM_69_*, PSY_* for $PSY pricing/cashback
+# Stripe
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
 
-# Tokenomics (when implemented)
-# TREASURY_REVENUE_SHARE_PCT=9
-# STAKER_DISTRIBUTION_PCT=3
-# GOLD_CASHBACK_PCT=10
-# BUYBACK_BURN_PCT=5
-# AIRDROP_ECOSYSTEM_PCT=20
+# Crypto payment
+CRYPTO_PAYMENT_CONTRACT_ADDRESS=0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c
+PAYMENT_FEE_PERCENT=1  # 1% platform fee on crypto payments
+
+# Wallet auth (Sepolia)
+SUPPORTED_CHAIN_ID=11155111
 ```
 
 ---
 
-# Dynamic ETH Pricing - Implementation Summary ✅
+## Dependencies and implementation status
 
-## Overview
+### Implemented
 
-The premium subscription ETH price is now **dynamically calculated** based on the current market price, ensuring it always equals **$20 USD** regardless of ETH price fluctuations.
+| Area | Status |
+|------|--------|
+| **3-tier plans** (free/pro/unlimited) | ✅ Implemented in `subscription-config.ts` |
+| **Monthly + yearly pricing** | ✅ Implemented with 30% annual discount |
+| **Quotas** | ✅ Enforced per plan in `subscription.service.ts` |
+| **Stripe payments** | ✅ Implemented (checkout + webhook) |
+| **Crypto payments (USDC/USDT)** | ✅ Implemented with 1% fee |
+| **Subscription duration** | ✅ 1 month (monthly) / 12 months (yearly) |
 
-## How It Works
+### Not implemented (planned)
 
-1. **Price Fetching**: Fetches current ETH/USD price from CoinGecko API
-2. **Calculation**: `ETH Amount = $20 USD / Current ETH Price`
-3. **Caching**: 1-minute cache to reduce API calls
-4. **Fallback**: Uses environment variable if API fails
+| Area | Status |
+|------|--------|
+| **$PSY token payments** | Planned — 10% discount when paying with $PSY (see [TOKENOMICS.md](TOKENOMICS.md)) |
+| **Gold tier cashback** | Planned — 10% $PSY cashback on Unlimited plan |
+| **Staking rewards** | Planned — 3% of Treasury distributed to stakers |
+| **Buyback + burn** | Planned — 5% of platform revenue used to buy and burn $PSY |
+| **Airdrop program** | Planned — Proof-of-Mental-Health scoring |
+| **ICO phases** | Planned — public sale after 20k users + $100k MRR |
 
-## Example Calculations
+---
 
-| ETH Price (USD) | ETH Amount for $20 |
-|-----------------|-------------------|
-| $3,000          | 0.006667 ETH      |
-| $3,500          | 0.005714 ETH      |
-| $4,000          | 0.005000 ETH      |
-| $4,500          | 0.004444 ETH      |
+## Files
 
-## Files Modified
+| File | Description |
+|------|-------------|
+| `apps/api/src/lib/subscription-config.ts` | Central config: prices, quotas, discounts, plan metadata |
+| `apps/api/src/lib/subscription.service.ts` | Subscription logic: limits, verification, DB enum mapping |
+| `apps/api/src/routes/subscription.ts` | Subscription API routes |
+| `apps/api/src/lib/crypto-payment.service.ts` | Crypto payment creation + verification (USDC/USDT) |
+| `apps/web/src/components/SubscriptionTerminal.tsx` | Frontend subscription UI |
+| `apps/web/src/components/PlanBadge.tsx` | Plan badge display in header |
+| `apps/web/src/hooks/useSubscription.ts` | Frontend subscription hook |
+| `apps/api/schema.prisma` | `SubscriptionPlan` enum: FREE, PRO, UNLIMITED |
 
-### Backend
-- ✅ `apps/api/src/lib/price-oracle.service.ts` - **NEW** Price oracle service
-- ✅ `apps/api/src/lib/crypto-payment.service.ts` - Updated to use dynamic pricing
-- ✅ `apps/api/src/middleware/quota.ts` - Returns dynamic ETH price
-- ✅ `apps/api/src/routes/chat.ts` - Returns dynamic ETH price
-- ✅ `apps/api/src/routes/payment.ts` - Returns dynamic ETH price
+---
 
-### Frontend
-- ✅ `apps/web/src/components/Paywall.tsx` - Handles price parsing
+## Related documentation
 
-## API Integration
-
-**CoinGecko API**:
-- Endpoint: `https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd`
-- Free tier: 10-50 calls/minute
-- Cache: 1 minute
-- Fallback: Environment variable
-
-## Testing
-
-The pricing is automatically updated when:
-- User triggers paywall (quota exceeded)
-- User requests `/api/payment/pricing`
-- Payment verification occurs
-
-## Benefits
-
-✅ **Always $20 USD**: Subscription stays constant in USD value
-✅ **Fair pricing**: Users pay current market rate
-✅ **Automatic**: No manual price updates needed
-✅ **Resilient**: Falls back gracefully if API unavailable
-
-# 2% Price Markup Implementation ✅
-
-## Overview
-
-The ETH price for premium subscriptions now includes a **2% markup** on top of the CoinGecko market price. This ensures the platform has a buffer for market fluctuations and transaction fees.
-
-## Calculation
-
-### Formula
-```
-Base ETH Amount = $20 USD / CoinGecko ETH Price
-Final ETH Amount = Base ETH Amount × 1.02
-```
-
-### Example
-
-**Without Markup:**
-- CoinGecko ETH Price: $3,500
-- Base ETH Amount: $20 / $3,500 = **0.005714 ETH**
-
-**With 2% Markup:**
-- CoinGecko ETH Price: $3,500
-- Base ETH Amount: $20 / $3,500 = **0.005714 ETH**
-- Final ETH Amount: 0.005714 × 1.02 = **0.005828 ETH**
-
-**Result**: User pays **2% more ETH** than the base market rate
-**USD Value**: 0.005828 × $3,500 = **$20.40** (2% more than $20)
-
-## Implementation
-
-### Price Oracle Service
-- **Location**: `apps/api/src/lib/price-oracle.service.ts`
-- **Markup**: `PRICE_MARKUP = 0.02` (2%)
-- **Applied in**: `getPremiumETHAmount()` method
-
-### Updated Calculation
-```typescript
-const ethPrice = await this.getETHPrice(); // From CoinGecko
-const baseEthAmount = this.PREMIUM_USD_PRICE / ethPrice; // Base amount
-const ethAmount = baseEthAmount * (1 + this.PRICE_MARKUP); // Add 2% markup
-```
-
-## Benefits
-
-✅ **Market Buffer**: Protects against price fluctuations during payment
-✅ **Fee Coverage**: Accounts for gas fees and transaction costs
-✅ **Fair Pricing**: Still based on real market price, just with small buffer
-✅ **Transparent**: Markup is applied consistently
-
-## Price Comparison Examples
-
-| CoinGecko Price | Base ETH Amount | Final ETH Amount (2% Markup) | USD Value | Difference |
-|-----------------|-----------------|------------------------------|-----------|------------|
-| $3,000          | 0.006667 ETH    | 0.006800 ETH                 | $20.40    | +2.0%      |
-| $3,500          | 0.005714 ETH    | 0.005828 ETH                 | $20.40    | +2.0%      |
-| $4,000          | 0.005000 ETH    | 0.005100 ETH                 | $20.40    | +2.0%      |
-| $4,500          | 0.004444 ETH    | 0.004533 ETH                 | $20.40    | +2.0%      |
-
-## Notes
-
-- The 2% markup is applied to the ETH amount, making users pay 2% more ETH
-- Users pay ~$20.40 USD equivalent (2% more than base $20)
-- This protects the platform from market volatility during payment processing
-- The markup is transparent in logs for debugging
-- Payment verification uses the marked-up amount
-
+- [TOKENOMICS.md](TOKENOMICS.md) — $PSY token design, staking, cashback, planned features
+- [PAYMENT_ERRORS.md](../PAYMENT_ERRORS.md) — ETH native payment removal history
+- [DID_COMPLETE_GUIDE.md](DID_COMPLETE_GUIDE.md) — DID integration with subscription

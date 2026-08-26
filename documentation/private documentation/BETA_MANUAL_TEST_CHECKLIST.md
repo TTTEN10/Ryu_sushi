@@ -49,10 +49,10 @@ npm run deploy:local
 
 ```bash
 # Check API health
-curl https://polinapsycho.com/healthz  # Should return: ok
+curl https://app.polinapsycho.com/healthz  # Should return: ok
 
 # Check chat health
-curl https://polinapsycho.com/api/chat/health
+curl https://app.polinapsycho.com/api/chat/health
 
 # Check Redis connection
 docker-compose exec redis redis-cli ping  # Should return: PONG
@@ -179,8 +179,8 @@ docker-compose ps
 
 | # | Test | Command | Expected Result | Pass/Fail | Notes |
 |---|------|---------|-----------------|-----------|-------|
-| **HLTH-01** | Healthz Endpoint | `curl https://polinapsycho.com/healthz` | 200 OK, body: "ok" | ☐ | |
-| **HLTH-02** | Chat Health | `curl https://polinapsycho.com/api/chat/health` | 200 OK, routing: scaleway-direct | ☐ | |
+| **HLTH-01** | Healthz Endpoint | `curl https://app.polinapsycho.com/healthz` | 200 OK, body: "ok" | ☐ | |
+| **HLTH-02** | Chat Health | `curl https://app.polinapsycho.com/api/chat/health` | 200 OK, routing: scaleway-direct | ☐ | |
 | **HLTH-03** | LLM Connectivity | `CHECK_LLM=1 USE_SCALEWAY_DIRECT=1 ./deployment/verify-production.sh` | All checks pass | ☐ | |
 | **HLTH-04** | Database Connection | SSH → `psql -c "SELECT 1"` | Connection successful | ☐ | |
 | **HLTH-05** | Redis Connection | SSH → `redis-cli ping` | PONG | ☐ | |

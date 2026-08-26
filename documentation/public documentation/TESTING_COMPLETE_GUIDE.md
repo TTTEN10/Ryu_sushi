@@ -1,6 +1,6 @@
 # Testing Implementation Summary
 
-This document summarizes the implementation of the testing infrastructure for SafePsy at `polinapsycho.com/testing/`.
+This document summarizes the implementation of the testing infrastructure for SafePsy at `https://app.polinapsycho.com/testing/`.
 
 ## Production parity (wallet & DID)
 

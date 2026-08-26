@@ -600,7 +600,7 @@ const DIDIdentityToken = await ethers.getContractFactory("DIDIdentityToken");
 const didToken = await DIDIdentityToken.deploy(
     "SafePsy DID Identity",
     "SAFEPSY-DID",
-    "https://api.polinapsycho.com/did/metadata/",
+    "https://app.polinapsycho.com/did/metadata/",
     backendSignerAddress,
     false // Start with public minting disabled
 );
@@ -1668,14 +1668,11 @@ All requested features have been implemented for the DID Identity Token smart co
    - Payment recipient: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c` (verify against your deployment)
    - **Network:** **Sepolia** only (chain ID **11155111**; `SUPPORTED_CHAIN_ID` in `apps/api/src/lib/constants.ts`)
 
-6. **Premium Plan Pricing Updated**
-   - **Current implementation**: Single premium at **$20 USD for 30 days**
-   - **Target model**: Three tiers (Free trial, $19/month, $69/month Gold) with $PSY token and cashback to user wallet for Gold — see [TOKENOMICS.md](TOKENOMICS.md) and [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md)
-   - Crypto prices (current):
-     - ETH: `0.005714 ETH` (based on ~$3,500 ETH price)
-     - USDT: `20.00 USDT`
-     - USDC: `20.00 USDC`
-   - Period: 30 days (automatically set in subscription service)
+6. **Subscription pricing**
+   - **Current implementation**: Free, Pro ($19/mo), Unlimited ($69/mo) with monthly and yearly billing
+   - **Payment methods**: Stripe (fiat) and crypto (USDC/USDT only)
+   - ETH native payments were removed (see [PAYMENT_ERRORS.md](../PAYMENT_ERRORS.md))
+   - Period: 1 month (monthly) or 12 months (yearly)
 
 ## Files Modified/Created
 
@@ -1690,10 +1687,8 @@ All requested features have been implemented for the DID Identity Token smart co
 - ✅ `apps/api/.env` - Updated with:
   - `DID_IDENTITY_TOKEN_ADDRESS=0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8`
   - `CRYPTO_PAYMENT_CONTRACT_ADDRESS=0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
-  - `CRYPTO_PRICE_PREMIUM_ETH=0.005714`
-  - `CRYPTO_PRICE_PREMIUM_USDT=20.00`
-  - `CRYPTO_PRICE_PREMIUM_USDC=20.00`
-- ✅ `apps/api/src/routes/payment.ts` - Updated pricing display with $20/30 days
+  - `PAYMENT_FEE_PERCENT=1`
+- ✅ `apps/api/src/routes/payment.ts` - Updated pricing display
 
 ## Features
 
@@ -1712,12 +1707,12 @@ All requested features have been implemented for the DID Identity Token smart co
 - **Encrypted Storage**: Ciphertext in the API; keys on Sepolia identity token metadata
 - **Network**: **Sepolia only** (chain ID **11155111**)
 
-### Premium Plan (current implementation)
-- **Price**: $20 USD (single tier; target model has $19/month and $69/month Gold — see [TOKENOMICS.md](TOKENOMICS.md))
-- **Period**: 30 days
-- **Payment Methods**: ETH, USDT, USDC, Stripe
+### Subscription Plan (current implementation)
+- **Prices**: Pro $19/mo, Unlimited $69/mo (monthly and yearly billing)
+- **Payment Methods**: USDC, USDT (ERC-20), Stripe
 - **Recipient**: `0x1F4739e229AdCb1c986C8A8b66f686ddEc29694c`
-- **Network**: **Sepolia** only (chain ID **11155111**)
+- **Network**: Ethereum mainnet for crypto payments
+- **Wallet auth chain**: Sepolia only (chain ID 11155111)
 
 ## Testing Checklist
 
@@ -1729,8 +1724,8 @@ All requested features have been implemented for the DID Identity Token smart co
 - [ ] Send chat message
 - [ ] Verify message is encrypted
 - [ ] View decrypted chat history in DID visualization
-- [ ] Test premium payment flow
-- [ ] Verify 30-day subscription period
+- [ ] Test subscription flow
+- [ ] Verify subscription period matches plan selected
 
 ### UI/UX
 - [ ] DID token visualization displays correctly
@@ -1744,7 +1739,7 @@ All requested features have been implemented for the DID Identity Token smart co
 - [ ] DID contract updates on chat save
 - [ ] Environment variables loaded correctly
 - [ ] Payment recipient address correct
-- [ ] Pricing displays $20/30 days
+- [ ] Pricing displays current tier prices
 
 ## Next Steps
 
@@ -1773,15 +1768,15 @@ All requested features have been implemented for the DID Identity Token smart co
 
 4. **Test Payment Flow**:
    - Trigger quota exceeded
-   - View paywall with $20 pricing
+   - View subscription options
    - Complete crypto payment
-   - Verify 30-day subscription period
+   - Verify subscription period matches plan selected
 
 ## Notes
 
 - The contract address `0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8` in this section is a **historical example** from a local or test deployment log; substitute your **Sepolia** deployment output and keep **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts` aligned with that chain.
 - **Chain changes:** update **`SUPPORTED_CHAIN_ID`** in `apps/api/src/lib/constants.ts`, redeploy contracts, and refresh RPC + contract env on the same chain only.
-- Premium pricing is set to $20 for 30 days in current implementation; target model adds $19/month, $69/month Gold with $PSY token and cashback to user wallet (see [TOKENOMICS.md](TOKENOMICS.md))
+- Subscription pricing: Pro $19/mo, Unlimited $69/mo (see [PRICING_COMPLETE_GUIDE.md](PRICING_COMPLETE_GUIDE.md))
 - All encryption is handled client-side using wallet signatures
 - Chat history is stored encrypted in the database and referenced in the DID contract
 
