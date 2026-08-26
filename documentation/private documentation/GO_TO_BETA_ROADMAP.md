@@ -383,59 +383,60 @@ Define "beta-ready" as meeting ALL of the following:
 
 ---
 
-**Document Version:** 1.2  
-**Last Updated:** August 19, 2026  
-**Next Review:** August 26, 2026
+**Document Version:** 1.3  
+**Last Updated:** August 26, 2026  
+**Next Review:** September 2, 2026
 
 ---
 
-## 11. Latest Changes (August 20, 2026 — EOD)
+## 11. Latest Changes (August 26, 2026)
 
-### ✅ Completed Today (Aug 20)
+### ✅ Completed This Week (Aug 20-26, 2026)
+
 | Item | Status | Notes |
 |------|--------|-------|
-| Remove console.log from production | ✅ Complete | 22 statements removed from web runtime code, lint passing |
-| JWT_SECRET guard verification | ✅ Verified | production-config-guard.ts correctly rejects default/insecure values |
-| Fix empty block lint errors | ✅ Complete | 4 blocks refactored in ChatWidget, AuthContext, WalletContext, useChatEncryption |
-
-### ✅ Completed This Week (Aug 19-20, 2026)
-| Item | Status | Notes |
-|------|--------|-------|
-| Consent recording API (GDPR Art. 7) | ✅ Complete | `apps/api/src/routes/consent.ts` — record/withdraw/query consent with audit trail |
-| Consent check middleware | ✅ Complete | `apps/api/src/middleware/consent-check.ts` — blocks AI chat without health data consent |
-| Web Sentry integration | ✅ Complete | @sentry/react installed, lib/sentry.ts created, wired into App.tsx |
-| Web GA4 integration | ✅ Complete | Consent-gated, wired into App.tsx |
-| Health data consent (GDPR Art. 9) | ✅ Complete | `CookieBanner.tsx` — mandatory checkbox |
-| Account deletion (GDPR Art. 17) | ✅ Complete | Transactional deletion with audit logging |
-| Mobile Sentry integration | ✅ Complete | sentry.ts with full error tracking |
-| Database indexes (expiresAt) | ✅ Complete | @@index on CrisisOptIn + EncryptedChat |
+| Remove console.log from production | ✅ Complete | 22 statements removed, lint passing |
+| JWT_SECRET guard verification | ✅ Verified | Rejects default/insecure values |
+| Beta welcome packet | ✅ Complete | Ready for distribution |
+| Subdomain DNS config | ✅ Complete | `app.polinapsycho.com` → `51.159.165.150` |
+| Manual testing checklist | ✅ Complete | 47 tests across 8 sections |
+| SubscriptionTerminal modal fix | ✅ Complete | Payment states in modal overlay |
+| Deploy script stabilization | ✅ Complete | Heredoc, prisma push, enum checks |
+| Consent recording API (GDPR Art. 7) | ✅ Complete | Record/withdraw/query consent |
+| Consent check middleware | ✅ Complete | Blocks AI chat without consent |
+| Web Sentry integration | ✅ Complete | @sentry/react in App.tsx |
+| Web GA4 integration | ✅ Complete | Consent-gated |
+| Health data consent (GDPR Art. 9) | ✅ Complete | Mandatory checkbox |
+| Account deletion (GDPR Art. 17) | ✅ Complete | Transactional + audit log |
+| Mobile Sentry integration | ✅ Complete | Full error tracking |
+| Database indexes (expiresAt) | ✅ Complete | CrisisOptIn + EncryptedChat |
 | Rate limiting `/api/crisis/opt-in` | ✅ Complete | 5 req/min |
-| Guest quota system | ✅ Complete | Device cookie + IP hard cap (5/25) |
+| Guest quota system | ✅ Complete | Device cookie + IP hard cap |
 
-### Updated Gap Analysis
-| Category | Gap | Status | Notes |
-|----------|-----|--------|-------|
-| **Security** | Rate limiting on `/api/crisis/opt-in` | ✅ Complete | Shipped July 9 |
-| **Infrastructure** | Production deployment | ✅ Complete | Verified: all HTTPS checks pass |
-| **Documentation** | Beta tester onboarding | ✅ Complete | Email templates in `BETA_TESTER_GUIDE.md` |
-| **Marketing** | Social media content | ✅ Complete | Ready-to-post content in `SOCIAL_MEDIA_PR_CONTENT.md` |
+### ⏳ Pending
+| Item | Status | Notes |
+|------|--------|-------|
+| Uptime monitoring | ⏳ Pending | UptimeRobot on /healthz |
+| Database backup verification | ⏳ Pending | Confirm pg_dump/Scaleway |
+| Legal review (Privacy Policy + ToS) | ⏳ Pending | Lawyer engagement |
+| Beta tester recruitment | ⏳ Pending | Target: 50-100 testers |
 
 ---
 
-## 12. 🎯 Your 5 Actions for Tomorrow (August 21, 2026)
+## 12. 🎯 Your 5 Actions for This Week (August 26-31, 2026)
 
-**Focus: Infrastructure monitoring and backup verification**
+**Focus: Complete infrastructure setup + execute manual testing + recruit beta testers**
 
 | # | Action | Time | Why Today |
 |---|--------|------|-----------|
-| **1** | **Uptime monitoring setup** | 1h | No external monitor exists. Configure UptimeRobot (free tier) on `/healthz` and `/api/chat/health` every 5 minutes. Email alert on failure. |
-| **2** | **Database backup verification** | 1h | Confirm pg_dump cron or Scaleway managed backup is running on production PostgreSQL. Verify retention is 30+ days. Add health-check to `scripts/verify-production-setup.js`. |
-| **3** | **Add subdomain** | 1h | Configure DNS A/CNAME record for subdomain (e.g., `app.polinapsycho.com`), set up SSL certificate via Let's Encrypt or Scaleway managed cert. |
-| **4** | **Draft beta tester onboarding email** | 1h | Use templates in BETA_TESTER_GUIDE.md. Include: what SafePsy is, how to get started, feedback channel link, support contact. |
-| **5** | **Set up Discord/Slack for beta feedback** | 1h | Create beta tester feedback channel. Add welcome message, guidelines, and support contact info. |
+| **1** | **Uptime monitoring setup** | 1h | Configure UptimeRobot on `/healthz` and `/api/chat/health`. Email alerts on failure. |
+| **2** | **Database backup verification** | 1h | Confirm Scaleway backup or pg_dump cron is running. Verify 30+ day retention. |
+| **3** | **Execute manual testing (Sections 1-4)** | 3h | Auth, DID, Chat, GDPR tests from BETA_MANUAL_TEST_CHECKLIST.md |
+| **4** | **Execute manual testing (Sections 5-8)** | 2h | Subscriptions, Mobile, Errors, Production health |
+| **5** | **Beta tester recruitment** | 2h | Post to LinkedIn, Twitter, mental health forums. Target: 10-15 testers week 1. |
 
-**Total time:** ~5 hours
-**Expected outcome:** Monitoring configured, backups verified, beta onboarding infrastructure ready. Only remaining pre-beta work: legal review and beta tester recruitment.
+**Total time:** ~9 hours over 3-4 days
+**Expected outcome:** Infrastructure monitored, all tests executed, first beta testers recruited.
 
 ---
 

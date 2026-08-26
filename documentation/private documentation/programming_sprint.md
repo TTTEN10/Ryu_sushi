@@ -122,7 +122,7 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | Rate limiting | ✅ Complete | `/api/crisis/opt-in` at 5 req/min |
 | Guest quota | ✅ Complete | Device cookie + IP hard cap (5/25 per day) |
 
-### Immediate Next Sprint Items (Beta Prep) — updated Aug 20, 2026 (EOD)
+### Immediate Next Sprint Items (Beta Prep) — updated Aug 26, 2026
 
 | Priority | Task | Effort | Status |
 |----------|------|--------|--------|
@@ -138,11 +138,13 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 | P1 | Remove console.log from production code | 2 hours | ✅ Done — 22 removed from web runtime, lint passing |
 | P1 | JWT_SECRET validation guard | 30 min | ✅ Verified — production-config-guard.ts rejects default/insecure values |
 | P1 | Database backups verification | 2 hours | ⏳ Pending — confirm pg_dump/Scaleway backup active |
-| P1 | Configure Scaleway Instance Block Volume snapshots (scheduled, coarser backup) | 1 hour | ⏳ Pending |
+| P1 | Configure Scaleway Instance Block Volume snapshots | 1 hour | ⏳ Pending |
 | P1 | Uptime monitoring setup | 1 hour | ⏳ Pending — UptimeRobot on /healthz |
-| P1 | Add subdomain (DNS config, SSL) | 1 hour | ✅ Done — `app.polinapsycho.com` → A record `51.159.165.150`; Caddy handles TLS via ACME; deploy pipeline supports multi-host deployment |
+| P1 | Add subdomain (DNS config, SSL) | 1 hour | ✅ Done — `app.polinapsycho.com` → A record `51.159.165.150`; Caddy handles TLS via ACME |
 | P1 | Beta welcome packet | 2 hours | ✅ Done — ready for distribution to beta testers |
-| P2 | Manual testing suite execution | 4 hours | ⏳ Pending — 57 test cases covering auth, chat, GDPR, subscriptions, mobile |
+| P1 | Manual testing suite execution | 4 hours | ⏳ In Progress — BETA_MANUAL_TEST_CHECKLIST.md created (47 tests) |
+| P2 | SubscriptionTerminal modal fix | 1 hour | ✅ Done — payment states now wrapped in modal overlay |
+| P2 | Deploy script fixes (postgres enum, prisma push) | 2 hours | ✅ Done — deployment/heredoc escaping stabilized |
 
 ### Beta Sprint Goals (August 20-27, 2026)
 
@@ -150,8 +152,10 @@ Align with **`documentation/public documentation/LAUNCH.md`** and **`BETA_QUICKS
 2. **Code quality** — ✅ console.log removed, ✅ JWT_SECRET guard verified, ⏳ Uptime monitoring, ⏳ Backups verification
 3. **Integrate analytics** — ✅ GA4 for activation tracking (consent-gated)
 4. **Beta onboarding** — ✅ Welcome packet done, ✅ Subdomain configured, ⏳ Discord/Slack setup
-5. **Manual testing** — ⏳ 57 test cases covering: auth, DID, chat, GDPR, subscriptions, mobile, error handling, production health
-6. **Recruit first 10 beta testers** — Manual onboarding, observe friction
+5. **Manual testing** — ⏳ 47 test cases created (BETA_MANUAL_TEST_CHECKLIST.md), execution in progress
+6. **Deploy script stabilization** — ✅ Fixed: postgres heredoc escaping, prisma db push, payment table verification, enum checks
+7. **Subscription UI fix** — ✅ Fixed: payment states now render in modal overlay (SubscriptionTerminal.tsx)
+8. **Recruit first 10 beta testers** — Manual onboarding, observe friction
 
 ---
 

@@ -4,18 +4,21 @@
 
 **Status:** 🟢 READY FOR BETA LAUNCH
 
-**Week Focus:** Code quality hardening, infrastructure setup, and comprehensive manual testing
+**Week Focus:** Code quality hardening, deploy script stabilization, infrastructure setup, and comprehensive manual testing
 
 **Key Achievements:**
 - ✅ All production console.log statements removed (22 from web runtime)
 - ✅ JWT_SECRET validation guard verified
 - ✅ Beta welcome packet completed
-- ✅ Subdomain DNS configured
+- ✅ Subdomain DNS configured (`app.polinapsycho.com` → `51.159.165.150`)
 - ✅ GDPR compliance infrastructure complete
+- ✅ Deploy script stabilized (10+ fixes for heredoc, prisma, enum checks)
+- ✅ SubscriptionTerminal payment modal fixed
+- ✅ Manual testing checklist created (47 tests across 8 sections)
 
 ---
 
-## ✅ Completed This Week (Aug 20)
+## ✅ Completed This Week (Aug 20-26)
 
 ### Code Quality & Security
 
@@ -31,7 +34,25 @@
 | Task | Status | Details |
 |------|--------|---------|
 | Beta welcome packet | ✅ Complete | Ready for distribution to beta testers |
-| Subdomain DNS configuration | ✅ Complete | DNS records created, SSL pending |
+| Subdomain DNS configuration | ✅ Complete | `app.polinapsycho.com` → `51.159.165.150`, Caddy handles TLS |
+| Manual testing checklist | ✅ Complete | 47 tests across 8 sections |
+
+### Deploy Script Fixes (Aug 24-26)
+
+| Task | Status | Details |
+|------|--------|---------|
+| Heredoc escaping | ✅ Complete | Fixed variable escaping in remote deploy scripts |
+| Prisma db push | ✅ Complete | Restored with retry and table verification |
+| Postgres health check | ✅ Complete | Simplified with docker compose healthcheck |
+| Enum check | ✅ Complete | Removed complex query, simplified verification |
+| Payment table verification | ✅ Complete | Simplified query, fixed escaping |
+
+### UI Fixes
+
+| Task | Status | Details |
+|------|--------|---------|
+| SubscriptionTerminal modal | ✅ Complete | Payment states wrapped in modal overlay |
+| Dead code removal | ✅ Complete | Removed Payment.tsx, PriceOracleService |
 
 ### GDPR Compliance Infrastructure
 
@@ -60,60 +81,43 @@
 
 ## 📅 Updated Next 7 Days Schedule
 
-### Day 1: August 21 (Tomorrow)
+### Day 1-2: August 26-27 (Wed-Thu)
 
-**Focus:** Infrastructure monitoring + manual testing suite
+**Focus:** Infrastructure monitoring + manual testing execution
 
 | Time | Task | Deliverable |
 |------|------|-------------|
 | Morning (1h) | Uptime monitoring setup | UptimeRobot configured, alerts working |
 | Afternoon (1h) | Database backup verification | Backup confirmed, retention verified |
-| Evening (2h) | Manual testing: Auth + Wallet flows | Test report documented |
+| Evening (3h) | Manual testing: Sections 1-4 | Auth, DID, Chat, GDPR tests documented |
 
 **Definition of Done:**
 - `/healthz` and `/api/chat/health` monitored every 5 minutes
 - Email alerts configured and tested
 - Backup age < 24 hours confirmed
-- Auth flow test results documented
+- Sections 1-4 test results documented
 
 ---
 
-### Day 2: August 22
+### Day 3-4: August 28-29 (Fri-Sat)
 
-**Focus:** Manual testing completion + beta recruitment prep
+**Focus:** Complete manual testing + beta recruitment
 
 | Time | Task | Deliverable |
 |------|------|-------------|
-| Morning (2h) | Manual testing: Chat + AI features | Test report documented |
-| Afternoon (1h) | Manual testing: GDPR features | Test report documented |
-| Evening (1h) | Set up Discord/Slack channel | Feedback channel live |
-| Evening (1h) | Create beta tester application form | Typeform/Google Form ready |
+| Morning (2h) | Manual testing: Sections 5-8 | Subscriptions, Mobile, Errors, Health |
+| Evening (2h) | Beta tester recruitment posts | LinkedIn, Twitter, forum posts live |
 
 **Definition of Done:**
-- All manual test cases executed and documented
-- Discord has welcome message, guidelines, support contact
-- Application form collects: name, email, use case, availability
+- All 47 test cases executed and documented
+- Pass rate calculated, critical tests verified
+- Recruitment posts published, first signups arriving
 
 ---
 
-### Day 3-4: August 23-24 (Weekend)
+### Day 5-7: August 30-31 (Sun-Mon)
 
-**Focus:** Beta tester recruitment
-
-| Task | Target | Channel |
-|------|--------|---------|
-| Personal network outreach | 10-15 testers | LinkedIn, Twitter, email |
-| Mental health forums | 5-10 testers | Reddit r/mentalhealth, r/therapy |
-| University connections | 5-10 testers | Counseling centers, psychology dept |
-| Professional network | 5-10 testers | Therapist contacts |
-
-**Goal:** 25-45 beta testers recruited by EOD Aug 24
-
----
-
-### Day 5: August 25
-
-**Focus:** Legal follow-up + first beta onboarding
+**Focus:** First beta onboarding + legal follow-up
 
 | Time | Task | Deliverable |
 |------|------|-------------|
@@ -121,20 +125,7 @@
 | Afternoon (2h) | Onboard first 3-5 beta testers | Manual walkthrough completed |
 | Evening (1h) | Fix critical friction points | Top 2-3 issues resolved |
 
----
-
-### Day 6-7: August 26-27
-
-**Focus:** Soft launch + monitoring
-
-| Task | Deliverable |
-|------|-------------|
-| Onboard additional 5-10 testers | Total 10-15 active testers |
-| Collect initial feedback | Feedback log with 10+ entries |
-| Monitor uptime + errors | Sentry dashboard reviewed daily |
-| Prepare beta launch announcement | Social media posts drafted |
-
-**Goal:** Beta soft launch with 10-15 active testers by EOD Aug 27
+**Goal:** Beta soft launch with 5-10 active testers by EOD Aug 31
 
 ---
 
