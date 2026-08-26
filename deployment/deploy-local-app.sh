@@ -299,7 +299,7 @@ if [[ -n "${NODE_API_DATABASE_URL}" ]]; then
   _prisma_ok=0
   for _p in $(seq 1 30); do
     log "Database schema sync - Attempt ${_p}/30..."
-    _prisma_err=$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate 2>&1)
+    _prisma_err=$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>&1)
     _prisma_rc=$?
     if [[ $_prisma_rc -eq 0 ]]; then
       log "Database schema sync OK"

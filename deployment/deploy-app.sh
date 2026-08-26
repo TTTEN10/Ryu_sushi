@@ -808,35 +808,71 @@ EOF
   else
     docker compose up -d --build --force-recreate
   fi
-  if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
+if [[ -n \"${NODE_API_DATABASE_URL}\" ]]; then
     echo \"[deploy-app] Applying Prisma schema to Postgres (payment + encrypted chat tables)\"
 
     # Wait for PostgreSQL readiness via docker compose healthcheck
     _db_ready=0
-    for _r in \$(seq 1 60); do
-      if docker compose ps postgres 2>/dev/null | grep -q \"healthy\"; then
+    for _r in $(seq 1 60); do
+      if docker compose ps postgres 2>/dev/null | grep -q "healthy"; then
         _db_ready=1
         echo \"[deploy-app] PostgreSQL ready\"
         break
       fi
       sleep 1
     done
-    if [[ \"\$_db_ready\" -ne 1 ]]; then
-      echo \"[ERROR] PostgreSQL did not become ready after 60s. Aborting deployment.\" >&2; exit 1
+    if [[ \"$_db_ready\" -ne 1 ]]; then
+      echo \"[ERROR] PostgreSQL did not become ready after 60s. Aborting deployment.\"
+      exit 1
     fi
 
+    # Use prisma db push (NOT migrate reset): project intentionally has no migration history
+    _prisma_ok=0
+    for _p in $(seq 1 30); do
+      echo \"[deploy-app] Database schema sync - Attempt ${_p}/30...\"
+      _prisma_err=$(docker compose exec -T node-api npx prisma db push --schema=schema.prisma --skip-generate --accept-data-loss 2>&1)
+      _prisma_rc=$?
+      if [[ $_prisma_rc -eq 0 ]]; then
+        echo \"[deploy-app] Database schema sync OK\"
+        echo \"$_prisma_err\" | tail -5
+        _prisma_ok=1
+        break
+      fi
+      echo \"[deploy-app] Prisma db push failed (exit ${_prisma_rc}):\"
+      echo \"$_prisma_err\" | tail -10
+      if [[ $_p -lt 30 ]]; then
+        echo \"[deploy-app] Retrying in 2s...\"
+        sleep 2
+      fi
+    done
 
-    # Run Prisma migrate reset to apply schema
-    echo "[deploy-app] Running Prisma migrate reset..."
-    if docker compose exec -T node-api npx prisma migrate reset --force 2>&1 | tail -20; then
-      echo "[deploy-app] Database schema applied successfully"
-    else
-      echo "[ERROR] Prisma migrate reset failed" >&2
+    if [[ \"$_prisma_ok\" -ne 1 ]]; then
+      echo \"[ERROR] Database schema synchronization failed after 30 attempts. Aborting deployment.\"
       exit 1
+    fi
+
+    # Verify payment tables exist after prisma db push
+    echo \"[deploy-app] Verifying payment tables in Postgres...\"
+    for _tbl in payment_intents payments prompt_usage; do
+      _tbl_found=$(docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${_tbl}'" 2>/dev/null || echo "-1")
+      if [[ \"$_tbl_found\" != \"1\" ]]; then
+        echo "[ERROR] Payment table '${_tbl}' does not exist after prisma db push. Aborting deployment." >&2
+        exit 1
+      fi
+      echo \"[deploy-app] Table ${_tbl} verified OK\"
+    done
+
+    # Verify SubscriptionPlan enum has correct values
+    _enum_ok=$(docker compose exec -T postgres psql -U \"${APP_PG_USER}\" -d \"${APP_PG_DB}\" -tAc "SELECT COUNT(*) FROM pg_enum WHERE enumtypid='public.SubscriptionPlan'::regtype AND enumlabel IN ('FREE','PRO','UNLIMITED')" 2>/dev/null || echo "0")
+    if [[ \"$_enum_ok\" != \"3\" ]]; then
+      echo "[WARN] SubscriptionPlan enum incomplete (found ${_enum_ok}/3 expected values: FREE, PRO, UNLIMITED)" >&2
+    else
+      echo "[deploy-app] SubscriptionPlan enum verified (FREE, PRO, UNLIMITED)"
     fi
   fi
   docker compose ps
   curl -fsS http://localhost >/dev/null
+'"
 '"
 fi
 
