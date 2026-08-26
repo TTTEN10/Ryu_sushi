@@ -1,0 +1,25 @@
+{
+  "LOG": true,
+  "LOG_LEVEL": "debug",
+  "API_TIMEOUT_MS": 600000,
+  "Providers": [
+    {
+      "name": "codix",
+      "api_base_url": "https://iliad.codix.scw.eu/v1/chat/completions",
+      "api_key": "2f40f98c-ac99-4fd4-97c4-f1bd429becd9",
+      "models": [
+        "codiX-agent",
+        "Qwen/Qwen3.5-397B-A17B"
+      ],
+      "transformer": {
+        "use": [["sampling", {"max_tokens": 16384}], "maxcompletiontokens"]
+      }
+    }
+  ],
+  "Router": {
+    "default": "codix,codiX-agent",
+    "background": "codix,codiX-agent",
+    "think": "codix,codiX-agent",
+    "longContext": "codix,codiX-agent"
+  }
+}

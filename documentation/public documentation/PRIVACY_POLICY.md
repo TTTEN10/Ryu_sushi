@@ -145,26 +145,26 @@ We may disclose your information if legally required:
 
 | Right | How to Exercise | Timeline |
 |-------|-----------------|----------|
-| **Right to access** | Email privacy@polinapsycho.com or use Export feature in `/profile` | 30 days |
+| **Right to access** | Email privacy@safepsy.com or use Export feature in `/profile` | 30 days |
 | **Right to rectification** | Update directly in `/profile` or email us | 30 days |
 | **Right to erasure** ("right to be forgotten") | Use Delete feature in `/profile` or email us | 30 days |
-| **Right to restrict processing** | Email privacy@polinapsycho.com | 30 days |
+| **Right to restrict processing** | Email privacy@safepsy.com | 30 days |
 | **Right to data portability** | Download JSON export from `/profile` | 30 days |
-| **Right to object** | Email privacy@polinapsycho.com | 30 days |
+| **Right to object** | Email privacy@safepsy.com | 30 days |
 | **Right to withdraw consent** | Unsubscribe link (email) or delete crisis opt-in in `/profile` | Immediate |
 
 ### 6.2 CCPA/CPRA Rights (California Users)
 
 | Right | How to Exercise | Timeline |
 |-------|-----------------|----------|
-| **Right to know** | Email privacy@polinapsycho.com | 45 days |
+| **Right to know** | Email privacy@safepsy.com | 45 days |
 | **Right to delete** | Use Delete feature in `/profile` or email us | 45 days |
 | **Right to opt-out of sale** | N/A (we do not sell personal information) | N/A |
 | **Right to non-discrimination** | N/A (built into policy) | N/A |
 
 ### 6.3 How to Submit a Request
 
-1. **Email:** privacy@polinapsycho.com
+1. **Email:** privacy@safepsy.com
 2. **In-app:** Go to `/profile` → Privacy Settings
 3. **Mail:** [Insert mailing address]
 
@@ -229,7 +229,7 @@ SafePsy is **not intended for children under 16** without parental consent.
 - We do not knowingly collect personal information from children under 16
 - If you are under 16, do not use SafePsy without parental consent
 - If we learn we have collected data from a child under 16 without consent, we will delete it immediately
-- Parents who believe their child has provided data should contact privacy@polinapsycho.com
+- Parents who believe their child has provided data should contact privacy@safepsy.com
 
 ---
 
@@ -260,7 +260,7 @@ The Crisis Safety Net is an **optional, opt-in feature** that allows users in cr
 
 - **Automatic:** Data deleted after 30 days (no action required)
 - **Manual:** Go to `/profile` → Crisis Safety Net → Withdraw
-- **Immediate:** Email privacy@polinapsycho.com
+- **Immediate:** Email privacy@safepsy.com
 
 ---
 
@@ -323,11 +323,11 @@ Continued use after changes constitutes acceptance of the updated policy.
 
 ### Data Protection Officer (if applicable)
 
-**Email:** dpo@polinapsycho.com (or privacy@polinapsycho.com)
+**Email:** dpo@safepsy.com (or privacy@safepsy.com)
 
 ### Privacy Requests
 
-**Email:** privacy@polinapsycho.com  
+**Email:** privacy@safepsy.com  
 **In-app:** `/profile` → Privacy Settings  
 **Response time:** 30 days (GDPR), 45 days (CCPA)
 

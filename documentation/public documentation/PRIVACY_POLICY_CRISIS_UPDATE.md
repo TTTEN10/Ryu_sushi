@@ -172,7 +172,7 @@ We will notify you of material changes to this policy via:
 
 For questions about the Crisis Safety Net or to exercise your privacy rights:
 
-**Email**: privacy@polinapsycho.com  
+**Email**: privacy@safepsy.com  
 **Address**: [Insert mailing address]  
 **Data Protection Officer**: [Insert DPO contact if applicable]
 
