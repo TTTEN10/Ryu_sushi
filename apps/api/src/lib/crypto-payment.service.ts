@@ -7,7 +7,7 @@
  * - Activate subscriptions after verification
  * - Prevent replay attacks (unique txHash)
  * - Integer arithmetic only (no floating-point)
- * - Support ETH (native) and USDT (ERC-20) on Ethereum mainnet
+ * - Support USDC (ERC-20) and USDT (ERC-20) on Ethereum mainnet
  * - 1% fee on top of USD equivalent to avoid conversion loss
  *
  * The backend controls:
@@ -18,7 +18,7 @@
  * - Duration (from subscription-config.ts)
  * - Fee percentage (from env config, default 1%)
  *
- * The frontend only says: "I want to purchase Pro yearly with USDT"
+ * The frontend only says: "I want to purchase Pro yearly with USDC"
  * The backend determines what that means.
  */
 
@@ -49,6 +49,10 @@ function getTokenAddress(): string | null {
   return process.env.PAYMENT_TOKEN_ADDRESS || null;
 }
 
+function getUsdcTokenAddress(): string | null {
+  return process.env.PAYMENT_USDC_TOKEN_ADDRESS || '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+}
+
 function getRpcUrl(): string | null {
   return process.env.PAYMENT_RPC_URL || process.env.RPC_URL || null;
 }
@@ -70,7 +74,7 @@ const PAYMENT_INTENT_TTL_MS = 15 * 60 * 1000; // 15 minutes
 export interface PaymentIntentRequest {
   plan: subscriptionConfig.PlanId;
   billingPeriod: subscriptionConfig.BillingPeriod;
-  currency?: 'ETH' | 'USDT';
+  currency?: 'USDC' | 'USDT';
 }
 
 export interface PaymentIntentResponse {
@@ -83,7 +87,7 @@ export interface PaymentIntentResponse {
   treasuryAddress: string;
   expiresAt: Date;
   tokenAddress: string | null;
-  selectedCurrency: 'ETH' | 'USDT';
+  selectedCurrency: 'USDC' | 'USDT';
 }
 
 /**
@@ -139,7 +143,7 @@ export async function createPaymentIntent(
 
   const chainId = getChainId();
   const tokenAddress = getTokenAddress();
-  const selectedCurrency = request.currency || 'ETH';
+  const selectedCurrency = request.currency || 'USDC';
 
   // Check for existing pending intent
   const existing = await prisma.paymentIntent.findFirst({
@@ -249,47 +253,8 @@ async function getUsdtPriceUsd(): Promise<number> {
   }
 }
 
-/** Get ETH price in USD (with caching). */
-let ethPriceCache: { price: number; cachedAt: number } | null = null;
-
-async function getEthPriceUsd(): Promise<number> {
-  const now = Date.now();
-  if (ethPriceCache && (now - ethPriceCache.cachedAt) < 60_000) {
-    return ethPriceCache.price;
-  }
-
-  try {
-    const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
-      { signal: AbortSignal.timeout(10_000) },
-    );
-    if (!response.ok) throw new Error(`CoinGecko error: ${response.status}`);
-    const data = (await response.json()) as { ethereum?: { usd?: number } };
-    const price = data.ethereum?.usd;
-    if (!price || typeof price !== 'number') throw new Error('Invalid price from CoinGecko');
-    ethPriceCache = { price, cachedAt: now };
-    return price;
-  } catch {
-    if (ethPriceCache) return ethPriceCache.price;
-    throw new Error('Unable to fetch ETH price for payment verification');
-  }
-}
-
 /**
- * Convert USD cents to wei based on current ETH price.
- * Uses integer arithmetic to avoid floating-point issues.
- */
-function usdCentsToWei(amountCents: number, ethPriceUsd: number): bigint {
-  // amountCents / 100 = USD
-  // USD / ethPriceUsd = ETH
-  // ETH * 1e18 = wei
-  const usd = amountCents / 100;
-  const eth = usd / ethPriceUsd;
-  return BigInt(Math.round(eth * 1e18));
-}
-
-/**
- * Convert USD cents to USDT amount (in token units with 6 decimals).
+ * Convert USD cents to stablecoin amount (USDC/USDT use 6 decimals).
  */
 function usdCentsToUsdt(amountCents: number): bigint {
   const usd = amountCents / 100;
@@ -301,7 +266,7 @@ async function verifyTransaction(
   expectedTreasury: string,
   expectedAmountCents: number,
   expectedChainId: number,
-  expectedCurrency: string = 'ETH',
+  expectedCurrency: string = 'USDC',
 ): Promise<VerificationResult> {
   const rpcUrl = getRpcUrl();
   if (!rpcUrl) {
@@ -345,25 +310,57 @@ async function verifyTransaction(
   let sender: string;
   let recipient: string;
 
-  if (expectedCurrency === 'ETH') {
-    // Native ETH transfer
-    amountWei = tx.value;
-    sender = tx.from?.toLowerCase() || '';
-    recipient = (tx.to || '').toLowerCase();
-
-    // Verify recipient is treasury
-    if (recipient !== expectedTreasury.toLowerCase()) {
-      throw new Error(`Wrong recipient: expected ${expectedTreasury}, got ${tx.to}`);
+  if (expectedCurrency === 'USDC') {
+    // USDC ERC-20 transfer (6 decimals)
+    const usdcAddress = getUsdcTokenAddress();
+    if (!usdcAddress) {
+      throw new Error('USDC token address not configured');
     }
 
-    // Verify amount (in cents, convert to wei for comparison)
-    const ethPrice = await getEthPriceUsd();
-    const expectedWei = usdCentsToWei(expectedAmountCents, ethPrice);
-    const tolerance = expectedWei / BigInt(100); // 1% tolerance for price drift
-    const diff = amountWei > expectedWei ? amountWei - expectedWei : expectedWei - amountWei;
+    const usdcAbi = ['event Transfer(address indexed from, address indexed to, uint256 value)'];
+    const tokenContract = new ethers.Contract(usdcAddress, usdcAbi, provider);
+
+    // Parse Transfer event
+    let transferFound = false;
+    let transferAmount = BigInt(0);
+    let fromAddress = '';
+
+    for (const log of receipt.logs) {
+      try {
+        const parsed = tokenContract.interface.parseLog({
+          topics: log.topics,
+          data: log.data,
+        });
+        if (parsed && parsed.name === 'Transfer') {
+          const args = parsed.args as unknown as [string, string, bigint];
+          const [from, to, value] = args;
+          if (to.toLowerCase() === expectedTreasury.toLowerCase()) {
+            transferFound = true;
+            transferAmount = value;
+            fromAddress = from;
+            break;
+          }
+        }
+      } catch {
+        // Not a transfer event
+      }
+    }
+
+    if (!transferFound) {
+      throw new Error('USDC transfer not found in transaction');
+    }
+
+    sender = fromAddress.toLowerCase();
+    recipient = expectedTreasury.toLowerCase();
+    amountWei = transferAmount;
+
+    // Verify USDC amount (6 decimals)
+    const expectedUsdc = usdCentsToUsdt(expectedAmountCents);
+    const tolerance = BigInt(100_000); // $0.10 tolerance
+    const diff = transferAmount > expectedUsdc ? transferAmount - expectedUsdc : expectedUsdc - transferAmount;
 
     if (diff > tolerance) {
-      throw new Error(`Wrong amount: expected ~${expectedWei} wei, got ${amountWei} wei`);
+      throw new Error(`Wrong USDC amount: expected ~${expectedUsdc}, got ${transferAmount}`);
     }
   } else {
     // ERC-20 token transfer (USDT)
@@ -534,7 +531,7 @@ export async function verifyPayment(
   }
 
   // 6. Determine currency from payment intent
-  const currency = intent.selectedCurrency === 'USDT' ? 'ERC20' : 'ETH';
+  const currency = intent.selectedCurrency === 'USDT' ? 'ERC20' : 'USDC';
 
   // 7. Verify blockchain transaction
   const verification = await verifyTransaction(
@@ -613,7 +610,7 @@ export async function verifyLegacyPayment(
   txHash: string,
   expectedAmount: bigint,
   expectedRecipient: string,
-  currency: 'ETH' | 'USDT' | 'USDC' = 'ETH',
+  currency: 'USDC' | 'USDT' = 'USDC',
 ): Promise<{ verified: boolean; amount: bigint; recipient: string; blockNumber: number; currency: string }> {
   const result = await verifyTransaction(txHash, expectedRecipient, 0, getChainId(), currency);
   return {
@@ -634,7 +631,7 @@ export async function createPaymentRecord(
   subscriptionId: string,
   txHash: string,
   amount: bigint,
-  currency: string = 'ETH',
+  currency: string = 'USDC',
 ) {
   return prisma.payment.create({
     data: {

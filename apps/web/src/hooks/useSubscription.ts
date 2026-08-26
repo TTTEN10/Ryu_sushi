@@ -293,7 +293,7 @@ export function useSubscription() {
   // ─── Create Payment Intent ───────────────────────────────────────────────
 
   const createPaymentIntent = useCallback(
-    async (plan: Exclude<PlanId, 'free'>, billingPeriod: BillingPeriod, currency: 'ETH' | 'USDT' = 'ETH') => {
+    async (plan: Exclude<PlanId, 'free'>, billingPeriod: BillingPeriod, currency: 'USDC' | 'USDT' = 'USDC') => {
       setState((prev) => ({ ...prev, error: null }));
       try {
         const response = await apiFetch('/subscription/payment/create', {

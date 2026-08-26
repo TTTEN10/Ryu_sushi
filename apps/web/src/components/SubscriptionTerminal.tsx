@@ -60,7 +60,7 @@ export default function SubscriptionTerminal({
   const [txHash, setTxHash] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(error);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [currency, setCurrency] = useState<'ETH' | 'USDT'>('ETH');
+  const [currency, setCurrency] = useState<'USDC' | 'USDT'>('USDC');
 
   // Reset state on wallet change
   useEffect(() => {
@@ -184,14 +184,23 @@ export default function SubscriptionTerminal({
           120_000,
         );
       } else {
-        // Native ETH transfer
-        const amountWei = ethers.parseUnits(intent.usdDisplay, 18);
-        const tx = await signer.sendTransaction({
-          to: intent.treasuryAddress,
-          value: amountWei,
-        });
+        // USDC ERC-20 transfer (6 decimals)
+        const USDC_CONTRACT_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+        const usdcAbi = [
+          'function approve(address spender, uint256 amount) returns (bool)',
+          'function transfer(address to, uint256 amount) returns (bool)',
+        ];
+        const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, usdcAbi, signer);
 
-        setTxHash(tx.hash);
+        const usdcAmount = Math.ceil((intent.amountCents / 100) * Math.pow(10, USDT_DECIMALS));
+
+        // First approve the treasury to spend USDC
+        const approveTx = await usdcContract.approve(intent.treasuryAddress, usdcAmount);
+        await approveTx.wait();
+
+        // Then transfer USDC to treasury
+        const transferTx = await usdcContract.transfer(intent.treasuryAddress, usdcAmount);
+        setTxHash(transferTx.hash);
         setPaymentIntent(intent);
         setStep('verify');
 
@@ -819,14 +828,14 @@ export default function SubscriptionTerminal({
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setCurrency('ETH')}
+                        onClick={() => setCurrency('USDC')}
                         className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-                          currency === 'ETH'
+                          currency === 'USDC'
                             ? 'bg-primary-600 text-white shadow-sm'
                             : 'bg-white dark:bg-gray-700 text-body border border-gray-200 dark:border-gray-600 hover:border-primary-400'
                         }`}
                       >
-                        <span className="text-lg">⟠</span> ETH
+                        <span className="text-lg font-bold">$</span> USDC
                       </button>
                       <button
                         type="button"

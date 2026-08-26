@@ -27,7 +27,7 @@ router.use(paymentRateLimitMiddleware);
 const paymentIntentSchema = Joi.object({
   plan: Joi.string().valid('pro', 'unlimited').required(),
   billingPeriod: Joi.string().valid('monthly', 'yearly').required(),
-  currency: Joi.string().valid('ETH', 'USDT').optional().default('ETH'),
+  currency: Joi.string().valid('USDC', 'USDT').optional().default('USDC'),
 });
 
 const paymentVerifySchema = Joi.object({
