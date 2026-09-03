@@ -1,0 +1,8 @@
+export { default as Home } from './Home'
+export { default as Contact } from './Contact'
+export { default as Parcours } from './Parcours'
+export { default as Programme } from './Programme'
+export { default as MentionsLegales } from './MentionsLegales'
+export { default as ConditionsGenerales } from './ConditionsGenerales'
+export { default as PolitiqueConfidentialite } from './PolitiqueConfidentialite'
+export { default as NotFound } from './NotFound'
