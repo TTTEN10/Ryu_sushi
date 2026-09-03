@@ -28,7 +28,7 @@ export default function Hero() {
         </p>
       </div>
       <div className="mk-portrait">
-        <img src="/dolgoon-khuyag-cabinet.png" alt="Dolgoon Khuyag dans son cabinet de psychologie" />
+        <img src="/dolgoon-khuyag-cutout.png" alt="Dolgoon Khuyag dans son cabinet de psychologie" />
       </div>
     </section>
   )

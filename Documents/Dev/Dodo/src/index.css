@@ -270,7 +270,7 @@ a {
 
 .mk-hero-copy {
   flex: 1;
-  max-width: 600px;
+  max-width: 550px;
 }
 
 .mk-hero .mk-kicker {
@@ -324,13 +324,13 @@ a {
 
 .mk-portrait {
   flex: 1;
-  max-width: 500px;
+  max-width: 450px;
 }
 
 .mk-portrait img {
   width: 100%;
   height: auto;
-  border-radius: 4px;
+  object-fit: contain;
 }
 
 /* Situations */
@@ -348,24 +348,23 @@ a {
 }
 
 .mk-reveal-card {
-  padding: 2.5rem;
-  background: var(--mk-white);
-  border: 1px solid var(--mk-gray);
-  transition: all 0.3s ease;
+  padding: 2rem 1.5rem;
+  background: transparent;
+  border: none;
+  transition: transform 0.3s ease;
 }
 
 .mk-reveal-card:hover {
-  border-color: var(--mk-gold);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
   transform: translateY(-4px);
 }
 
 .mk-reveal-card h3 {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 500;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   font-style: italic;
+  color: var(--mk-black);
 }
 
 .mk-reveal-card p {
@@ -414,21 +413,28 @@ a {
   margin: 0 auto 3rem;
 }
 
+.mk-axes-grid .mk-reveal-card {
+  padding: 2rem 1.5rem;
+  background: var(--mk-white);
+  border: none;
+}
+
 .mk-axes-grid .mk-reveal-card > div:first-child {
   display: flex;
   align-items: baseline;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .mk-axes-grid .mk-reveal-card > div:first-child span {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-family: var(--font-display);
   color: var(--mk-gold);
+  font-weight: 500;
 }
 
 .mk-axes-grid .mk-reveal-card small {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -437,9 +443,10 @@ a {
 
 .mk-axes-grid h3 {
   font-family: var(--font-display);
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 500;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  color: var(--mk-black);
 }
 
 .mk-axes-grid p {
@@ -507,19 +514,21 @@ a {
 }
 
 .mk-dimension-wheel .mk-reveal-card {
-  padding: 2rem;
+  padding: 1.5rem 1rem;
+  background: var(--mk-white);
+  border: none;
   text-align: center;
 }
 
 .mk-dimension-wheel h3 {
   font-family: var(--font-display);
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 500;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .mk-dimension-wheel p {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--mk-gray-dark);
   line-height: 1.6;
 }
@@ -532,43 +541,44 @@ a {
 
 .mk-process-title {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
 }
 
 .mk-process-title h2 {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 500;
 }
 
 .mk-process article {
-  max-width: 400px;
-  margin: 0 auto 3rem;
+  max-width: 350px;
+  margin: 0 auto 2rem;
   text-align: center;
-  padding: 2rem;
+  padding: 1.5rem 1rem;
   background: var(--mk-white);
-  border: 1px solid var(--mk-gray);
+  border: none;
 }
 
 .mk-process article span {
   display: block;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-family: var(--font-display);
   color: var(--mk-gold);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
 }
 
 .mk-process article h3 {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 1rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
 }
 
 .mk-process article p {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   color: var(--mk-gray-dark);
   line-height: 1.7;
 }
@@ -581,15 +591,19 @@ a {
 
 .mk-about-head {
   display: flex;
-  gap: 3rem;
-  max-width: var(--container-max);
+  gap: 4rem;
+  max-width: 900px;
   margin: 0 auto 4rem;
   align-items: center;
 }
 
+.mk-about-photo {
+  flex-shrink: 0;
+}
+
 .mk-about-photo img {
-  width: 300px;
-  height: 400px;
+  width: 280px;
+  height: 350px;
   object-fit: cover;
   border-radius: 4px;
 }
@@ -613,11 +627,11 @@ a {
 }
 
 .mk-about-copy {
-  max-width: var(--container-max);
+  max-width: 900px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 4rem;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 3rem;
 }
 
 .mk-about-description p {
