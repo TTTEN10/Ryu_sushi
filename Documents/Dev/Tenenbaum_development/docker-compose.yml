@@ -1,0 +1,24 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tenenbaum-web
+    restart: unless-stopped
+    ports:
+      - "3099:8080"
+    volumes:
+      - ./dist:/site/dist:ro
+    networks:
+      - tenenbaum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+networks:
+  tenenbaum-network:
+    driver: bridge

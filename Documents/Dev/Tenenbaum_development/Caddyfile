@@ -1,0 +1,25 @@
+# Caddy configuration for Tenenbaum Development
+# Serves static files and handles local development
+
+:8080 {
+    root * /site/dist
+    file_server
+
+    # Enable gzip compression
+    encode gzip
+
+    # Security headers
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Handle SPA routing - redirect all to index.html
+    try_files {path} /index.html
+
+    # Logging
+    log {
+        output stdout
+    }
+}
