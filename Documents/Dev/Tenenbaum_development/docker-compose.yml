@@ -8,8 +8,6 @@ services:
     restart: unless-stopped
     ports:
       - "3099:8080"
-    volumes:
-      - ./dist:/site/dist:ro
     networks:
       - tenenbaum-network
     healthcheck:
