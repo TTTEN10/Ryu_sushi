@@ -188,12 +188,16 @@ services:
     container_name: tenenbaum-web
     restart: unless-stopped
     ports:
-      - "80:8080"
-      - "443:8080"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
     networks:
       - tenenbaum-network
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -202,19 +206,25 @@ services:
 networks:
   tenenbaum-network:
     driver: bridge
+volumes:
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
 COMPOSEFILE
 log_success "Docker Compose config created"
 
 # Step 6: Create Caddyfile for production with HTTPS
 log_step "Step 6/6: Configuring Caddy..."
 cat > Caddyfile << 'CADDYFILE'
-:8080 {
+tenenbaum.eu {
     root * /site/dist
     file_server
 
     encode gzip
 
     header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Frame-Options "DENY"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
@@ -222,12 +232,23 @@ cat > Caddyfile << 'CADDYFILE'
 
     try_files {path} /index.html
 
+    tls {
+        email admin@tenenbaum.eu
+    }
+
     log {
-        output stdout
+        output file /var/log/caddy/access.log format json
+    }
+    errors {
+        output file /var/log/caddy/error.log
     }
 }
+
+www.tenenbaum.eu {
+    redir https://tenenbaum.eu{uri} permanent
+}
 CADDYFILE
-log_success "Caddy configured"
+log_success "Caddy configured for tenenbaum.eu with HTTPS"
 
 # Build and deploy
 log_step "Building and deploying..."
@@ -235,7 +256,7 @@ docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || t
 docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml up -d
 
-sleep 5
+sleep 10
 
 echo ""
 log_info "Container status:"
@@ -243,10 +264,18 @@ docker compose -f docker-compose.prod.yml ps
 
 echo ""
 log_info "Health check:"
-if curl -s http://localhost:8080 > /dev/null; then
-    echo "✅ Application is responding"
+if curl -s http://localhost:80 > /dev/null; then
+    echo "✅ Application is responding on port 80"
 else
     echo "⚠️  Application may still be starting"
+fi
+
+echo ""
+log_info "Checking HTTPS:"
+if curl -sk https://localhost:443 > /dev/null 2>&1; then
+    echo "✅ HTTPS is responding on port 443"
+else
+    echo "⚠️  HTTPS may still be initializing (certificate provisioning)"
 fi
 
 echo ""

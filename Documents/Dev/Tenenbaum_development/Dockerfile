@@ -9,9 +9,9 @@ WORKDIR /site
 # Copy built static files from dist folder
 COPY dist ./dist
 
-# Copy Caddyfile
+# Copy Caddyfile (will be overridden by docker-compose volume in production)
 COPY Caddyfile /etc/caddy/Caddyfile
 
-EXPOSE 8080
+EXPOSE 80 443
 
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
