@@ -1,12 +1,12 @@
 export default function Methodologie() {
-  const facteurs = [
+  const dimensions = [
     { title: 'Votre histoire', description: 'Les expériences qui ont construit votre manière de vous percevoir.' },
     { title: 'Votre fonctionnement', description: 'Vos croyances, émotions, besoins et stratégies de protection.' },
     { title: 'Vos relations', description: 'La manière dont les interactions influencent votre place.' },
     { title: 'Votre environnement', description: 'Les contextes familiaux, sociaux, professionnels et culturels.' },
   ]
 
-  const etapes = [
+  const steps = [
     {
       number: '01',
       title: 'COMPRENDRE',
@@ -25,42 +25,40 @@ export default function Methodologie() {
   ]
 
   return (
-    <section className="methodologie section" id="approche">
-      <div className="container">
-        <div className="section-header">
-          <span className="section-label">MON APPROCHE</span>
-          <h2 className="section-title">Comprendre ce qui se joue en vous, mais aussi autour de vous.</h2>
-          <p className="section-intro">
+    <>
+      <section className="mk-approach-intro" id="approche">
+        <div>
+          <p className="mk-kicker">MON APPROCHE</p>
+          <h2>Comprendre ce qui se joue en vous, mais aussi autour de vous.</h2>
+          <i className="mk-rule"></i>
+          <p>
             Nos difficultés ne viennent généralement pas d'une seule cause. Notre manière de penser, ressentir et agir
             se construit à travers notre histoire, nos expériences, nos relations et nos environnements.
           </p>
         </div>
-
-        <div className="methodologie-facteurs">
-          <h3 className="facteurs-title">VOUS</h3>
-          <div className="facteurs-grid">
-            {facteurs.map((facteur, index) => (
-              <div key={index} className="facteur-card">
-                <h4 className="facteur-name">{facteur.title}</h4>
-                <p className="facteur-description">{facteur.description}</p>
-              </div>
-            ))}
-          </div>
+        <div className="mk-dimension-wheel" aria-label="Les quatre dimensions qui participent à construire la personne">
+          <span>VOUS</span>
+          {dimensions.map((dim, index) => (
+            <article key={index} className={`w${index + 1} mk-reveal-card`}>
+              <h3>{dim.title}</h3>
+              <p>{dim.description}</p>
+            </article>
+          ))}
         </div>
+      </section>
 
-        <div className="methodologie-steps">
-          <p className="steps-intro">Un accompagnement qui ne s'arrête pas à la prise de conscience.</p>
-          <div className="steps-grid">
-            {etapes.map((etape, index) => (
-              <div key={index} className="step-card">
-                <span className="step-number">{etape.number}</span>
-                <h4 className="step-title">{etape.title}</h4>
-                <p className="step-description">{etape.description}</p>
-              </div>
-            ))}
-          </div>
+      <section className="mk-process">
+        <div className="mk-process-title">
+          <h2>Un accompagnement qui ne s'arrête pas à la prise de conscience.</h2>
         </div>
-      </div>
-    </section>
+        {steps.map((step, index) => (
+          <article key={index}>
+            <span>{step.number}</span>
+            <h3>{step.title}</h3>
+            <p>{step.description}</p>
+          </article>
+        ))}
+      </section>
+    </>
   )
 }

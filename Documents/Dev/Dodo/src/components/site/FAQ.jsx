@@ -39,38 +39,21 @@ export default function FAQ() {
   }
 
   return (
-    <section className="faq section" id="faq">
-      <div className="container">
-        <div className="section-header">
-          <span className="section-label">QUESTIONS FRÉQUENTES</span>
-          <h2 className="section-title">Vous vous posez peut-être encore quelques questions.</h2>
-        </div>
-        <div className="faq-list">
-          {faqs.map((faq, index) => (
-            <div
-              key={index}
-              className={`faq-item ${openIndex === index ? 'active' : ''}`}
-            >
-              <button
-                className="faq-header"
-                onClick={() => toggleFAQ(index)}
-                aria-expanded={openIndex === index}
-              >
-                <span className="faq-question">{faq.question}</span>
-                <span className="faq-icon">{openIndex === index ? '−' : '+'}</span>
-              </button>
-              <div
-                className="faq-content"
-                style={{
-                  maxHeight: openIndex === index ? '500px' : '0',
-                  opacity: openIndex === index ? 1 : 0,
-                }}
-              >
-                <p className="faq-answer">{faq.answer}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+    <section className="mk-faq" id="faq">
+      <div>
+        <p className="mk-kicker">QUESTIONS FRÉQUENTES</p>
+        <h2>Vous vous posez peut-être encore quelques questions.</h2>
+      </div>
+      <div>
+        {faqs.map((faq, index) => (
+          <details key={index} open={openIndex === index}>
+            <summary onClick={() => toggleFAQ(index)}>
+              {faq.question}
+              <span>{openIndex === index ? '−' : '+'}</span>
+            </summary>
+            <p>{faq.answer}</p>
+          </details>
+        ))}
       </div>
     </section>
   )

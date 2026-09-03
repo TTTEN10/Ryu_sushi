@@ -19,23 +19,22 @@ export default function Scenarios() {
   ]
 
   return (
-    <section className="scenarios section" id="situations">
-      <div className="container">
-        <div className="section-header">
-          <span className="section-label">CE QUI VOUS AMÈNE PEUT-ÊTRE ICI</span>
-          <h2 className="section-title">Une de ces situations vous parle ?</h2>
-          <p className="section-intro">
-            Vous ne savez pas précisément ce qui ne va pas ? Vous pouvez simplement partir de ce que vous vivez aujourd'hui.
-          </p>
-        </div>
-        <div className="scenarios-grid">
-          {scenarios.map((scenario, index) => (
-            <div key={index} className="scenario-card">
-              <blockquote className="scenario-quote">{scenario.quote}</blockquote>
-              <p className="scenario-description">{scenario.description}</p>
-            </div>
-          ))}
-        </div>
+    <section className="mk-situations">
+      <div className="mk-section-title">
+        <p className="mk-kicker">CE QUI VOUS AMÈNE PEUT-ÊTRE ICI</p>
+        <h2>Une de ces situations vous parle ?</h2>
+        <i className="mk-rule"></i>
+        <p>
+          Vous ne savez pas précisément ce qui ne va pas ? Vous pouvez simplement partir de ce que vous vivez aujourd'hui.
+        </p>
+      </div>
+      <div className="mk-situation-grid">
+        {scenarios.map((scenario, index) => (
+          <article key={index} className="mk-reveal-card">
+            <h3>{scenario.quote}</h3>
+            <p>{scenario.description}</p>
+          </article>
+        ))}
       </div>
     </section>
   )

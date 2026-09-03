@@ -8,7 +8,7 @@ import FAQ from '../components/site/FAQ'
 
 export default function Home() {
   return (
-    <>
+    <main className="mk-site">
       <Hero />
       <Scenarios />
       <Axes />
@@ -16,6 +16,6 @@ export default function Home() {
       <Profile />
       <Offre />
       <FAQ />
-    </>
+    </main>
   )
 }
