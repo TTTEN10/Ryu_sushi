@@ -24,11 +24,7 @@ export default function Header() {
   return (
     <header className="mk-header" role="banner">
       <Link to="/" className="mk-logo" aria-label="Dolgoon Khuyag Psychologue" onClick={closeMenu}>
-        <img src="/logo-dk.png" alt="Logo DK" />
-        <span>
-          <strong>DOLGOON KHUYAG</strong>
-          <small>PSYCHOLOGUE</small>
-        </span>
+        <img src="/logo-dk.png" alt="Logo" />
       </Link>
 
       <button
