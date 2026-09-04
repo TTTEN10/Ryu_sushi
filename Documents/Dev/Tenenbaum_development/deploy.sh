@@ -5,7 +5,7 @@
 # Deploys to Scaleway instance: scw-tenenbaum-eu (51.159.154.29)
 # Domain: tenenbaum.eu
 # GitHub: https://github.com/TTTEN10/SPiOSlandingv3.git
-# SSH Key: ~/SSH/tenenbaum_development
+# Uses HTTPS with Personal Access Token for Git authentication
 # =============================================================================
 
 set -e
@@ -28,7 +28,8 @@ log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
 SERVER_HOST="51.159.154.29"
 SERVER_USER="root"
 SERVER_DOMAIN="tenenbaum.eu"
-REPO_URL="git@github.com:TTTEN10/SPiOSlandingv3.git"
+GH_USER="TTTEN10"
+REPO_NAME="SPiOSlandingv3"
 BRANCH="new-main"
 APP_DIR="/opt/tenenbaum"
 SSH_KEY="$HOME/SSH/tenenbaum_development"
@@ -79,26 +80,22 @@ deploy_remote() {
     log_step "Starting deployment to $SERVER_DOMAIN..."
     echo ""
 
-    # Copy SSH key to server for GitHub access
-    log_info "Copying SSH key to server for GitHub access..."
-    scp -i "$SSH_KEY" "$SSH_KEY" "$SERVER_USER@$SERVER_HOST:/root/.ssh/github_deploy_key" 2>/dev/null || \
-        ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "mkdir -p ~/.ssh && cat > ~/.ssh/github_deploy_key" < "$SSH_KEY"
+    # Prompt for GitHub token
+    echo "Enter your GitHub Personal Access Token (PAT):"
+    echo "Create one at: https://github.com/settings/tokens/new"
+    echo "  - Scope: repo (Full control of private repositories)"
+    echo "  - No expiration (or set as needed)"
+    echo ""
+    read -s GH_TOKEN
+    echo ""
 
-    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "chmod 600 ~/.ssh/github_deploy_key"
-
-    # Configure SSH on server for GitHub
-    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "cat > ~/.ssh/config << 'EOF'
-Host github.com
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/github_deploy_key
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
-EOF
-    chmod 600 ~/.ssh/config"
+    if [ -z "$GH_TOKEN" ]; then
+        log_error "GitHub token is required"
+        exit 1
+    fi
 
     # Run remote deployment
-    ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" << 'REMOTESCRIPT'
+    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" << REMOTESCRIPT
 set -e
 
 RED='\033[0;31m'
@@ -107,23 +104,25 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
+log_info() { echo -e "\${BLUE}ℹ️  \$1\${NC}"; }
+log_success() { echo -e "\${GREEN}✅ \$1\${NC}"; }
+log_step() { echo -e "\${CYAN}🚀 \$1\${NC}"; }
+
+GH_USER="$GH_USER"
+GH_REPO="$REPO_NAME"
+GH_TOKEN="$GH_TOKEN"
+BRANCH="$BRANCH"
+APP_DIR="$APP_DIR"
 
 echo ""
 echo "=============================================="
 echo "  Tenenbaum.eu Production Deploy"
 echo "=============================================="
-echo "  Server: $(hostname)"
+echo "  Server: \$(hostname)"
 echo "  Domain: tenenbaum.eu"
-echo "  Date: $(date)"
+echo "  Date: \$(date)"
 echo "=============================================="
 echo ""
-
-APP_DIR="/opt/tenenbaum"
-REPO_URL="git@github.com:TTTEN10/SPiOSlandingv3.git"
-BRANCH="new-main"
 
 # Step 1: Install Docker
 log_step "Step 1/5: Checking Docker..."
@@ -134,39 +133,43 @@ if ! command -v docker &> /dev/null; then
 
     mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    echo "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \$(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     apt-get update -qq
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
-    docker_plugin_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-    docker_compose_version=${docker_plugin_version:-v2.24.0}
+    docker_plugin_version=\$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+    docker_compose_version=\${docker_plugin_version:-v2.24.0}
     mkdir -p /usr/local/lib/docker/cli-plugins
-    curl -SL "https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
+    curl -SL "https://github.com/docker/compose/releases/download/\${docker_compose_version}/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
     chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
     systemctl enable docker && systemctl start docker
-    usermod -aG docker $(whoami)
+    usermod -aG docker \$(whoami)
 
     log_success "Docker installed"
 else
     log_success "Docker already installed"
 fi
 
-# Step 2: Clone/Update repository
+# Step 2: Clone/Update repository using HTTPS + token
 log_step "Step 2/5: Cloning repository..."
-if [ ! -d "$APP_DIR" ]; then
-    mkdir -p "$APP_DIR"
+REPO_URL="https://\${GH_USER}:\${GH_TOKEN}@github.com/\${GH_USER}/\${GH_REPO}.git"
+
+if [ ! -d "\$APP_DIR" ]; then
+    mkdir -p "\$APP_DIR"
     cd /opt
-    git clone "$REPO_URL" tenenbaum
-    cd "$APP_DIR"
-    git checkout "$BRANCH"
-    log_success "Repository cloned from $BRANCH"
+    git clone "\$REPO_URL" tenenbaum
+    cd "\$APP_DIR"
+    git checkout "\$BRANCH"
+    # Remove token from remote URL for security
+    git remote set-url origin "https://github.com/\${GH_USER}/\${GH_REPO}.git"
+    log_success "Repository cloned from \$BRANCH"
 else
-    cd "$APP_DIR"
+    cd "\$APP_DIR"
     git fetch origin
-    git reset --hard origin/$BRANCH
-    log_success "Repository updated to $BRANCH"
+    git reset --hard origin/\$BRANCH
+    log_success "Repository updated to \$BRANCH"
 fi
 
 # Step 3: Create Caddyfile
@@ -279,7 +282,7 @@ log_success "Deployment completed!"
 echo "=============================================="
 echo ""
 echo "  🌐 Domain: https://tenenbaum.eu"
-echo "  📁 App Dir: $APP_DIR"
+echo "  📁 App Dir: \$APP_DIR"
 echo ""
 echo "  Useful commands:"
 echo "  - Logs: docker compose -f docker-compose.prod.yml logs -f"
