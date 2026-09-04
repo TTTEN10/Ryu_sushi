@@ -1,16 +1,11 @@
 #!/bin/bash
 # =============================================================================
-# Tenenbaum Development - Local Deployment Script
+# Tenenbaum.eu - Production Deployment Script
 # =============================================================================
-# Deploys the application to localhost:3099 using Docker
-#
-# Usage: ./deploy.sh [OPTIONS]
-#
-# Options:
-#   --build, -b      Force rebuild of Docker images
-#   --logs, -l       Show logs after deployment
-#   --stop, -s       Stop the containers
-#   --help, -h       Show this help message
+# Deploys to Scaleway instance: scw-tenenbaum-eu (51.159.154.29)
+# Domain: tenenbaum.eu
+# GitHub: https://github.com/TTTEN10/SPiOSlandingv3.git
+# SSH Key: ~/SSH/tenenbaum_development
 # =============================================================================
 
 set -e
@@ -29,83 +24,254 @@ log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
 
+# Configuration
+SERVER_HOST="51.159.154.29"
+SERVER_USER="root"
+SERVER_DOMAIN="tenenbaum.eu"
+REPO_URL="https://github.com/TTTEN10/SPiOSlandingv3.git"
+BRANCH="new-main"
+APP_DIR="/opt/tenenbaum"
+SSH_KEY="$HOME/SSH/tenenbaum_development"
+
+# Flags
+SHOW_LOGS=false
+SHOW_STATUS=false
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 show_help() {
-    head -12 "$0" | tail -10
+    echo ""
+    echo "Tenenbaum.eu Production Deployment"
+    echo "==================================="
+    echo ""
+    echo "Usage: ./deploy.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --logs, -l     Show logs after deployment"
+    echo "  --status, -s   Check current deployment status"
+    echo "  --help, -h     Show this help message"
+    echo ""
     exit 0
 }
 
-FORCE_BUILD=false
-SHOW_LOGS=false
-STOP=false
+check_prerequisites() {
+    log_info "Checking prerequisites..."
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --build|-b) FORCE_BUILD=true; shift ;;
-        --logs|-l) SHOW_LOGS=true; shift ;;
-        --stop|-s) STOP=true; shift ;;
-        --help|-h) show_help; shift ;;
-        *) log_error "Unknown option: $1"; show_help ;;
-    esac
-done
+    # Check SSH key exists
+    if [ ! -f "$SSH_KEY" ]; then
+        log_error "SSH key not found at: $SSH_KEY"
+        echo ""
+        echo "Please ensure the SSH key file exists."
+        echo "The key should be at: ~/SSH/tenenbaum_development"
+        exit 1
+    fi
+
+    # Check SSH key permissions
+    if [ "$(stat -c %a "$SSH_KEY" 2>/dev/null || stat -f %A "$SSH_KEY" 2>/dev/null)" != "600" ]; then
+        log_warning "SSH key permissions should be 600. Fixing..."
+        chmod 600 "$SSH_KEY"
+    fi
+
+    # Test SSH connection
+    log_info "Testing SSH connection to $SERVER_HOST..."
+    if ! ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_HOST" "echo 'OK'" &> /dev/null; then
+        log_error "Cannot connect to server via SSH."
+        echo ""
+        echo "Please ensure:"
+        echo "  1. SSH key passphrase is entered (ssh-add $SSH_KEY)"
+        echo "  2. Public key ($SSH_KEY.pub) is added to Scaleway console"
+        echo "  3. Server IP is correct: $SERVER_HOST"
+        echo ""
+        echo "Test manually: ssh -i $SSH_KEY $SERVER_USER@$SERVER_HOST"
+        exit 1
+    fi
+
+    log_success "SSH connection successful"
+}
+
+deploy_remote() {
+    log_step "Starting deployment to $SERVER_DOMAIN..."
+    echo ""
+
+    ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" << 'REMOTESCRIPT'
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
 
 echo ""
 echo "=============================================="
-echo "  Tenenbaum Local Deploy"
+echo "  Tenenbaum.eu Production Deploy"
 echo "=============================================="
-echo "  URL: http://localhost:3099"
+echo "  Server: $(hostname)"
+echo "  Domain: tenenbaum.eu"
+echo "  Date: $(date)"
 echo "=============================================="
 echo ""
 
-# Check if Docker is available
+APP_DIR="/opt/tenenbaum"
+REPO_URL="https://github.com/TTTEN10/SPiOSlandingv3.git"
+BRANCH="new-main"
+
+# Step 1: Install Docker
+log_step "Step 1/5: Checking Docker..."
 if ! command -v docker &> /dev/null; then
-    log_error "Docker is not installed. Please install Docker Desktop first."
-    exit 1
-fi
+    log_info "Installing Docker..."
+    apt-get update -qq
+    apt-get install -y -qq ca-certificates curl gnupg lsb-release git
 
-if ! docker info &> /dev/null; then
-    log_error "Docker is not running. Please start Docker Desktop first."
-    exit 1
-fi
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-log_success "Docker is running"
+    apt-get update -qq
+    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
-# Stop containers if requested
-if [ "$STOP" = true ]; then
-    log_step "Stopping containers..."
-    docker compose down
-    log_success "Containers stopped"
-    exit 0
-fi
+    docker_plugin_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+    docker_compose_version=${docker_plugin_version:-v2.24.0}
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    curl -SL "https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# Build and start
-log_step "Building and starting containers..."
+    systemctl enable docker && systemctl start docker
+    usermod -aG docker $(whoami)
 
-if [ "$FORCE_BUILD" = true ]; then
-    docker compose build --no-cache
+    log_success "Docker installed: $(docker --version)"
 else
-    docker compose build
+    log_success "Docker already installed"
 fi
 
-docker compose up -d
+# Step 2: Clone/Update repository
+log_step "Step 2/5: Cloning repository..."
+if [ ! -d "$APP_DIR" ]; then
+    mkdir -p "$APP_DIR"
+    git clone "$REPO_URL" "$APP_DIR"
+    log_success "Repository cloned"
+else
+    cd "$APP_DIR"
+    git fetch origin
+    git reset --hard origin/$BRANCH
+    log_success "Repository updated to $BRANCH"
+fi
 
-echo ""
-log_info "Waiting for service to start..."
-sleep 3
+cd "$APP_DIR"
+
+# Step 3: Create Caddyfile
+log_step "Step 3/5: Configuring Caddy..."
+cat > Caddyfile << 'CADDYFILE'
+tenenbaum.eu {
+    root * /site/dist
+    file_server
+
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    try_files {path} /index.html
+
+    tls {
+        email admin@tenenbaum.eu
+    }
+
+    log {
+        output file /var/log/caddy/access.log format json
+    }
+    errors {
+        output file /var/log/caddy/error.log
+    }
+}
+
+www.tenenbaum.eu {
+    redir https://tenenbaum.eu{uri} permanent
+}
+CADDYFILE
+log_success "Caddyfile configured for HTTPS"
+
+# Step 4: Create docker-compose.prod.yml
+log_step "Step 4/5: Creating Docker Compose config..."
+cat > docker-compose.prod.yml << 'COMPOSEFILE'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tenenbaum-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - tenenbaum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  tenenbaum-network:
+    driver: bridge
+
+volumes:
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
+COMPOSEFILE
+log_success "Docker Compose config created"
+
+# Step 5: Build and deploy
+log_step "Step 5/5: Building and deploying..."
+
+# Stop existing containers
+docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
+
+# Build image
+docker compose -f docker-compose.prod.yml build --no-cache
+
+# Start containers
+docker compose -f docker-compose.prod.yml up -d
+
+# Wait for startup
+sleep 10
 
 echo ""
 log_info "Container status:"
-docker compose ps
+docker compose -f docker-compose.prod.yml ps
 
 echo ""
-log_info "Health check:"
-if curl -s http://localhost:3099 > /dev/null; then
-    log_success "Application is running at http://localhost:3099"
+log_info "Health check (HTTP):"
+if curl -s http://localhost:80 > /dev/null; then
+    log_success "HTTP is responding on port 80"
 else
-    log_warning "Application may still be starting. Check logs with: docker compose logs -f"
+    log_warning "HTTP may still be starting"
+fi
+
+echo ""
+log_info "Checking HTTPS (certificate provisioning may take 1-2 min):"
+if curl -sk https://localhost:443 > /dev/null 2>&1; then
+    log_success "HTTPS is responding on port 443"
+else
+    log_warning "HTTPS still initializing (Let's Encrypt certificate provisioning)"
 fi
 
 echo ""
@@ -113,17 +279,63 @@ echo "=============================================="
 log_success "Deployment completed!"
 echo "=============================================="
 echo ""
-echo "  🌐 URL: http://localhost:3099"
-echo "  📁 Dir: $SCRIPT_DIR"
+echo "  🌐 Domain: https://tenenbaum.eu"
+echo "  📁 App Dir: $APP_DIR"
 echo ""
-echo "  Commands:"
-echo "  - Logs: docker compose logs -f"
-echo "  - Status: docker compose ps"
-echo "  - Stop: ./deploy.sh --stop"
-echo "  - Rebuild: ./deploy.sh --build"
+echo "  Useful commands:"
+echo "  - Logs: docker compose -f docker-compose.prod.yml logs -f"
+echo "  - Status: docker compose -f docker-compose.prod.yml ps"
+echo "  - Restart: docker compose -f docker-compose.prod.yml restart"
 echo ""
+echo "  ⏳ SSL certificate may take 1-2 minutes to provision"
+echo ""
+REMOTESCRIPT
+}
+
+check_status() {
+    log_info "Checking deployment status..."
+    ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" "
+        echo '=== Containers ==='
+        docker compose -f /opt/tenenbaum/docker-compose.prod.yml ps
+        echo ''
+        echo '=== Recent Logs ==='
+        docker compose -f /opt/tenenbaum/docker-compose.prod.yml logs --tail=10
+        echo ''
+        echo '=== Disk Usage ==='
+        df -h /
+    "
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --logs|-l) SHOW_LOGS=true; shift ;;
+        --status|-s) SHOW_STATUS=true; shift ;;
+        --help|-h) show_help; shift ;;
+        *) log_error "Unknown option: $1"; show_help ;;
+    esac
+done
+
+# Main
+echo ""
+echo "=============================================="
+echo "  Tenenbaum.eu Production Deploy"
+echo "=============================================="
+echo "  Server: $SERVER_USER@$SERVER_HOST"
+echo "  Domain: $SERVER_DOMAIN"
+echo "  Repo:   $REPO_URL ($BRANCH)"
+echo "=============================================="
+echo ""
+
+if [ "$SHOW_STATUS" = true ]; then
+    check_status
+    exit 0
+fi
+
+check_prerequisites
+deploy_remote
 
 if [ "$SHOW_LOGS" = true ]; then
     log_info "Showing live logs (Ctrl+C to exit)..."
-    docker compose logs -f
+    ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" "docker compose -f /opt/tenenbaum/docker-compose.prod.yml logs -f"
 fi

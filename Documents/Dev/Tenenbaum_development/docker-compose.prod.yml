@@ -1,0 +1,37 @@
+# Docker Compose for Production Deployment
+# Tenenbaum Development - tenenbaum.eu
+# =============================================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tenenbaum-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - tenenbaum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  tenenbaum-network:
+    driver: bridge
+
+volumes:
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local

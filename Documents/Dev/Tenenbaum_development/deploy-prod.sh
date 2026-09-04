@@ -2,7 +2,7 @@
 # =============================================================================
 # Tenenbaum Development - One-Command Production Deployment
 # =============================================================================
-# Deploys the application to production server (163.172.144.14)
+# Deploys the application to production server (51.159.154.29)
 # Domain: tenenbaum.eu
 # GitHub: https://github.com/TTTEN10/SPiOSlandingv3
 #
@@ -34,11 +34,15 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
 
 # Configuration
-SERVER_HOST="163.172.144.14"
+SERVER_HOST="51.159.154.29"
 SERVER_USER="root"
 SERVER_DOMAIN="tenenbaum.eu"
 REPO_URL="https://github.com/TTTEN10/SPiOSlandingv3.git"
+BRANCH="new-main"
 APP_DIR="/opt/tenenbaum"
+
+# SSH Key configuration
+SSH_KEY="$HOME/SSH/tenenbaum_development"
 
 # Flags
 FORCE_BUILD=false
@@ -68,16 +72,22 @@ check_prerequisites() {
         exit 1
     fi
 
+    # Check if SSH key exists
+    if [ ! -f "$SSH_KEY" ]; then
+        log_error "SSH key not found at $SSH_KEY"
+        exit 1
+    fi
+
     log_info "Testing SSH connection to $SERVER_HOST..."
-    if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" "echo 'OK'" &> /dev/null; then
+    if ! ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_HOST" "echo 'OK'" &> /dev/null; then
         log_warning "Cannot connect to server via SSH."
         echo ""
         echo "Please ensure:"
         echo "  1. Server ($SERVER_HOST) is accessible"
-        echo "  2. SSH key authentication is set up"
-        echo "  3. Run: ssh-copy-id $SERVER_USER@$SERVER_HOST"
+        echo "  2. SSH key ($SSH_KEY) is correct and has correct permissions (chmod 600)"
+        echo "  3. Public key is added to Scaleway console for instance scw-tenenbaum-eu"
         echo ""
-        echo "Or run install-server.sh directly on the server."
+        echo "Try: ssh -i $SSH_KEY $SERVER_USER@$SERVER_HOST"
         exit 1
     fi
 
@@ -85,14 +95,14 @@ check_prerequisites() {
 }
 
 run_remote() {
-    ssh -t "$SERVER_USER@$SERVER_HOST" "$1"
+    ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" "$1"
 }
 
 deploy_remote() {
     log_step "Starting remote deployment to $SERVER_HOST..."
     echo ""
 
-    cat << 'REMOTESCRIPT' | ssh -t "$SERVER_USER@$SERVER_HOST" 'bash -s'
+    cat << 'REMOTESCRIPT' | ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" 'bash -s'
 set -e
 
 RED='\033[0;31m'
@@ -117,6 +127,7 @@ echo ""
 
 APP_DIR="/opt/tenenbaum"
 REPO_URL="https://github.com/TTTEN10/SPiOSlandingv3.git"
+BRANCH="new-main"
 
 # Step 1: Install Docker
 log_step "Step 1/6: Checking Docker..."
@@ -141,7 +152,7 @@ else
     log_success "Docker already installed ($(docker --version))"
 fi
 
-# Step 2: Install Node.js (not needed for static site, but keep for future)
+# Step 2: Install Node.js (for future use)
 log_step "Step 2/6: Checking Node.js..."
 if ! command -v node &> /dev/null; then
     log_info "Installing Node.js 22 LTS..."
@@ -160,15 +171,14 @@ if [ ! -d "$APP_DIR" ]; then
     log_success "Repository cloned"
 else
     cd "$APP_DIR"
-    git stash -u &> /dev/null || true
     git fetch origin
-    git reset --hard origin/new-main
+    git reset --hard origin/$BRANCH
     log_success "Repository updated"
 fi
 
 cd "$APP_DIR"
 
-# Step 4: Create .env (minimal for static site)
+# Step 4: Create .env
 log_step "Step 4/6: Creating environment file..."
 cat > .env << 'ENVFILE'
 NODE_ENV=production
@@ -201,7 +211,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 10s
 
 networks:
   tenenbaum-network:
@@ -214,8 +224,8 @@ volumes:
 COMPOSEFILE
 log_success "Docker Compose config created"
 
-# Step 6: Create Caddyfile for production with HTTPS
-log_step "Step 6/6: Configuring Caddy..."
+# Step 6: Create Caddyfile for production
+log_step "Step 6/6: Configuring Caddy for HTTPS..."
 cat > Caddyfile << 'CADDYFILE'
 tenenbaum.eu {
     root * /site/dist
@@ -253,7 +263,7 @@ log_success "Caddy configured for tenenbaum.eu with HTTPS"
 # Build and deploy
 log_step "Building and deploying..."
 docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
-docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml build --no-cache
 docker compose -f docker-compose.prod.yml up -d
 
 sleep 10
@@ -263,19 +273,19 @@ log_info "Container status:"
 docker compose -f docker-compose.prod.yml ps
 
 echo ""
-log_info "Health check:"
+log_info "Health check (HTTP):"
 if curl -s http://localhost:80 > /dev/null; then
-    echo "✅ Application is responding on port 80"
+    log_success "HTTP is responding on port 80"
 else
-    echo "⚠️  Application may still be starting"
+    log_warning "HTTP may still be starting"
 fi
 
 echo ""
-log_info "Checking HTTPS:"
+log_info "Checking HTTPS (may take 1-2 min for cert):"
 if curl -sk https://localhost:443 > /dev/null 2>&1; then
-    echo "✅ HTTPS is responding on port 443"
+    log_success "HTTPS is responding on port 443"
 else
-    echo "⚠️  HTTPS may still be initializing (certificate provisioning)"
+    log_warning "HTTPS still initializing (Let's Encrypt certificate provisioning)"
 fi
 
 echo ""
@@ -283,13 +293,15 @@ echo "=============================================="
 log_success "Deployment completed!"
 echo "=============================================="
 echo ""
-echo "  🌐 URL: http://tenenbaum.eu"
+echo "  🌐 Domain: https://tenenbaum.eu"
 echo "  📁 Dir: $APP_DIR"
 echo ""
 echo "  Commands:"
 echo "  - Logs: docker compose -f docker-compose.prod.yml logs -f"
 echo "  - Status: docker compose -f docker-compose.prod.yml ps"
 echo "  - Restart: docker compose -f docker-compose.prod.yml restart"
+echo ""
+echo "  ⏳ SSL certificate may take 1-2 minutes to provision"
 echo ""
 REMOTESCRIPT
 }
@@ -342,7 +354,7 @@ echo "  Tenenbaum Production Deploy"
 echo "=============================================="
 echo "  Target: $SERVER_USER@$SERVER_HOST"
 echo "  Domain: $SERVER_DOMAIN"
-echo "  Repo:   $REPO_URL"
+echo "  Repo:   $REPO_URL ($BRANCH)"
 echo "=============================================="
 echo ""
 
@@ -368,5 +380,5 @@ fi
 if [ "$RUN_VERIFY" = true ]; then
     echo ""
     log_info "Running verification..."
-    run_remote "curl -s http://localhost:8080"
+    run_remote "curl -s http://localhost:80"
 fi
