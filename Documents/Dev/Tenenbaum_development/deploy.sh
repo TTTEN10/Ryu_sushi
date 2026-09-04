@@ -4,8 +4,11 @@
 # =============================================================================
 # Deploys to Scaleway instance: scw-tenenbaum-eu (51.159.154.29)
 # Domain: tenenbaum.eu
-# GitHub: https://github.com/TTTEN10/SPiOSlandingv3.git
-# Uses HTTPS with Personal Access Token for Git authentication
+#
+# This script:
+# 1. Uses local git repo (already authenticated)
+# 2. Copies files to server via SCP
+# 3. Runs Docker build/deploy on server
 # =============================================================================
 
 set -e
@@ -28,15 +31,12 @@ log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
 SERVER_HOST="51.159.154.29"
 SERVER_USER="root"
 SERVER_DOMAIN="tenenbaum.eu"
-GH_USER="TTTEN10"
-REPO_NAME="SPiOSlandingv3"
-BRANCH="new-main"
 APP_DIR="/opt/tenenbaum"
 SSH_KEY="$HOME/SSH/tenenbaum_development"
+BRANCH="new-main"
 
 # Flags
 SHOW_LOGS=false
-SHOW_STATUS=false
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -50,7 +50,6 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  --logs, -l     Show logs after deployment"
-    echo "  --status, -s   Check current deployment status"
     echo "  --help, -h     Show this help message"
     echo ""
     exit 0
@@ -67,7 +66,7 @@ check_prerequisites() {
 
     # Test SSH connection
     log_info "Testing SSH connection to $SERVER_HOST..."
-    if ! ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_HOST" "echo 'OK'" &> /dev/null; then
+    if ! ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" "echo 'OK'" &> /dev/null; then
         log_error "Cannot connect to server via SSH."
         echo "Test manually: ssh -i $SSH_KEY $SERVER_USER@$SERVER_HOST"
         exit 1
@@ -76,26 +75,35 @@ check_prerequisites() {
     log_success "SSH connection successful"
 }
 
-deploy_remote() {
+deploy() {
     log_step "Starting deployment to $SERVER_DOMAIN..."
     echo ""
 
-    # Prompt for GitHub token
-    echo "Enter your GitHub Personal Access Token (PAT):"
-    echo "Create one at: https://github.com/settings/tokens/new"
-    echo "  - Scope: repo (Full control of private repositories)"
-    echo "  - No expiration (or set as needed)"
-    echo ""
-    read -s GH_TOKEN
-    echo ""
+    # Create tarball of local files
+    log_step "Step 1/4: Creating deployment package..."
+    TEMP_DIR=$(mktemp -d)
+    DEPLOY_TAR="$TEMP_DIR/tenenbaum-deploy.tar.gz"
 
-    if [ -z "$GH_TOKEN" ]; then
-        log_error "GitHub token is required"
-        exit 1
-    fi
+    # Get list of files to deploy (exclude node_modules, .git, etc.)
+    tar -czf "$DEPLOY_TAR" \
+        --exclude='.git' \
+        --exclude='node_modules' \
+        --exclude='.cursor' \
+        --exclude='.claude' \
+        --exclude='.DS_Store' \
+        --exclude='*.log' \
+        -C "$SCRIPT_DIR" .
+
+    log_success "Deployment package created: $(du -h "$DEPLOY_TAR" | cut -f1)"
+
+    # Copy files to server
+    log_step "Step 2/4: Copying files to server..."
+    scp -i "$SSH_KEY" "$DEPLOY_TAR" "$SERVER_USER@$SERVER_HOST:/tmp/tenenbaum-deploy.tar.gz"
+    log_success "Files copied to server"
 
     # Run remote deployment
-    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" << REMOTESCRIPT
+    log_step "Step 3/4: Deploying on server..."
+    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" << 'REMOTESCRIPT'
 set -e
 
 RED='\033[0;31m'
@@ -104,28 +112,24 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-log_info() { echo -e "\${BLUE}ℹ️  \$1\${NC}"; }
-log_success() { echo -e "\${GREEN}✅ \$1\${NC}"; }
-log_step() { echo -e "\${CYAN}🚀 \$1\${NC}"; }
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_step() { echo -e "${CYAN}🚀 $1${NC}"; }
 
-GH_USER="$GH_USER"
-GH_REPO="$REPO_NAME"
-GH_TOKEN="$GH_TOKEN"
-BRANCH="$BRANCH"
-APP_DIR="$APP_DIR"
+APP_DIR="/opt/tenenbaum"
 
 echo ""
 echo "=============================================="
 echo "  Tenenbaum.eu Production Deploy"
 echo "=============================================="
-echo "  Server: \$(hostname)"
+echo "  Server: $(hostname)"
 echo "  Domain: tenenbaum.eu"
-echo "  Date: \$(date)"
+echo "  Date: $(date)"
 echo "=============================================="
 echo ""
 
-# Step 1: Install Docker
-log_step "Step 1/5: Checking Docker..."
+# Step 1: Install Docker if needed
+log_step "Step 1/4: Checking Docker..."
 if ! command -v docker &> /dev/null; then
     log_info "Installing Docker..."
     apt-get update -qq
@@ -133,48 +137,38 @@ if ! command -v docker &> /dev/null; then
 
     mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \$(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     apt-get update -qq
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
-    docker_plugin_version=\$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-    docker_compose_version=\${docker_plugin_version:-v2.24.0}
+    docker_plugin_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+    docker_compose_version=${docker_plugin_version:-v2.24.0}
     mkdir -p /usr/local/lib/docker/cli-plugins
-    curl -SL "https://github.com/docker/compose/releases/download/\${docker_compose_version}/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
+    curl -SL "https://github.com/docker/compose/releases/download/${docker_compose_version}/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
     chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
     systemctl enable docker && systemctl start docker
-    usermod -aG docker \$(whoami)
+    usermod -aG docker $(whoami)
 
     log_success "Docker installed"
 else
     log_success "Docker already installed"
 fi
 
-# Step 2: Clone/Update repository using HTTPS + token
-log_step "Step 2/5: Cloning repository..."
-REPO_URL="https://\${GH_USER}:\${GH_TOKEN}@github.com/\${GH_USER}/\${GH_REPO}.git"
-
-if [ ! -d "\$APP_DIR" ]; then
-    mkdir -p "\$APP_DIR"
-    cd /opt
-    git clone "\$REPO_URL" tenenbaum
-    cd "\$APP_DIR"
-    git checkout "\$BRANCH"
-    # Remove token from remote URL for security
-    git remote set-url origin "https://github.com/\${GH_USER}/\${GH_REPO}.git"
-    log_success "Repository cloned from \$BRANCH"
-else
-    cd "\$APP_DIR"
-    git fetch origin
-    git reset --hard origin/\$BRANCH
-    log_success "Repository updated to \$BRANCH"
+# Step 2: Extract deployment package
+log_step "Step 2/4: Extracting files..."
+if [ -d "$APP_DIR" ]; then
+    rm -rf "$APP_DIR"
 fi
+mkdir -p "$APP_DIR"
+tar -xzf /tmp/tenenbaum-deploy.tar.gz -C "$APP_DIR"
+rm /tmp/tenenbaum-deploy.tar.gz
+log_success "Files extracted to $APP_DIR"
 
 # Step 3: Create Caddyfile
-log_step "Step 3/5: Configuring Caddy..."
-cat > Caddyfile << 'CADDYFILE'
+log_step "Step 3/4: Configuring Caddy..."
+cat > "$APP_DIR/Caddyfile" << 'CADDYFILE'
 tenenbaum.eu {
     root * /site/dist
     file_server
@@ -206,11 +200,11 @@ www.tenenbaum.eu {
     redir https://tenenbaum.eu{uri} permanent
 }
 CADDYFILE
-log_success "Caddyfile configured for HTTPS"
+log_success "Caddyfile configured"
 
-# Step 4: Create docker-compose.prod.yml
-log_step "Step 4/5: Creating Docker Compose config..."
-cat > docker-compose.prod.yml << 'COMPOSEFILE'
+# Step 4: Create docker-compose.prod.yml and deploy
+log_step "Step 4/4: Building and deploying..."
+cat > "$APP_DIR/docker-compose.prod.yml" << 'COMPOSEFILE'
 services:
   web:
     build:
@@ -245,10 +239,8 @@ volumes:
   caddy-config:
     driver: local
 COMPOSEFILE
-log_success "Docker Compose config created"
 
-# Step 5: Build and deploy
-log_step "Step 5/5: Building and deploying..."
+cd "$APP_DIR"
 
 docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
 docker compose -f docker-compose.prod.yml build --no-cache
@@ -269,7 +261,7 @@ else
 fi
 
 echo ""
-log_info "Checking HTTPS (certificate provisioning may take 1-2 min):"
+log_info "Checking HTTPS (certificate may take 1-2 min):"
 if curl -sk https://localhost:443 > /dev/null 2>&1; then
     log_success "HTTPS is responding on port 443"
 else
@@ -282,7 +274,7 @@ log_success "Deployment completed!"
 echo "=============================================="
 echo ""
 echo "  🌐 Domain: https://tenenbaum.eu"
-echo "  📁 App Dir: \$APP_DIR"
+echo "  📁 App Dir: $APP_DIR"
 echo ""
 echo "  Useful commands:"
 echo "  - Logs: docker compose -f docker-compose.prod.yml logs -f"
@@ -290,24 +282,19 @@ echo "  - Status: docker compose -f docker-compose.prod.yml ps"
 echo "  - Restart: docker compose -f docker-compose.prod.yml restart"
 echo ""
 REMOTESCRIPT
-}
 
-check_status() {
-    log_info "Checking deployment status..."
-    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "
-        echo '=== Containers ==='
-        docker compose -f /opt/tenenbaum/docker-compose.prod.yml ps
-        echo ''
-        echo '=== Recent Logs ==='
-        docker compose -f /opt/tenenbaum/docker-compose.prod.yml logs --tail=10
-    "
+    # Cleanup
+    rm -rf "$TEMP_DIR"
+
+    log_success "Deployment complete!"
+    echo ""
+    log_info "Your site is now live at: https://tenenbaum.eu"
 }
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --logs|-l) SHOW_LOGS=true; shift ;;
-        --status|-s) SHOW_STATUS=true; shift ;;
         --help|-h) show_help; shift ;;
         *) log_error "Unknown option: $1"; show_help ;;
     esac
@@ -320,16 +307,12 @@ echo "  Tenenbaum.eu Production Deploy"
 echo "=============================================="
 echo "  Server: $SERVER_USER@$SERVER_HOST"
 echo "  Domain: $SERVER_DOMAIN"
+echo "  Branch: $BRANCH"
 echo "=============================================="
 echo ""
 
-if [ "$SHOW_STATUS" = true ]; then
-    check_status
-    exit 0
-fi
-
 check_prerequisites
-deploy_remote
+deploy
 
 if [ "$SHOW_LOGS" = true ]; then
     log_info "Showing live logs (Ctrl+C to exit)..."
