@@ -346,6 +346,13 @@ a {
   color: var(--mk-black);
 }
 
+.mk-reveal-card .mk-intro {
+  font-size: 0.875rem;
+  color: var(--mk-text-muted);
+  margin-bottom: 0.5rem;
+  font-style: normal;
+}
+
 .mk-reveal-card p {
   font-size: 0.9375rem;
   color: var(--mk-gray-dark);
