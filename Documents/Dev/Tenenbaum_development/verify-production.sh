@@ -120,12 +120,12 @@ echo ""
 
 # Check SSL Certificate
 log_info "Checking SSL certificate..."
-CERT_INFO=$(echo | timeout 10 openssl s_client -servername "$SERVER_DOMAIN" -connect "$SERVER_DOMAIN:443" 2>&1 | openssl x509 -noout -subject -dates 2>/dev/null || echo "")
+CERT_INFO=$(echo | openssl s_client -servername "$SERVER_DOMAIN" -connect "$SERVER_HOST:443" 2>/dev/null | openssl x509 -noout -subject -dates 2>/dev/null || echo "")
 if [ -n "$CERT_INFO" ]; then
     log_success "SSL certificate is valid:"
     echo "$CERT_INFO" | sed 's/^/  /'
 else
-    log_warning "Could not retrieve SSL certificate details (may still be provisioning)"
+    log_warning "Could not retrieve SSL certificate details"
 fi
 echo ""
 
