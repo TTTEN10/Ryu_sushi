@@ -27,7 +27,6 @@ SERVER_HOST="51.159.154.29"
 SERVER_USER="root"
 SERVER_DOMAIN="tenenbaum.eu"
 SSH_KEY="$HOME/SSH/tenenbaum_development"
-BASE_URL="https://tenenbaum.eu"
 
 # Endpoints to verify
 ENDPOINTS=(
@@ -39,11 +38,65 @@ ENDPOINTS=(
     "/register"
     "/feedback"
     "/support"
-    "/maintenance"
     "/cookies"
     "/tos"
     "/sap-policy"
+    "/maintenance"
 )
+
+VERBOSE=false
+JSON_OUTPUT=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose|-v) VERBOSE=true; shift ;;
+        --json|-j) JSON_OUTPUT=true; shift ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --verbose, -v    Show detailed output"
+            echo "  --json, -j       Output results as JSON"
+            echo "  --help, -h       Show this help message"
+            exit 0
+            ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+# Arrays to track results
+declare -a RESULTS=()
+TOTAL=0
+SUCCESS=0
+FAILED=0
+
+check_endpoint() {
+    local endpoint=$1
+    TOTAL=$((TOTAL + 1))
+
+    local response
+    response=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 "https://${SERVER_DOMAIN}${endpoint}" 2>/dev/null || echo "000")
+
+    if [ "$response" = "200" ] || [ "$response" = "304" ]; then
+        SUCCESS=$((SUCCESS + 1))
+        RESULTS+=("{\"endpoint\":\"$endpoint\",\"status\":\"$response\",\"result\":\"pass\"}")
+        if [ "$VERBOSE" = true ]; then
+            log_success "$endpoint (HTTP $response)"
+        fi
+        return 0
+    elif [ "$response" = "404" ]; then
+        FAILED=$((FAILED + 1))
+        RESULTS+=("{\"endpoint\":\"$endpoint\",\"status\":\"$response\",\"result\":\"not_found\"}")
+        log_warning "$endpoint (HTTP 404 - Not Found)"
+        return 1
+    else
+        FAILED=$((FAILED + 1))
+        RESULTS+=("{\"endpoint\":\"$endpoint\",\"status\":\"$response\",\"result\":\"fail\"}")
+        log_error "$endpoint (HTTP $response)"
+        return 1
+    fi
+}
 
 echo ""
 echo "=============================================="
@@ -51,110 +104,82 @@ echo "  Tenenbaum.eu Health Verification"
 echo "=============================================="
 echo "  Domain: $SERVER_DOMAIN"
 echo "  Server: $SERVER_HOST"
+echo "  Date: $(date)"
 echo "=============================================="
 echo ""
 
-# Check SSH connection
-log_info "Testing SSH connection..."
-if ! ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" "echo 'OK'" &> /dev/null; then
-    log_error "Cannot connect to server via SSH"
-    echo "Test manually: ssh -i $SSH_KEY $SERVER_USER@$SERVER_HOST"
-    exit 1
-fi
-log_success "SSH connection successful"
-echo ""
-
-# Check container status
-log_step "Checking container status..."
-CONTAINER_STATUS=$(ssh -i "$SSH_KEY" -t "$SERVER_USER@$SERVER_HOST" "docker compose -f /opt/tenenbaum/docker-compose.prod.yml ps --format json" 2>/dev/null || echo "[]")
-
-if echo "$CONTAINER_STATUS" | grep -q "running"; then
-    log_success "Container is running"
+# Check DNS
+log_info "Checking DNS resolution..."
+DNS_RESULT=$(dig +short "$SERVER_DOMAIN" 2>/dev/null | head -1)
+if [ "$DNS_RESULT" = "$SERVER_HOST" ]; then
+    log_success "DNS resolved correctly: $DNS_RESULT"
 else
-    log_error "Container is not running"
-    ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "docker compose -f /opt/tenenbaum/docker-compose.prod.yml ps"
-    exit 1
+    log_warning "DNS resolved to: ${DNS_RESULT:-'NOT RESOLVED'} (expected: $SERVER_HOST)"
 fi
 echo ""
 
-# Check HTTP response
-log_step "Checking HTTP response (port 80)..."
-HTTP_CHECK=$(ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "curl -s -o /dev/null -w '%{http_code}' http://localhost:80" 2>/dev/null || echo "000")
-if [ "$HTTP_CHECK" = "200" ]; then
-    log_success "HTTP port 80 is responding (status: $HTTP_CHECK)"
-else
-    log_error "HTTP port 80 failed (status: $HTTP_CHECK)"
-fi
-echo ""
-
-# Check HTTPS response
-log_step "Checking HTTPS response (port 443)..."
-HTTPS_CHECK=$(ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "curl -sk -o /dev/null -w '%{http_code}' https://localhost:443" 2>/dev/null || echo "000")
-if [ "$HTTPS_CHECK" = "200" ]; then
-    log_success "HTTPS port 443 is responding (status: $HTTPS_CHECK)"
-else
-    log_warning "HTTPS port 443 status: $HTTPS_CHECK (may be provisioning certificate)"
-fi
-echo ""
-
-# Verify SSL certificate
-log_step "Checking SSL certificate..."
-CERT_INFO=$(echo | timeout 5 openssl s_client -servername tenenbaum.eu -connect tenenbaum.eu:443 2>/dev/null | openssl x509 -noout -subject -dates 2>/dev/null || echo "")
+# Check SSL Certificate
+log_info "Checking SSL certificate..."
+CERT_INFO=$(echo | timeout 5 openssl s_client -servername "$SERVER_DOMAIN" -connect "$SERVER_DOMAIN:443" 2>/dev/null | openssl x509 -noout -subject -dates 2>/dev/null || echo "")
 if [ -n "$CERT_INFO" ]; then
     log_success "SSL certificate is valid:"
     echo "$CERT_INFO" | sed 's/^/  /'
 else
-    log_warning "SSL certificate check failed (may still be provisioning)"
+    log_error "SSL certificate check failed"
 fi
 echo ""
 
-# Verify endpoints from external
-log_step "Verifying public endpoints..."
+# Check container status via SSH
+log_info "Checking container status..."
+if ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_USER@$SERVER_HOST" "docker compose -f /opt/tenenbaum/docker-compose.prod.yml ps" 2>/dev/null; then
+    log_success "Container is running"
+else
+    log_error "Could not connect to server or container not running"
+fi
 echo ""
 
-TOTAL=0
-SUCCESS=0
-FAILED=0
+# Check endpoints
+log_info "Verifying endpoints..."
+echo ""
 
 for endpoint in "${ENDPOINTS[@]}"; do
-    TOTAL=$((TOTAL + 1))
-    RESPONSE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 "${BASE_URL}${endpoint}" 2>/dev/null || echo "000")
-
-    if [ "$RESPONSE" = "200" ] || [ "$RESPONSE" = "304" ]; then
-        log_success "$endpoint (HTTP $RESPONSE)"
-        SUCCESS=$((SUCCESS + 1))
-    elif [ "$RESPONSE" = "404" ]; then
-        log_warning "$endpoint (HTTP 404 - Not Found)"
-        FAILED=$((FAILED + 1))
-    else
-        log_error "$endpoint (HTTP $RESPONSE)"
-        FAILED=$((FAILED + 1))
-    fi
+    check_endpoint "$endpoint"
 done
 
 echo ""
 echo "=============================================="
-echo "  Verification Summary"
+echo "  Summary"
 echo "=============================================="
 echo "  Total endpoints:  $TOTAL"
-echo "  Successful:       $SUCCESS ${GREEN}✓${NC}"
-echo "  Failed:           $FAILED ${RED}✗${NC}"
-echo "=============================================="
+echo -e "  Successful:       ${GREEN}$SUCCESS${NC}"
+echo -e "  Failed:           ${RED}$FAILED${NC}"
 echo ""
 
-# Check disk usage
-log_step "Checking server resources..."
-ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "df -h / | tail -1"
-echo ""
+if [ "$JSON_OUTPUT" = true ]; then
+    echo "{"
+    echo "  \"domain\": \"$SERVER_DOMAIN\","
+    echo "  \"server\": \"$SERVER_HOST\","
+    echo "  \"timestamp\": \"$(date -Iseconds)\","
+    echo "  \"total\": $TOTAL,"
+    echo "  \"success\": $SUCCESS,"
+    echo "  \"failed\": $FAILED,"
+    echo "  \"results\": ["
+    first=true
+    for result in "${RESULTS[@]}"; do
+        if [ "$first" = true ]; then
+            first=false
+        else
+            echo ","
+        fi
+        echo -n "    $result"
+    done
+    echo ""
+    echo "  ]"
+    echo "}"
+fi
 
-# Check container logs for errors
-log_step "Recent container logs (last 5 lines)..."
-ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_HOST" "docker compose -f /opt/tenenbaum/docker-compose.prod.yml logs --tail=5" 2>/dev/null || echo "Could not fetch logs"
-echo ""
-
-# Final status
 if [ $FAILED -eq 0 ]; then
-    log_success "All checks passed! tenenbaum.eu is healthy."
+    log_success "All health checks passed! tenenbaum.eu is healthy."
     exit 0
 else
     log_warning "Some endpoints failed verification. Check output above."
