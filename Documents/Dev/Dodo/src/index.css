@@ -241,7 +241,10 @@ a {
   display: flex;
   align-items: center;
   padding: calc(var(--header-height) + 4rem) 2rem 4rem;
-  background: linear-gradient(135deg, var(--mk-cream) 0%, var(--mk-white) 100%);
+  background: linear-gradient(135deg, rgba(248, 246, 243, 0.9) 0%, rgba(255, 255, 255, 0.9) 100%), url('/dolgoon-khuyag-cabinet.png');
+  background-size: cover;
+  background-position: right center;
+  background-repeat: no-repeat;
   gap: 4rem;
   max-width: var(--container-max);
   margin: 0 auto;
@@ -299,17 +302,6 @@ a {
   color: var(--mk-gold);
   display: block;
   margin-bottom: 0.25rem;
-}
-
-.mk-portrait {
-  flex: 1;
-  max-width: 450px;
-}
-
-.mk-portrait img {
-  width: 100%;
-  height: auto;
-  object-fit: contain;
 }
 
 /* Situations */
@@ -829,8 +821,7 @@ a {
 /* Responsive */
 @media (max-width: 1024px) {
   .mk-hero {
-    flex-direction: column;
-    text-align: center;
+    background-position: center center;
   }
 
   .mk-hero-copy {
@@ -839,10 +830,6 @@ a {
 
   .mk-actions {
     justify-content: center;
-  }
-
-  .mk-portrait {
-    display: none;
   }
 
   .mk-situation-grid,
