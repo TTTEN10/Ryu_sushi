@@ -58,9 +58,11 @@ export default function Header() {
         ))}
       </nav>
 
-      <Link to="/#contact" className="mk-btn mk-btn-gold mk-header-cta" onClick={closeMenu}>
-        Prendre rendez-vous
-      </Link>
+      <div className="mk-header-actions">
+        <Link to="/#contact" className="mk-btn mk-btn-gold mk-header-cta" onClick={closeMenu}>
+          Prendre rendez-vous
+        </Link>
+      </div>
     </header>
   )
 }

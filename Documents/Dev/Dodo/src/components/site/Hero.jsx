@@ -29,6 +29,9 @@ export default function Hero() {
           <span>60 minutes · En visioconférence</span>
         </p>
       </div>
+      <div className="mk-hero-portrait">
+        <img src="/dolgoon-khuyag-cabinet.png" alt="Dolgoon Khuyag dans son cabinet de psychologie" />
+      </div>
     </section>
   )
 }

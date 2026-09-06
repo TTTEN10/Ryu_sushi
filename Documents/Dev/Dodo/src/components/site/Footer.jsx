@@ -12,18 +12,20 @@ export default function Footer() {
 
   return (
     <footer className="mk-footer" role="contentinfo">
-      <div>
-        <strong>DOLGOON KHUYAG</strong>
-        <small>Psychologue · Consultations individuelles en ligne</small>
+      <div className="mk-footer-inner">
+        <div className="mk-footer-brand">
+          <strong>DOLGOON KHUYAG</strong>
+          <small>Psychologue · Consultations individuelles en ligne</small>
+        </div>
+        <nav>
+          {navLinks.map((link, index) => (
+            <Link key={index} to={link.href}>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
       </div>
-      <nav>
-        {navLinks.map((link, index) => (
-          <Link key={index} to={link.href}>
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-      <p>
+      <p className="mk-footer-disclaimer">
         Les consultations proposées ne remplacent pas les dispositifs d'urgence médicale ou psychiatrique.
       </p>
     </footer>

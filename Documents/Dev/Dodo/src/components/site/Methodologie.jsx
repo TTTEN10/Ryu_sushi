@@ -36,10 +36,9 @@ export default function Methodologie() {
             se construit à travers notre histoire, nos expériences, nos relations et nos environnements.
           </p>
         </div>
-        <div className="mk-dimension-wheel" aria-label="Les quatre dimensions qui participent à construire la personne">
-          <span>VOUS</span>
+        <div className="mk-dimension-wheel">
           {dimensions.map((dim, index) => (
-            <article key={index} className={`w${index + 1} mk-reveal-card`}>
+            <article key={index} className="mk-reveal-card">
               <h3>{dim.title}</h3>
               <p>{dim.description}</p>
             </article>
@@ -48,16 +47,20 @@ export default function Methodologie() {
       </section>
 
       <section className="mk-process">
-        <div className="mk-process-title">
-          <h2>Un accompagnement qui ne s'arrête pas à la prise de conscience.</h2>
+        <div className="mk-process-inner">
+          <div className="mk-process-title">
+            <h2>Un accompagnement qui ne s'arrête pas à la prise de conscience.</h2>
+          </div>
+          <div className="mk-process-items">
+            {steps.map((step, index) => (
+              <article key={index} className="mk-process-item">
+                <span>{step.number}</span>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </article>
+            ))}
+          </div>
         </div>
-        {steps.map((step, index) => (
-          <article key={index}>
-            <span>{step.number}</span>
-            <h3>{step.title}</h3>
-            <p>{step.description}</p>
-          </article>
-        ))}
       </section>
     </>
   )

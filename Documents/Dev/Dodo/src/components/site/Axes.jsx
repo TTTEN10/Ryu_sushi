@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-
 export default function Axes() {
   const axes = [
     {
@@ -53,9 +51,6 @@ export default function Axes() {
           </article>
         ))}
       </div>
-      <Link to="/contact" className="mk-btn mk-btn-gold mk-shine">
-        Prendre rendez-vous
-      </Link>
     </section>
   )
 }
