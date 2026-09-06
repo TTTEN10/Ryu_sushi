@@ -1,7 +1,9 @@
 # Caddyfile for Tenenbaum Development Production
+# For production: Update domain and enable TLS
+# For local dev: Uses HTTP on port 3000
 
-# Replace with your actual domain
-tenenbaum.dev {
+# Local development (HTTP only)
+:80 {
     encode gzip
 
     root * /usr/share/caddy
@@ -12,29 +14,36 @@ tenenbaum.dev {
 
     # Security headers
     header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "geolocation=(), microphone=(), camera=()"
-    }
-
-    # TLS configuration (automatic with Caddy)
-    tls {
-        protocols tls1.2 tls1.3
     }
 }
 
-# HTTP redirect to HTTPS
-http://tenenbaum.dev {
-    redir https://tenenbaum.dev{uri} permanent
-}
-
-# Local development
-localhost:3000 {
-    encode gzip
-    root * /usr/share/caddy
-    file_server
-    try_files {path} /index.html
-}
+# Production configuration (uncomment and configure for production)
+# Replace with your actual domain
+# tenenbaum.dev {
+#     encode gzip
+#
+#     root * /usr/share/caddy
+#     file_server
+#
+#     # Handle SPA routing
+#     try_files {path} /index.html
+#
+#     # Security headers
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "SAMEORIGIN"
+#         X-XSS-Protection "1; mode=block"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#         Permissions-Policy "geolocation=(), microphone=(), camera=()"
+#     }
+#
+#     # TLS configuration (automatic with Caddy)
+#     tls {
+#         protocols tls1.2 tls1.3
+#     }
+# }
