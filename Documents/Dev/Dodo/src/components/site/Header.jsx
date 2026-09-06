@@ -6,7 +6,7 @@ export default function Header() {
   const location = useLocation()
 
   const navLinks = [
-    { href: '/', label: 'Accueil' },
+    { href: '/#accueil', label: 'Accueil' },
     { href: '/#accompagnement', label: 'Accompagnement' },
     { href: '/mon-approche', label: 'Mon approche' },
     { href: '/#apropos', label: 'À propos' },
@@ -19,6 +19,13 @@ export default function Header() {
 
   const closeMenu = () => {
     setIsMenuOpen(false)
+  }
+
+  const isActive = (href) => {
+    if (href.startsWith('/#')) {
+      return location.pathname === '/' && location.hash === href.substring(1)
+    }
+    return location.pathname === href
   }
 
   return (
@@ -43,7 +50,7 @@ export default function Header() {
           <Link
             key={link.href}
             to={link.href}
-            className={location.pathname === link.href ? 'active' : ''}
+            className={isActive(link.href) ? 'active' : ''}
             onClick={closeMenu}
           >
             {link.label}

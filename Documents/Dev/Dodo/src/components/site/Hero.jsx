@@ -11,8 +11,10 @@ export default function Hero() {
         </h1>
         <i className="mk-rule"></i>
         <p>
-          J'accompagne les personnes qui souhaitent mieux se comprendre, dépasser ce qui les freine
-          et avancer plus sereinement dans leurs relations et leurs projets.
+          J'accompagne les personnes qui souhaitent mieux se comprendre, dépasser ce qui les freine.
+        </p>
+        <p>
+          Et avancer plus sereinement dans leurs relations et leurs projets.
         </p>
         <div className="mk-actions">
           <Link to="/contact" className="mk-btn mk-btn-gold mk-shine">

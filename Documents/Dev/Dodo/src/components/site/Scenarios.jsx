@@ -1,7 +1,6 @@
 export default function Scenarios() {
   const scenarios = [
     {
-      intro: "Vous ne savez pas précisément ce qui ne va pas ? Vous pouvez simplement partir de ce que vous vivez aujourd'hui.",
       quote: "Je doute souvent de ma valeur ou de ma légitimité.",
       description: "Vous vous comparez, vous vous jugez durement ou ressentez le besoin de prouver que vous êtes à la hauteur.",
     },
@@ -25,11 +24,13 @@ export default function Scenarios() {
         <p className="mk-kicker">CE QUI VOUS AMÈNE PEUT-ÊTRE ICI</p>
         <h2>Une de ces situations vous parle ?</h2>
         <i className="mk-rule"></i>
+        <p>
+          Vous ne savez pas précisément ce qui ne va pas ? Vous pouvez simplement partir de ce que vous vivez aujourd'hui.
+        </p>
       </div>
       <div className="mk-situation-grid">
         {scenarios.map((scenario, index) => (
           <article key={index} className="mk-reveal-card">
-            {scenario.intro && <p className="mk-intro">{scenario.intro}</p>}
             <h3>{scenario.quote}</h3>
             <p>{scenario.description}</p>
           </article>

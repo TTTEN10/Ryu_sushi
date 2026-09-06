@@ -6,7 +6,7 @@ export default function FAQ() {
   const faqs = [
     {
       question: "Dois-je savoir précisément ce que je veux travailler avant de consulter ?",
-      answer: "",
+      answer: "Non. Il est fréquent de ressentir qu'une situation ne nous convient plus sans parvenir à identifier précisément ce qu'il faudrait changer. Nous pouvons partir de ce que vous vivez aujourd'hui.",
     },
     {
       question: "Comment savoir si votre approche me correspond ?",
@@ -51,7 +51,7 @@ export default function FAQ() {
               {faq.question}
               <span>{openIndex === index ? '−' : '+'}</span>
             </summary>
-            {faq.answer && <p>{faq.answer}</p>}
+            <p>{faq.answer}</p>
           </details>
         ))}
       </div>
