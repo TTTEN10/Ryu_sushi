@@ -1,22 +1,37 @@
+version: '3.8'
+
 services:
-  web:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
-    container_name: tenenbaum-web
+    container_name: tenenbaum-app
     restart: unless-stopped
     ports:
-      - "3099:8080"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    environment:
+      - NODE_ENV=production
     networks:
       - tenenbaum-network
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 10s
+
+volumes:
+  caddy_data:
+    name: tenenbaum-caddy-data
+  caddy_config:
+    name: tenenbaum-caddy-config
 
 networks:
   tenenbaum-network:
     driver: bridge
+    name: tenenbaum-network

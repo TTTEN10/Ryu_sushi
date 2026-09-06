@@ -1,0 +1,80 @@
+{
+  "edit_predictions": {
+    "provider": "open_ai_compatible_api",
+    "open_ai_compatible_api": {
+      "api_url": "https://codix.datax.iliad.fr/v1/completions",
+      "model": "codiX-autocomplete",
+      "prompt_format": "qwen",
+      "max_output_tokens": 512
+    }
+  },
+  "agent": {
+    "inline_assistant_model": {
+      "provider": "Codix",
+      "model": "codiX-autocomplete"
+    },
+    "default_profile": "ask",
+    "default_model": {
+      "provider": "Codix",
+      "model": "codiX-chat"
+    },
+    "model_parameters": []
+  },
+  "language_models": {
+    "openai_compatible": {
+      "Codix": {
+        "api_url": "https://iliad.codix.scw.eu/v1",
+        "available_models": [
+          {
+            "name": "codiX-chat",
+            "max_tokens": 250000,
+            "max_output_tokens": 8192,
+            "capabilities": {
+              "tools": true,
+              "images": false,
+              "parallel_tool_calls": false,
+              "prompt_cache_key": false
+            }
+          },
+          {
+            "name": "codiX-agent",
+            "max_tokens": 250000,
+            "max_output_tokens": 8192,
+            "capabilities": {
+              "tools": true,
+              "images": false,
+              "parallel_tool_calls": false,
+              "prompt_cache_key": false
+            }
+          },
+          {
+            "name": "codiX-autocomplete",
+            "max_tokens": 64000,
+            "max_output_tokens": 8192,
+            "capabilities": {
+              "tools": false,
+              "images": false,
+              "parallel_tool_calls": false,
+              "prompt_cache_key": false
+            }
+          },
+          {
+            "name": "Devstral2-123B",
+            "max_tokens": 200000,
+            "max_output_tokens": 8192,
+            "capabilities": {
+              "tools": true,
+              "images": false,
+              "parallel_tool_calls": false,
+              "prompt_cache_key": false
+            }
+          }
+        ]
+      }
+    }
+  },
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(docker-compose -f docker-compose.dev.yml config)",
+      "Bash(git ls-tree *)",
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "WebSearch",
+      "Bash(curl -sL \"https://css.gg/\")",
+      "Bash(grep -E '^href=\"/[a-z-]+\"$')"
+    ]
+  }
+}

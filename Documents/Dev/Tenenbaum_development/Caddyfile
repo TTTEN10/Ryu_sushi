@@ -1,33 +1,40 @@
-# Caddy configuration for Tenenbaum Development - Production
-# Domain: tenenbaum.eu with automatic HTTPS (Let's Encrypt)
+# Caddyfile for Tenenbaum Development Production
 
-tenenbaum.eu {
-    root * /site/dist
-    file_server
-
+# Replace with your actual domain
+tenenbaum.dev {
     encode gzip
 
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Frame-Options "DENY"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
+    root * /usr/share/caddy
+    file_server
 
+    # Handle SPA routing - redirect all requests to index.html
     try_files {path} /index.html
 
-    tls {
-        email admin@tenenbaum.eu
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
     }
 
-    log {
-        output file /var/log/caddy/access.log format json
-    }
-    errors {
-        output file /var/log/caddy/error.log
+    # TLS configuration (automatic with Caddy)
+    tls {
+        protocols tls1.2 tls1.3
     }
 }
 
-www.tenenbaum.eu {
-    redir https://tenenbaum.eu{uri} permanent
+# HTTP redirect to HTTPS
+http://tenenbaum.dev {
+    redir https://tenenbaum.dev{uri} permanent
+}
+
+# Local development
+localhost:3000 {
+    encode gzip
+    root * /usr/share/caddy
+    file_server
+    try_files {path} /index.html
 }

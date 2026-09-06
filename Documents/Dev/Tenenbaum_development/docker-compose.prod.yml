@@ -1,37 +1,62 @@
-# Docker Compose for Production Deployment
-# Tenenbaum Development - tenenbaum.eu
-# =============================================================================
+version: '3.8'
+
+# Production-specific Docker Compose configuration
+# Usage: docker-compose -f docker-compose.prod.yml up -d
 
 services:
-  web:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
-    container_name: tenenbaum-web
-    restart: unless-stopped
+      args:
+        - NODE_ENV=production
+    container_name: tenenbaum-app-prod
+    restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
+      - caddy_data_prod:/data
+      - caddy_config_prod:/config
+    environment:
+      - NODE_ENV=production
+      - DOMAIN=${DOMAIN:-tenenbaum.dev}
+      - ACME_EMAIL=${ACME_EMAIL:-admin@tenenbaum.dev}
     networks:
-      - tenenbaum-network
+      - tenenbaum-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 0"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-
-networks:
-  tenenbaum-network:
-    driver: bridge
+    labels:
+      - "com.tenenbaum.app=production"
+      - "com.tenenbaum.version=1.0.0"
 
 volumes:
-  caddy-data:
-    driver: local
-  caddy-config:
-    driver: local
+  caddy_data_prod:
+    name: tenenbaum-caddy-data-prod
+  caddy_config_prod:
+    name: tenenbaum-caddy-config-prod
+
+networks:
+  tenenbaum-network-prod:
+    driver: bridge
+    name: tenenbaum-network-prod
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
