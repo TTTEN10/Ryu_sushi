@@ -241,13 +241,30 @@ a {
   display: flex;
   align-items: center;
   padding: calc(var(--header-height) + 4rem) 2rem 4rem;
-  background: linear-gradient(135deg, rgba(248, 246, 243, 0.9) 0%, rgba(255, 255, 255, 0.9) 100%), url('/dolgoon-khuyag-cabinet.png');
+  background: url('/dolgoon-khuyag-cabinet.png');
   background-size: cover;
   background-position: right center;
   background-repeat: no-repeat;
   gap: 4rem;
   max-width: var(--container-max);
   margin: 0 auto;
+  position: relative;
+}
+
+.mk-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(248, 246, 243, 0.85) 0%, rgba(255, 255, 255, 0.7) 100%);
+  z-index: 1;
+}
+
+.mk-hero > * {
+  position: relative;
+  z-index: 2;
 }
 
 .mk-hero-copy {
