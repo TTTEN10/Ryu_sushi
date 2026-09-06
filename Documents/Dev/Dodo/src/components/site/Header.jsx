@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
 
   const navLinks = [
-    { href: '/#accueil', label: 'Accueil' },
-    { href: '/#accompagnement', label: 'Accompagnement' },
-    { href: '/mon-approche', label: 'Mon approche' },
-    { href: '/#apropos', label: 'À propos' },
-    { href: '/#faq', label: 'FAQ' },
+    { href: '#accueil', label: 'Accueil' },
+    { href: '#accompagnement', label: 'Accompagnement' },
+    { href: '/mon-approche', label: 'Mon approche', isRoute: true },
+    { href: '#apropos', label: 'À propos' },
+    { href: '#faq', label: 'FAQ' },
   ]
 
   const toggleMenu = () => {
@@ -21,18 +22,37 @@ export default function Header() {
     setIsMenuOpen(false)
   }
 
-  const isActive = (href) => {
-    if (href.startsWith('/#')) {
-      return location.pathname === '/' && location.hash === href.substring(1)
+  const handleNavClick = (href, isRoute, e) => {
+    e.preventDefault()
+    closeMenu()
+
+    if (isRoute) {
+      navigate(href)
+    } else {
+      if (location.pathname !== '/') {
+        navigate('/' + href)
+      } else {
+        const element = document.querySelector(href)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' })
+        }
+      }
     }
-    return location.pathname === href
+  }
+
+  const isActive = (href, isRoute) => {
+    if (isRoute) {
+      return location.pathname === href
+    }
+    return location.pathname === '/' && location.hash === href
   }
 
   return (
     <header className="mk-header" role="banner">
-      <Link to="/" className="mk-logo" aria-label="Dolgoon Khuyag Psychologue" onClick={closeMenu}>
+      <a href="/" className="mk-logo" aria-label="Dolgoon Khuyag Psychologue" onClick={(e) => { e.preventDefault(); navigate('/'); closeMenu(); }}>
         <img src="/logo-dk.png" alt="Logo" />
-      </Link>
+        <span className="mk-logo-text">Dolgoon Khuyag Psychologue</span>
+      </a>
 
       <button
         className="mk-menu"
@@ -47,21 +67,25 @@ export default function Header() {
 
       <nav className={`mk-nav ${isMenuOpen ? 'active' : ''}`} role="navigation">
         {navLinks.map((link) => (
-          <Link
+          <a
             key={link.href}
-            to={link.href}
-            className={isActive(link.href) ? 'active' : ''}
-            onClick={closeMenu}
+            href={link.href}
+            className={isActive(link.href, link.isRoute) ? 'active' : ''}
+            onClick={(e) => handleNavClick(link.href, link.isRoute, e)}
           >
             {link.label}
-          </Link>
+          </a>
         ))}
       </nav>
 
       <div className="mk-header-actions">
-        <Link to="/#contact" className="mk-btn mk-btn-gold mk-header-cta" onClick={closeMenu}>
+        <a
+          href="#contact"
+          className="mk-btn mk-btn-gold mk-header-cta"
+          onClick={(e) => handleNavClick('#contact', false, e)}
+        >
           Prendre rendez-vous
-        </Link>
+        </a>
       </div>
     </header>
   )

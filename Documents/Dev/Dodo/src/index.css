@@ -21,6 +21,7 @@
   /* Typography */
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-handwritten: 'Dancing Script', cursive;
 
   /* Spacing */
   --container-max: 1200px;
@@ -190,11 +191,19 @@ a {
 .mk-logo {
   display: flex;
   align-items: center;
+  gap: 1rem;
 }
 
 .mk-logo img {
   height: 40px;
   width: auto;
+}
+
+.mk-logo-text {
+  font-family: var(--font-handwritten);
+  font-size: 1.25rem;
+  color: var(--mk-navy);
+  font-weight: 500;
 }
 
 .mk-menu {
@@ -262,15 +271,32 @@ a {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  padding: calc(var(--header-height) + 3rem) 2rem 3rem;
-  gap: 4rem;
-  max-width: var(--container-max);
-  margin: 0 auto;
+  padding: calc(var(--header-height) + 3rem) 0 3rem 2rem;
+  gap: 2rem;
+  max-width: 100%;
+  margin: 0;
+  position: relative;
+}
+
+.mk-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(248, 246, 243, 0.95) 0%, rgba(248, 246, 243, 0.8) 40%, rgba(248, 246, 243, 0.4) 60%, transparent 100%), url('/dolgoon-khuyag-cabinet.png');
+  background-size: cover;
+  background-position: right center;
+  background-repeat: no-repeat;
+  z-index: 0;
 }
 
 .mk-hero-copy {
   flex: 1;
   max-width: 500px;
+  position: relative;
+  z-index: 1;
 }
 
 .mk-hero .mk-kicker {
@@ -312,12 +338,14 @@ a {
 .mk-actions {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
 }
 
 .mk-offer-note {
   font-size: 0.8rem;
   color: var(--mk-text-muted);
+  padding-bottom: 2rem;
 }
 
 .mk-offer-note strong {
@@ -342,8 +370,10 @@ a {
 
 /* Situations */
 .mk-situations {
-  padding: var(--section-padding) 2rem;
+  padding: 2rem 2rem var(--section-padding);
   background: var(--mk-white);
+  position: relative;
+  z-index: 1;
 }
 
 .mk-situation-grid {
