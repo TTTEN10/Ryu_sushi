@@ -1,9 +1,7 @@
 # Caddyfile for Tenenbaum Development Production
-# For production: Update domain and enable TLS
-# For local dev: Uses HTTP on port 3000
+# Domain: tenenbaum.eu
 
-# Local development (HTTP only)
-:80 {
+tenenbaum.eu {
     encode gzip
 
     root * /usr/share/caddy
@@ -14,36 +12,29 @@
 
     # Security headers
     header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    }
+
+    # TLS configuration (automatic with Caddy)
+    tls {
+        protocols tls1.2 tls1.3
     }
 }
 
-# Production configuration (uncomment and configure for production)
-# Replace with your actual domain
-# tenenbaum.dev {
-#     encode gzip
-#
-#     root * /usr/share/caddy
-#     file_server
-#
-#     # Handle SPA routing
-#     try_files {path} /index.html
-#
-#     # Security headers
-#     header {
-#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-#         X-Content-Type-Options "nosniff"
-#         X-Frame-Options "SAMEORIGIN"
-#         X-XSS-Protection "1; mode=block"
-#         Referrer-Policy "strict-origin-when-cross-origin"
-#         Permissions-Policy "geolocation=(), microphone=(), camera=()"
-#     }
-#
-#     # TLS configuration (automatic with Caddy)
-#     tls {
-#         protocols tls1.2 tls1.3
-#     }
-# }
+# HTTP redirect to HTTPS
+http://tenenbaum.eu {
+    redir https://tenenbaum.eu{uri} permanent
+}
+
+# Local development fallback
+localhost:3000 {
+    encode gzip
+    root * /usr/share/caddy
+    file_server
+    try_files {path} /index.html
+}

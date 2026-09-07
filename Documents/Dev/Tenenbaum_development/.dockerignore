@@ -44,3 +44,12 @@ coverage
 *.log
 *.tmp
 .cache
+*.tar.gz
+
+# Unused files
+config.jsonc
+components.json
+tailwing.config.js
+settings.json
+CREDENTIALS.md
+DEPLOY.md
