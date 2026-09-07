@@ -1,0 +1,78 @@
+/* ==========================================================================
+   Global entry — imports the full CSS architecture in cascade order.
+   ========================================================================== */
+
+/* Shippori Mincho (400 / 600 / 700). display=swap avoids invisible text. */
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;700&display=swap");
+
+@import "./variables.css";
+@import "./reset.css";
+@import "./typography.css";
+@import "./glass.css";
+@import "./buttons.css";
+@import "./layout.css";
+@import "./animations.css";
+@import "./utilities.css";
+@import "./components.css";
+
+/* Base canvas — soft cream with a faint living gradient mesh so that the
+   Liquid Glass surfaces always have colour to refract. */
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  overflow-x: hidden;
+}
+
+/* Fixed decorative wash behind everything (very subtle). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(60vw 60vw at 12% 8%, rgba(4, 114, 77, 0.12), transparent 60%),
+    radial-gradient(50vw 50vw at 88% 18%, rgba(124, 128, 155, 0.14), transparent 60%),
+    radial-gradient(55vw 55vw at 80% 92%, rgba(39, 52, 9, 0.1), transparent 60%),
+    var(--bg);
+  pointer-events: none;
+}
+
+/* Selection styling. */
+::selection {
+  background: rgba(4, 114, 77, 0.2);
+  color: var(--dark);
+}
+
+/* Custom scrollbar (non-intrusive). */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(4, 114, 77, 0.28);
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(4, 114, 77, 0.5);
+}
+
+/* Hide native cursor only when the custom cursor is active (desktop). */
+.has-custom-cursor,
+.has-custom-cursor * {
+  cursor: none;
+}
+
+/* Lenis smooth-scroll recommended styles. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}

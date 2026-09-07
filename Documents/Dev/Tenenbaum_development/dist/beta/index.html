@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Prerender/SSR inject route-specific SEO via react-helmet-async -->
+    <title data-rh="true"></title>
+    
+    
+    
+
+    <!-- Minimal baseline when helmet is empty -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Favicon / touch icon (also deploy `HeadsOnlyTransparent.png` under site root / `public/`) -->
+    <link rel="icon" type="image/png" href="/HeadsOnlyTransparent.png" />
+    <link rel="apple-touch-icon" href="/HeadsOnlyTransparent.png" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#3B82F6" />
+    <meta name="msapplication-TileColor" content="#3B82F6" />
+
+    <!-- Default social preview image when helmet omits og:image (production host) -->
+    <meta property="og:image" content="https://polinapsycho.com/Logotransparent.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:image" content="https://polinapsycho.com/Logotransparent.png" />
+
+    <!-- Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+
+    <!-- Structured data baseline (supplemented per-route via SEOHead where applicable) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://polinapsycho.com/#organization",
+          "name": "SafePsy",
+          "alternateName": "Dr. Safe",
+          "url": "https://polinapsycho.com",
+          "logo": "https://polinapsycho.com/Logotransparent.png",
+          "description": "Privacy-first AI therapy platform providing mental wellness support through Dr. Safe, with blockchain-secured identity and user-controlled encryption.",
+          "sameAs": [
+            "https://linkedin.com/company/safepsy",
+            "https://www.instagram.com/safepsy/"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "email": "support@polinapsycho.com",
+            "availableLanguage": "English"
+          },
+          "areaServed": "Global"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://polinapsycho.com/#website",
+          "name": "SafePsy",
+          "url": "https://polinapsycho.com",
+          "publisher": { "@id": "https://polinapsycho.com/#organization" },
+          "inLanguage": "en"
+        }
+      ]
+    }
+    </script>
+    
+    
+      <link rel="stylesheet" crossorigin href="/assets/index-Ct0GNCVR.css">
+    <script type="module" crossorigin src="/assets/index-BeVu_7m9.js"></script>
+  </head>
+  <body class="light">
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark =
+            stored === 'dark' ||
+            (!stored &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+          document.body.classList.toggle('dark', dark);
+          document.body.classList.toggle('light', !dark);
+        } catch (_) {}
+      })();
+    </script>
+    <a href="#main-content" class="skip-link" style="position: absolute; left: -9999px; z-index: 999; padding: 1em; background: #3B82F6; color: white; text-decoration: none;">
+      Skip to main content
+    </a>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const skipLink = document.querySelector('.skip-link');
+        if (skipLink) {
+          skipLink.addEventListener('focus', function() {
+            this.style.left = '0';
+          });
+          skipLink.addEventListener('blur', function() {
+            this.style.left = '-9999px';
+          });
+        }
+      });
+    </script>
+
+    <div id="root"></div>
+  </body>
+</html>

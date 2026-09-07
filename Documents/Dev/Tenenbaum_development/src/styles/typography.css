@@ -1,0 +1,93 @@
+/* ==========================================================================
+   Typography — Shippori Mincho, fluid scale, generous rhythm.
+   ========================================================================== */
+
+body {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: var(--lh);
+  letter-spacing: var(--tracking);
+  color: var(--ink);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.t-hero {
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.t-h2 {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  line-height: 1.06;
+}
+
+.t-h3 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.t-subtitle {
+  font-size: var(--fs-subtitle);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.t-body {
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.t-small {
+  font-size: var(--fs-small);
+  font-weight: 400;
+}
+
+.t-eyebrow {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.t-serif {
+  font-family: var(--font-serif);
+}
+
+strong,
+b {
+  font-weight: 700;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* Gradient ink for accent words. */
+.text-gradient {
+  background: linear-gradient(120deg, var(--primary) 0%, var(--forest) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
