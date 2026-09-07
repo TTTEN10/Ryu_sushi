@@ -29,11 +29,15 @@ log_success "Build completed"
 log_info "Step 2: Creating deployment archive..."
 DEPLOY_DIR=$(mktemp -d)
 cp -r dist "$DEPLOY_DIR/"
+cp -r src "$DEPLOY_DIR/"
 cp Dockerfile "$DEPLOY_DIR/"
 cp Caddyfile "$DEPLOY_DIR/"
 cp docker-compose.prod.yml "$DEPLOY_DIR/"
 cp package*.json "$DEPLOY_DIR/"
 cp .dockerignore "$DEPLOY_DIR/"
+cp vite.config.js "$DEPLOY_DIR/"
+cp tailwind.config.js "$DEPLOY_DIR/"
+cp postcss.config.js "$DEPLOY_DIR/"
 
 # Update Caddyfile for production
 cat > "$DEPLOY_DIR/Caddyfile" << 'CADDY_EOF'
@@ -76,6 +80,16 @@ log_info "Step 4: Deploying on server..."
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SERVER_USER}@${SERVER_HOST}" << 'SSH_EOF'
 set -e
 
+# Use docker compose (v2) or docker-compose (v1)
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
+    echo "ERROR: Docker Compose is not installed"
+    exit 1
+fi
+
 # Create directory
 mkdir -p /opt/tenenbaum-app
 cd /opt/tenenbaum-app
@@ -86,10 +100,20 @@ tar -xzf ~/tenenbaum-deploy.tar.gz
 # Stop existing tenenbaum containers
 docker stop tenenbaum_v2 2>/dev/null || true
 docker rm tenenbaum_v2 2>/dev/null || true
-docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
+$COMPOSE_CMD -f docker-compose.prod.yml down 2>/dev/null || true
+
+# Force stop any container using port 80 or 443
+for port in 80 443; do
+    CONTAINER_ID=$(docker ps --filter "publish=$port" -q 2>/dev/null)
+    if [ -n "$CONTAINER_ID" ]; then
+        echo "Stopping container using port $port: $CONTAINER_ID"
+        docker stop $CONTAINER_ID 2>/dev/null || true
+        docker rm $CONTAINER_ID 2>/dev/null || true
+    fi
+done
 
 # Build and deploy
-docker-compose -f docker-compose.prod.yml up -d --build
+$COMPOSE_CMD -f docker-compose.prod.yml up -d --build
 
 # Wait for health check
 sleep 15
@@ -97,7 +121,7 @@ sleep 15
 # Show status
 echo ""
 echo "=== Container Status ==="
-docker-compose -f docker-compose.prod.yml ps
+$COMPOSE_CMD -f docker-compose.prod.yml ps
 
 echo ""
 echo "=== Health Check ==="
