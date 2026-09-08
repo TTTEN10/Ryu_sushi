@@ -5,14 +5,14 @@
 /* Dolgoon Khuyag Psychologue - Design System */
 :root {
   /* Colors */
-  --mk-navy: #1a2332;
-  --mk-navy-dark: #0f1620;
+  --mk-navy: #07183c;
+  --mk-navy-dark: #05122d;
   --mk-white: #ffffff;
-  --mk-cream: #f8f6f3;
-  --mk-gold: #d4af37;
-  --mk-gold-light: #f4d06f;
-  --mk-gold-dark: #b8962e;
-  --mk-gold-hover: #c9a962;
+  --mk-cream: #fff8ef;
+  --mk-gold: #dcaf54;
+  --mk-gold-light: #e8c075;
+  --mk-gold-dark: #c49a4a;
+  --mk-gold-hover: #d4a85a;
   --mk-gray-light: #f5f5f5;
   --mk-gray: #e5e5e5;
   --mk-gray-dark: #666666;
