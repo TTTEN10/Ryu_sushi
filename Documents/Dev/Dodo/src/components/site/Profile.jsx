@@ -14,7 +14,7 @@ export default function Profile() {
           <i className="mk-rule"></i>
         </div>
       </div>
-      <div className="mk-about-copy">
+      <div className="mk-about-content">
         <div className="mk-about-description">
           <p>
             Je suis psychologue, diplômé d'un Master en psychologie sociale, du travail et des organisations.
@@ -25,14 +25,16 @@ export default function Profile() {
             Mon objectif n'est pas d'appliquer une méthode identique à chacun, mais de construire un accompagnement
             adapté à votre situation, à votre rythme et à ce que vous souhaitez faire évoluer.
           </p>
-        </div>
-        <div className="mk-cert">
-          <strong>Formation &amp; certifications</strong>
-          <span>Master de Psychologie Sociale, du Travail et des Organisations</span>
-          <span>Psychologue enregistré au RPPS</span>
-          <span>Praticien certifié en Programmation Neuro-linguistique (PNL)</span>
-          <span>Praticien certifié en Hypnose Ericksonienne</span>
-          <b>N° RPPS 10111727177</b>
+          <div className="mk-about-formation">
+            <h3>Formation &amp; certifications</h3>
+            <ul>
+              <li>Master de Psychologie Sociale, du Travail et des Organisations</li>
+              <li>Psychologue enregistré au RPPS</li>
+              <li>Praticien certifié en Programmation Neuro-linguistique (PNL)</li>
+              <li>Praticien certifié en Hypnose Ericksonienne</li>
+            </ul>
+            <p className="mk-rpps">N° RPPS 10111727177</p>
+          </div>
         </div>
       </div>
     </section>

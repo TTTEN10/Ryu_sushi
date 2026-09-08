@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 
 import Layout from './components/site/Layout'
-import { Home, Contact, MonApproche, MentionsLegales, ConditionsGenerales, PolitiqueConfidentialite, NotFound } from './pages'
+import { Home, Contact, MonApproche, MentionsLegales, ConditionsGenerales, PolitiqueConfidentialite, NotFound, QuiSuisJe } from './pages'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -14,6 +14,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/" element={<Home />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/mon-approche" element={<MonApproche />} />
+          <Route path="/qui-suis-je" element={<QuiSuisJe />} />
           <Route path="/mentions-legales" element={<MentionsLegales />} />
           <Route path="/conditions-generales" element={<ConditionsGenerales />} />
           <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />

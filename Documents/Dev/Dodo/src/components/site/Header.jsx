@@ -10,7 +10,7 @@ export default function Header() {
     { href: '#accueil', label: 'Accueil' },
     { href: '#accompagnement', label: 'Accompagnement' },
     { href: '/mon-approche', label: 'Mon approche', isRoute: true },
-    { href: '#apropos', label: 'À propos' },
+    { href: '/qui-suis-je', label: 'Qui suis-je', isRoute: true },
     { href: '#faq', label: 'FAQ' },
   ]
 
@@ -51,7 +51,6 @@ export default function Header() {
     <header className="mk-header" role="banner">
       <a href="/" className="mk-logo" aria-label="Dolgoon Khuyag Psychologue" onClick={(e) => { e.preventDefault(); navigate('/'); closeMenu(); }}>
         <img src="/logo-dk.png" alt="Logo" />
-        <span className="mk-logo-text">Dolgoon Khuyag Psychologue</span>
       </a>
 
       <button

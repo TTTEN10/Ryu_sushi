@@ -4,10 +4,11 @@ export default function Footer() {
   const currentYear = new Date().getFullYear()
 
   const navLinks = [
+    { href: '/qui-suis-je', label: 'Qui suis-je' },
     { href: '/mentions-legales', label: 'Mentions légales' },
     { href: '/politique-confidentialite', label: 'Politique de confidentialité' },
-    { href: '/conditions-annulation', label: "Conditions d'annulation" },
-    { href: '/#contact', label: 'Contact' },
+    { href: '/conditions-generales', label: "Conditions générales" },
+    { href: '/contact', label: 'Contact' },
   ]
 
   return (

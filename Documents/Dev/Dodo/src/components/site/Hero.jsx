@@ -6,15 +6,12 @@ export default function Hero() {
       <div className="mk-hero-copy">
         <p className="mk-kicker">PSYCHOLOGUE · CONSULTATIONS EN LIGNE</p>
         <h1>
-          Trouver sa place.<br />
-          Et <span className="mk-gold-word">oser</span> la prendre.
+          Trouver sa place<br />
+          <span className="mk-gold-word">oser</span> la prendre
         </h1>
         <i className="mk-rule"></i>
         <p>
-          J'accompagne les personnes qui souhaitent mieux se comprendre, dépasser ce qui les freine.
-        </p>
-        <p>
-          Et avancer plus sereinement dans leurs relations et leurs projets.
+          J'accompagne les personnes qui souhaitent mieux se comprendre, dépasser ce qui les freine et avancer plus sereinement dans leurs relations et leurs projets.
         </p>
         <div className="mk-actions">
           <Link to="/contact" className="mk-btn mk-btn-gold mk-shine">

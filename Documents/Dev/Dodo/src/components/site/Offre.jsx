@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
-
 export default function Offre() {
+  const calendlyLink = "https://calendly.com/dolgoon-khuyag/consultation-offerte"
+
   return (
     <section className="mk-contact" id="contact">
       <div className="mk-contact-inner">
@@ -21,9 +21,9 @@ export default function Offre() {
             <li><span aria-hidden="true">•</span>60 minutes</li>
             <li><span aria-hidden="true">•</span>Confidentiel</li>
           </ul>
-          <Link to="/contact" className="mk-btn mk-btn-gold mk-shine">
+          <a href={calendlyLink} target="_blank" rel="noopener noreferrer" className="mk-btn mk-btn-gold">
             Prendre rendez-vous
-          </Link>
+          </a>
         </div>
       </div>
     </section>
