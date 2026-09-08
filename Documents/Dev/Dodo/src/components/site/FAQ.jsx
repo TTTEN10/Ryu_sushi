@@ -34,7 +34,8 @@ export default function FAQ() {
     },
   ]
 
-  const toggleFAQ = (index) => {
+  const toggleFAQ = (index, e) => {
+    e.preventDefault()
     setOpenIndex(openIndex === index ? null : index)
   }
 
@@ -47,7 +48,7 @@ export default function FAQ() {
       <div>
         {faqs.map((faq, index) => (
           <details key={index} open={openIndex === index}>
-            <summary onClick={() => toggleFAQ(index)}>
+            <summary onClick={(e) => toggleFAQ(index, e)}>
               {faq.question}
               <span>{openIndex === index ? '−' : '+'}</span>
             </summary>
