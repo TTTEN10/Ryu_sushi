@@ -1,0 +1,145 @@
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding-inline: var(--container-padding);
+}
+
+.section {
+  padding-block: var(--section-desktop);
+  position: relative;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .section {
+    padding-block: var(--section-tablet);
+  }
+}
+
+@media (max-width: 768px) {
+  .section {
+    padding-block: var(--section-mobile);
+  }
+}
+
+.section--dark {
+  background-color: var(--black);
+  color: var(--cream);
+}
+
+.section--dark .section-label {
+  color: var(--steel);
+}
+
+.section--dark .section-subtitle {
+  color: var(--cream);
+}
+
+.section--dark .glass-card {
+  color: var(--cream);
+  background: rgba(250, 247, 239, 0.05);
+  border-color: rgba(126, 148, 160, 0.2);
+}
+
+.section--dark .glass-card a {
+  color: var(--cream);
+}
+
+.section--dark .glass-card a:hover {
+  color: var(--orange);
+}
+
+.section--dark .schedule-card {
+  color: var(--cream);
+}
+
+.section--dark .schedule-card__time {
+  color: var(--cream);
+}
+
+.section--dark .schedule-card__location {
+  color: var(--steel);
+}
+
+.section--dark .card {
+  color: var(--cream);
+}
+
+.section:not(.section--dark) .glass-card {
+  color: var(--black);
+}
+
+.section:not(.section--dark) .glass-card a {
+  color: var(--black);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .grid-3, .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  padding: 40px;
+}
+
+@media (max-width: 768px) {
+  .glass-card {
+    padding: 24px;
+  }
+}
+
+main {
+  min-height: 100vh;
+}
+
+.site-content {
+  position: relative;
+  z-index: 2;
+}
+
+.section {
+  position: relative;
+  z-index: 1;
+}

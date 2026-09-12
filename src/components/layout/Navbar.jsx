@@ -1,0 +1,84 @@
+import { useState, useEffect, useRef } from 'react';
+import { FiMoon, FiSun } from 'react-icons/fi';
+import { useTheme } from '../../hooks';
+import logoImg from '../../assets/ryu-logo.png';
+
+export default function Navbar() {
+  const { theme, toggle: toggleTheme } = useTheme();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 100) {
+        setHidden(currentScrollY > lastScrollYRef.current);
+      } else {
+        setHidden(false);
+      }
+      lastScrollYRef.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handleNavClick = (href) => {
+    setMobileOpen(false);
+    // Show the nav immediately when clicking
+    setHidden(false);
+    const el = document.querySelector(href);
+    if (el) {
+      // Offset scroll to account for nav height
+      const navHeight = 80;
+      const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: elementPosition - navHeight,
+        behavior: 'smooth'
+      });
+      window.history.pushState(null, '', href);
+    }
+  };
+
+  return (
+    <nav className={`nav ${lastScrollYRef.current > 50 ? 'nav--scrolled' : ''} ${hidden ? 'nav--hidden' : ''}`} role="navigation" aria-label="Navigation principale">
+      <div className="container nav__inner">
+        <a href="#home" onClick={(e) => { e.preventDefault(); handleNavClick('#home'); }} aria-label="Ryu Sushi — Accueil">
+          <img src={logoImg} alt="Ryu Sushi — Food truck sushi japonais à Vannes, Morbihan" className="nav__logo" />
+        </a>
+
+        <div className="nav__actions">
+          <a href="#menu" className="btn btn--secondary btn--sm" onClick={(e) => { e.preventDefault(); handleNavClick('#menu'); }}>
+            Menu
+          </a>
+          <a href="#contact" className="btn btn--primary btn--sm" onClick={(e) => { e.preventDefault(); handleNavClick('#contact'); }}>
+            Commander
+          </a>
+          <button className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'light' ? 'Activer le mode sombre' : 'Activer le mode clair'}>
+            {theme === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+          </button>
+          <button className="nav__burger" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Ouvrir le menu" aria-expanded={mobileOpen}>
+            <span style={{ transform: mobileOpen ? 'rotate(45deg) translateY(7px)' : 'none' }} />
+            <span style={{ opacity: mobileOpen ? 0 : 1 }} />
+            <span style={{ transform: mobileOpen ? 'rotate(-45deg) translateY(-7px)' : 'none' }} />
+          </button>
+        </div>
+      </div>
+
+      <div className={`nav__mobile-menu ${mobileOpen ? 'nav__mobile-menu--open' : ''}`}>
+        <a
+          href="#menu"
+          className="nav__link"
+          style={{ fontSize: '24px' }}
+          onClick={(e) => { e.preventDefault(); handleNavClick('#menu'); }}
+        >
+          Menu
+        </a>
+        <a href="#contact" className="btn btn--primary" onClick={(e) => { e.preventDefault(); handleNavClick('#contact'); }}>
+          Commander
+        </a>
+      </div>
+    </nav>
+  );
+}

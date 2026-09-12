@@ -1,0 +1,96 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: var(--font-body);
+  letter-spacing: var(--letter-spacing);
+  text-transform: uppercase;
+  border-radius: var(--radius-btn);
+  padding: 18px 34px;
+  transition: var(--transition);
+  cursor: pointer;
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 600ms var(--ease);
+}
+
+.btn:hover::after {
+  transform: translateX(100%);
+}
+
+.btn--primary {
+  background: var(--red);
+  color: var(--white);
+}
+
+.btn--primary:hover {
+  background: var(--orange);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.btn--secondary {
+  background: var(--orange);
+  color: var(--black);
+  border: 2px solid var(--orange);
+}
+
+.btn--secondary:hover {
+  background: transparent;
+  color: var(--orange);
+  transform: translateY(-3px);
+}
+
+.section--dark .btn--secondary {
+  background: var(--orange);
+  color: var(--black);
+  border-color: var(--orange);
+}
+
+.section--dark .btn--secondary:hover {
+  background: transparent;
+  color: var(--orange);
+}
+
+.btn--ghost {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-3px);
+}
+
+.btn--sm {
+  padding: 12px 24px;
+  font-size: var(--font-small);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .btn {
+    padding: 14px 28px;
+  }
+}

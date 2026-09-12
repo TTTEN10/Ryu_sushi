@@ -1,0 +1,34 @@
+# Ryu Sushi — Food Truck Sushi Japonais à Paris
+
+> Food truck de sushi japonais premium à Paris. Poisson frais, savoir-faire authentique et cuisine de rue raffinée.
+
+## À propos
+
+Ryu Sushi est un food truck de sushi japonais premium qui se déplace chaque jour dans Paris. Nous proposons nigiri, maki, sashimi, rolls signature et spécialités du chef, préparés à la main avec des ingrédients frais.
+
+## Services
+
+- Food truck itinérant à Paris (emplacements hebdomadaires)
+- Événements privés avec menus sushi sur mesure
+- Festivals et événements publics
+
+## Contact
+
+- Téléphone : 07 88 42 15 46
+- E-mail : ryusushi56@gmail.com
+- Site : https://ryusushi.com
+- Instagram : https://instagram.com/ryusushi
+- Facebook : https://facebook.com/ryusushi
+
+## Sections du site
+
+- Accueil (#home)
+- Menu (#menu)
+- Food Truck — emplacements (#food-truck)
+- À propos (#about)
+- Galerie (#gallery)
+- Contact (#contact)
+
+## Langue
+
+Français (fr-FR)

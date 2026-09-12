@@ -1,0 +1,52 @@
+/* Default theme (dark) - applied when no data-theme attribute or data-theme="dark" */
+:root {
+  --red: #E73636;
+  --black: #FAF7EF;
+  --cream: #1A1410;
+  --orange: #F0A202;
+  --steel: #7E94A0;
+  --white: #FAF7EF;
+
+  --radius: 32px;
+  --radius-card: 24px;
+  --radius-btn: 999px;
+
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 20px 60px rgba(0, 0, 0, 0.25);
+  --shadow-card-hover: 0 32px 70px rgba(0, 0, 0, 0.35);
+  --shadow-btn-hover: 0 16px 40px rgba(240, 162, 2, 0.35);
+
+  --transition: 350ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --container-max: 1440px;
+  --container-padding: clamp(24px, 4vw, 80px);
+
+  --section-desktop: 140px;
+  --section-tablet: 90px;
+  --section-mobile: 64px;
+
+  --font-hero: clamp(48px, 8vw, 96px);
+  --font-section: clamp(40px, 5vw, 64px);
+  --font-subtitle: clamp(24px, 3vw, 34px);
+  --font-menu: clamp(22px, 2.5vw, 30px);
+  --font-body: clamp(16px, 1.5vw, 20px);
+  --font-small: 16px;
+
+  --letter-spacing: 2px;
+
+  --nav-height: 80px;
+  --glass-bg: rgba(18, 11, 3, 0.85);
+  --glass-border: rgba(126, 148, 160, 0.2);
+}
+
+/* Light theme - applied when data-theme="light" */
+[data-theme="light"] {
+  --black: #120B03;
+  --cream: #FAF7EF;
+  --white: #FFFFFF;
+  --glass-bg: rgba(250, 247, 239, 0.75);
+  --shadow: 0 18px 50px rgba(18, 11, 3, 0.12);
+  --shadow-card: 0 20px 60px rgba(18, 11, 3, 0.08);
+  --shadow-card-hover: 0 32px 70px rgba(18, 11, 3, 0.14);
+}
