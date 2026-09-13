@@ -1,6 +1,14 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Hero() {
+  const navigate = useNavigate()
+  const googleCalendarLink = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ3M14KT0UXbAChtDdtm_zrZ-CvaptWn5NCTUnPyjmz3lE9KtL0NB-lvxlZdrxAZKhBWpCEIYlFI"
+
+  const handleBookClick = (e) => {
+    e.preventDefault()
+    window.open(googleCalendarLink, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <section className="mk-hero" id="accueil">
       <div className="mk-hero-copy">
@@ -14,9 +22,9 @@ export default function Hero() {
           J'accompagne les personnes qui souhaitent mieux se comprendre, dépasser ce qui les freine et avancer plus sereinement dans leurs relations et leurs projets.
         </p>
         <div className="mk-actions">
-          <Link to="/contact" className="mk-btn mk-btn-gold mk-shine">
+          <button onClick={handleBookClick} className="mk-btn mk-btn-gold mk-shine">
             Prendre rendez-vous
-          </Link>
+          </button>
           <Link to="/mon-approche" className="mk-btn mk-btn-outline">
             Découvrir mon approche
           </Link>

@@ -1,5 +1,5 @@
 export default function Offre() {
-  const calendlyLink = "https://calendly.com/dolgoon-khuyag/consultation-offerte"
+  const googleCalendarLink = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ3M14KT0UXbAChtDdtm_zrZ-CvaptWn5NCTUnPyjmz3lE9KtL0NB-lvxlZdrxAZKhBWpCEIYlFI"
 
   return (
     <section className="mk-contact" id="contact">
@@ -21,7 +21,7 @@ export default function Offre() {
             <li><span aria-hidden="true">•</span>60 minutes</li>
             <li><span aria-hidden="true">•</span>Confidentiel</li>
           </ul>
-          <a href={calendlyLink} target="_blank" rel="noopener noreferrer" className="mk-btn mk-btn-gold">
+          <a href={googleCalendarLink} target="_blank" rel="noopener noreferrer" className="mk-btn mk-btn-gold">
             Prendre rendez-vous
           </a>
         </div>

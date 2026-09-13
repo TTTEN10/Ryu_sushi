@@ -1,6 +1,6 @@
 export default function Contact() {
   const email = "dolgoon@dkpsychologue.com"
-  const calendlyLink = "https://calendly.com/dolgoon-khuyag/consultation-offerte"
+  const googleCalendarLink = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ3M14KT0UXbAChtDdtm_zrZ-CvaptWn5NCTUnPyjmz3lE9KtL0NB-lvxlZdrxAZKhBWpCEIYlFI"
 
   return (
     <main className="mk-contact-page">
@@ -31,8 +31,8 @@ export default function Contact() {
           </div>
 
           <div className="mk-contact-actions">
-            <a href={calendlyLink} target="_blank" rel="noopener noreferrer" className="mk-btn mk-btn-gold">
-              Prendre rendez-vous sur Calendly
+            <a href={googleCalendarLink} target="_blank" rel="noopener noreferrer" className="mk-btn mk-btn-gold">
+              Prendre rendez-vous
             </a>
             <a href={`mailto:${email}`} className="mk-btn mk-btn-outline">
               Envoyer un email

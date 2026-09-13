@@ -5,6 +5,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const googleCalendarLink = "https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ3M14KT0UXbAChtDdtm_zrZ-CvaptWn5NCTUnPyjmz3lE9KtL0NB-lvxlZdrxAZKhBWpCEIYlFI"
 
   const navLinks = [
     { href: '#accueil', label: 'Accueil' },
@@ -15,11 +16,15 @@ export default function Header() {
   ]
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
+    const newState = !isMenuOpen
+    setIsMenuOpen(newState)
+    // Prevent body scroll when menu is open
+    document.body.classList.toggle('menu-open', newState)
   }
 
   const closeMenu = () => {
     setIsMenuOpen(false)
+    document.body.classList.remove('menu-open')
   }
 
   const handleNavClick = (href, isRoute, e) => {
@@ -40,6 +45,12 @@ export default function Header() {
     }
   }
 
+  const handleBookClick = (e) => {
+    e.preventDefault()
+    closeMenu()
+    window.open(googleCalendarLink, '_blank', 'noopener,noreferrer')
+  }
+
   const isActive = (href, isRoute) => {
     if (isRoute) {
       return location.pathname === href
@@ -54,7 +65,7 @@ export default function Header() {
       </a>
 
       <button
-        className="mk-menu"
+        className={`mk-menu ${isMenuOpen ? 'active' : ''}`}
         aria-expanded={isMenuOpen}
         aria-label="Ouvrir le menu"
         onClick={toggleMenu}
@@ -78,13 +89,12 @@ export default function Header() {
       </nav>
 
       <div className="mk-header-actions">
-        <a
-          href="#contact"
+        <button
           className="mk-btn mk-btn-gold mk-header-cta"
-          onClick={(e) => handleNavClick('#contact', false, e)}
+          onClick={handleBookClick}
         >
           Prendre rendez-vous
-        </a>
+        </button>
       </div>
     </header>
   )
