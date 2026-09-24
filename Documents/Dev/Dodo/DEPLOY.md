@@ -15,6 +15,61 @@ Site statique pour Dolgoon Khuyag, psychologue, hébergé avec Docker et Caddy s
 | **Image** | Docker (5a2044d7-79cf-4e5e-b598-413c2977dfa6) |
 | **Stockage** | Block Storage 5K - 10 GB |
 
+## Déploiement Podman (recommandé)
+
+Le site tourne désormais dans un **conteneur Podman dédié** (`dkpsychologue-web`),
+géré par systemd via une unit Quadlet, en remplacement du conteneur Docker.
+
+### Fichiers Podman
+
+| Fichier | Rôle |
+|---------|------|
+| `Containerfile` | Définition de l'image (Caddy + statique + Caddyfile) |
+| `dkpsychologue-web.container` | Unité Quadlet systemd du conteneur dédié |
+| `deploy-podman.sh` | Script de déploiement (build → upload → build image → activation) |
+
+### Déploiement
+
+```bash
+./deploy-podman.sh
+```
+
+Le script va :
+1. Build de l'application React (`public/`)
+2. Vérifier la connexion SSH et installer Podman si nécessaire
+3. Copier les fichiers sur le serveur
+4. Arrêter/retirer l'ancien conteneur Docker (si présent)
+5. Builder l'image avec `podman build --format docker -t dkpsychologue-web`
+6. Installer l'unit Quadlet dans `/etc/containers/systemd/`
+7. Démarrer le service `dkpsychologue-web.service`
+
+### Commandes usuelles (sur le serveur)
+
+```bash
+systemctl status  dkpsychologue-web.service   # statut
+podman logs   -f dkpsychologue-web            # logs
+podman ps --filter name=dkpsychologue-web     # processus
+podman healthcheck run dkpsychologue-web      # santé (image "docker" format)
+podman build  -t dkpsychologue-web -f Containerfile .  # rebuild
+```
+
+> **Note** : l'image doit être construite avec `--format docker` pour conserver
+> le `HEALTHCHECK` (format OCI par défaut de Podman ne le supporte pas).
+
+### Validation locale (sans serveur)
+
+```bash
+podman build --format docker -t dkpsychologue-web -f Containerfile .
+podman run -d --name dkpsychologue-web -p 8080:80 \
+  -e ACME_AGREE=true -v caddy_data:/data -v caddy_config:/config \
+  localhost/dkpsychologue-web:latest
+```
+
+## Déploiement Docker (legacy)
+
+> L'ancienne méthode Docker (`docker-compose.yml`) reste documentée ci-dessous,
+> mais a été remplacée par Podman.
+
 ## Prérequis
 
 - Clé SSH configurée sur le serveur Scaleway

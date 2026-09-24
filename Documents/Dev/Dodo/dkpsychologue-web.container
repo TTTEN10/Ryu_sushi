@@ -1,0 +1,44 @@
+# dkpsychologue-web.container
+#
+# Quadlet (systemd) unit for a dedicated Podman container running
+# dkpsychologue.com. Installed by deploy-podman.sh on the server at:
+#
+#   /etc/containers/systemd/dkpsychologue-web.container
+#
+# The image is built locally on the server beforehand:
+#
+#   podman build -t dkpsychologue-web -f Containerfile .
+#
+# Then activate the generated systemd service:
+#
+#   systemctl daemon-reload
+#   systemctl enable --now dkpsychologue-web.service
+#
+# The old Docker container (docker compose) is stopped and removed by the
+# deploy script, so only this dedicated container serves the site.
+
+[Unit]
+Description=Dedicated Podman container for dkpsychologue.com (Caddy)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/dkpsychologue-web:latest
+ContainerName=dkpsychologue-web
+
+# Production HTTP/HTTPS ports (ACME / Let's Encrypt on 80)
+PublishPort=80:80
+PublishPort=443:443
+
+# Caddy persistent state (TLS certificates) and runtime config
+Volume=caddy_data:/data
+Volume=caddy_config:/config
+
+Environment=ACME_AGREE=true
+
+[Service]
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

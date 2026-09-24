@@ -1,0 +1,19 @@
+FROM caddy:2.9-alpine
+
+# Create app directory
+WORKDIR /app
+
+# Copy Caddyfile first (better layer caching)
+COPY Caddyfile /etc/caddy/Caddyfile
+
+# Copy static files
+COPY public/ /srv/public/
+
+# Expose HTTP and HTTPS ports
+EXPOSE 80 443
+
+# Health check - check Caddy admin endpoint (no TLS required)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:2019/config/ || exit 1
+
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
