@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom'
 export default function MentionsLegales() {
   return (
     <div className="legal-page">
-      <div className="container">
+      <div className="mk-container">
+        <header className="legal-header">
+          <p className="mk-kicker">MENTIONS LÉGALES</p>
+          <h1>Mentions légales</h1>
+          <i className="mk-rule"></i>
+        </header>
+      </div>
+      <div className="mk-container">
         <article className="legal-content">
-          <div className="section-header">
-            <span className="section-label">MENTIONS LÉGALES</span>
-          </div>
-        <h1>Mentions légales</h1>
 
         <section className="legal-section">
           <h2>Éditeur du site</h2>
@@ -97,7 +100,7 @@ export default function MentionsLegales() {
 
         <div className="legal-cta">
           <p>Une question concernant ces mentions légales ?</p>
-          <Link to="/contact" className="btn btn-primary">Nous contacter</Link>
+          <Link to="/contact" className="mk-btn mk-btn-gold">Nous contacter</Link>
         </div>
         </article>
       </div>

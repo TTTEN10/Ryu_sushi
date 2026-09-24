@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom'
 export default function PolitiqueConfidentialite() {
   return (
     <div className="legal-page">
-      <div className="container">
+      <div className="mk-container">
+        <header className="legal-header">
+          <p className="mk-kicker">CONFIDENTIALITÉ</p>
+          <h1>Politique de confidentialité</h1>
+          <i className="mk-rule"></i>
+        </header>
+      </div>
+      <div className="mk-container">
         <article className="legal-content">
-          <div className="section-header">
-            <span className="section-label">CONFIDENTIALITÉ</span>
-          </div>
-        <h1>Politique de confidentialité</h1>
 
         <p className="legal-intro">
           La protection de vos données personnelles est une priorité. Cette politique de confidentialité
@@ -174,7 +177,7 @@ export default function PolitiqueConfidentialite() {
 
         <div className="legal-cta">
           <p>Une question ou souhaitez prendre rendez-vous ?</p>
-          <Link to="/contact" className="btn btn-primary">Nous contacter</Link>
+          <Link to="/contact" className="mk-btn mk-btn-gold">Nous contacter</Link>
         </div>
         </article>
       </div>

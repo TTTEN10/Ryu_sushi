@@ -22,6 +22,11 @@ export default function Methodologie() {
       title: 'EXPÉRIMENTER',
       description: "Faire évoluer concrètement votre manière d'agir et inscrire progressivement les changements dans votre quotidien.",
     },
+    {
+      number: '04',
+      title: 'INTÉGRER',
+      description: "Ancrer ces changements dans la durée pour qu'ils deviennent une nouvelle façon d'être, de penser et d'agir, alignée avec qui vous êtes.",
+    },
   ]
 
   return (
@@ -49,9 +54,11 @@ export default function Methodologie() {
       <section className="mk-process">
         <div className="mk-process-inner">
           <div className="mk-process-title">
+            <p className="mk-kicker">COMMENT SE DÉROULE L'ACCOMPAGNEMENT</p>
             <h2>Un accompagnement qui ne s'arrête pas à la prise de conscience.</h2>
+            <i className="mk-rule"></i>
           </div>
-          <div className="mk-process-items">
+          <div className="mk-process-hub">
             {steps.map((step, index) => (
               <article key={index} className="mk-process-item">
                 <span>{step.number}</span>
@@ -59,6 +66,9 @@ export default function Methodologie() {
                 <p>{step.description}</p>
               </article>
             ))}
+            <div className="mk-process-vous" aria-hidden="true">
+              <span>Vous</span>
+            </div>
           </div>
         </div>
       </section>

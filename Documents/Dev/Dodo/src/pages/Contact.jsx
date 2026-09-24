@@ -5,24 +5,28 @@ export default function Contact() {
   return (
     <main className="mk-contact-page">
       <div className="mk-container">
-        <div className="mk-contact-page-content">
+        <header className="mk-page-header">
           <p className="mk-kicker">CONTACT</p>
           <h1>Prendre rendez-vous</h1>
           <i className="mk-rule"></i>
+        </header>
+      </div>
+      <div className="mk-container">
+        <div className="mk-contact-card">
           <p className="mk-contact-intro">
             Une question ? Un besoin d'accompagnement ? N'hésitez pas à me contacter.
           </p>
 
           <div className="mk-contact-coordonnees">
             <div className="mk-contact-item">
-              <span className="mk-contact-icon">📧</span>
+              <span className="mk-contact-icon" aria-hidden="true">&#9993;</span>
               <div>
                 <strong>Email</strong>
                 <a href={`mailto:${email}`}>{email}</a>
               </div>
             </div>
             <div className="mk-contact-item">
-              <span className="mk-contact-icon">📍</span>
+              <span className="mk-contact-icon" aria-hidden="true">&#9873;</span>
               <div>
                 <strong>Cabinet</strong>
                 <p>Puteaux, France</p>

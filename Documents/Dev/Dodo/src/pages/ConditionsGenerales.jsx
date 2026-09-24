@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom'
 export default function ConditionsGenerales() {
   return (
     <div className="legal-page">
-      <div className="container">
+      <div className="mk-container">
+        <header className="legal-header">
+          <p className="mk-kicker">CONDITIONS GÉNÉRALES</p>
+          <h1>Conditions générales de consultation</h1>
+          <i className="mk-rule"></i>
+        </header>
+      </div>
+      <div className="mk-container">
         <article className="legal-content">
-          <div className="section-header">
-            <span className="section-label">CONDITIONS</span>
-          </div>
-        <h1>Conditions générales de consultation</h1>
 
         <p className="legal-intro">
           Les présentes conditions générales régissent les relations entre Dolgoon Khuyag,
@@ -254,7 +257,7 @@ export default function ConditionsGenerales() {
 
         <div className="legal-cta">
           <p>Prêt à commencer votre accompagnement ?</p>
-          <Link to="/contact" className="btn btn-primary">Prendre rendez-vous</Link>
+          <Link to="/contact" className="mk-btn mk-btn-gold">Prendre rendez-vous</Link>
         </div>
         </article>
       </div>

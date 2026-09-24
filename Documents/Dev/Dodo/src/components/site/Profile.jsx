@@ -27,11 +27,23 @@ export default function Profile() {
           </p>
           <div className="mk-about-formation">
             <h3>Formation &amp; certifications</h3>
-            <ul>
-              <li>Master de Psychologie Sociale, du Travail et des Organisations</li>
-              <li>Psychologue enregistré au RPPS</li>
-              <li>Praticien certifié en Programmation Neuro-linguistique (PNL)</li>
-              <li>Praticien certifié en Hypnose Ericksonienne</li>
+            <ul className="mk-cert-list">
+              <li>
+                <strong>Master en psychologie</strong>
+                <span>Psychologie sociale, du travail et des organisations</span>
+              </li>
+              <li>
+                <strong>Enregistrement RPPS</strong>
+                <span>Psychologue enregistré au répertoire</span>
+              </li>
+              <li>
+                <strong>Praticien certifié PNL</strong>
+                <span>Programmation Neuro-linguistique</span>
+              </li>
+              <li>
+                <strong>Praticien certifié Hypnose</strong>
+                <span>Hypnose Ericksonienne</span>
+              </li>
             </ul>
             <p className="mk-rpps">N° RPPS 10111727177</p>
           </div>
