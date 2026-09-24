@@ -13,8 +13,8 @@ SERVER_NAME="scw-exciting-dodo"
 REMOTE_DIR="/root/dkpsychologue"
 IMAGE="dkpsychologue-web"
 CONTAINER="dkpsychologue-web"
-QUADLET_FILE="dkpsychologue-web.container"
-QUADLET_DIR="/etc/containers/systemd"
+SERVICE_FILE="dkpsychologue-web.service"
+SERVICE_DIR="/etc/systemd/system"
 
 echo "=== Déploiement Podman dkpsychologue.com ==="
 echo "Serveur: $SERVER_NAME ($SERVER_IP)"
@@ -55,7 +55,7 @@ fi
 echo ""
 echo ">> Copie des fichiers vers le serveur..."
 ssh "$SERVER_USER@$SERVER_IP" "mkdir -p $REMOTE_DIR/public"
-scp -q Containerfile Caddyfile dkpsychologue-web.container .env.example "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/"
+scp -q Containerfile Caddyfile dkpsychologue-web.service .env.example "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/"
 scp -rq public/ "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/"
 
 # 6. Arrêter l'ancien conteneur Docker (si présent) pour que Podman prenne le relais
@@ -63,15 +63,15 @@ echo ""
 echo ">> Arrêt de l'ancien conteneur Docker (si présent)..."
 ssh "$SERVER_USER@$SERVER_IP" "if command -v docker >/dev/null 2>&1 && docker ps -q --filter name=$CONTAINER | grep -q .; then docker stop $CONTAINER && docker rm $CONTAINER; fi" || echo "  (aucun conteneur Docker $CONTAINER à arrêter)"
 
-# 7. Build de l'image avec Podman
+# 7. Build de l'image avec Podman (format docker pour conserver le HEALTHCHECK)
 echo ""
 echo ">> Build de l'image avec Podman..."
-ssh "$SERVER_USER@$SERVER_IP" "cd $REMOTE_DIR && podman build -t $IMAGE -f Containerfile ."
+ssh "$SERVER_USER@$SERVER_IP" "cd $REMOTE_DIR && podman build --format docker -t $IMAGE -f Containerfile ."
 
-# 8. Installer l'unit Quadlet et activer le service système
+# 8. Installer l'unit systemd (conteneur dédié) et activer le service
 echo ""
-echo ">> Installation de l'unit Quadlet..."
-ssh "$SERVER_USER@$SERVER_IP" "mkdir -p $QUADLET_DIR && cp -f $REMOTE_DIR/$QUADLET_FILE $QUADLET_DIR/ && systemctl daemon-reload && systemctl enable --now $CONTAINER.service"
+echo ">> Installation de l'unit systemd..."
+ssh "$SERVER_USER@$SERVER_IP" "cp -f $REMOTE_DIR/$SERVICE_FILE $SERVICE_DIR/ && systemctl daemon-reload && systemctl enable --now $CONTAINER.service"
 
 # 9. Vérifier le statut
 echo ""

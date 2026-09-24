@@ -18,14 +18,14 @@ Site statique pour Dolgoon Khuyag, psychologue, hébergé avec Docker et Caddy s
 ## Déploiement Podman (recommandé)
 
 Le site tourne désormais dans un **conteneur Podman dédié** (`dkpsychologue-web`),
-géré par systemd via une unit Quadlet, en remplacement du conteneur Docker.
+géré par systemd (unit `dkpsychologue-web.service`), en remplacement du conteneur Docker.
 
 ### Fichiers Podman
 
 | Fichier | Rôle |
 |---------|------|
 | `Containerfile` | Définition de l'image (Caddy + statique + Caddyfile) |
-| `dkpsychologue-web.container` | Unité Quadlet systemd du conteneur dédié |
+| `dkpsychologue-web.service` | Unit systemd du conteneur dédié (`podman run`) |
 | `deploy-podman.sh` | Script de déploiement (build → upload → build image → activation) |
 
 ### Déploiement
@@ -40,7 +40,7 @@ Le script va :
 3. Copier les fichiers sur le serveur
 4. Arrêter/retirer l'ancien conteneur Docker (si présent)
 5. Builder l'image avec `podman build --format docker -t dkpsychologue-web`
-6. Installer l'unit Quadlet dans `/etc/containers/systemd/`
+6. Installer l'unit `dkpsychologue-web.service` dans `/etc/systemd/system/`
 7. Démarrer le service `dkpsychologue-web.service`
 
 ### Commandes usuelles (sur le serveur)
@@ -55,6 +55,8 @@ podman build  -t dkpsychologue-web -f Containerfile .  # rebuild
 
 > **Note** : l'image doit être construite avec `--format docker` pour conserver
 > le `HEALTHCHECK` (format OCI par défaut de Podman ne le supporte pas).
+> Pour l'`FROM` du Containerfile, le nom complet `docker.io/library/caddy:...`
+> est utilisé afin d'éviter la résolution des noms courts sur le serveur.
 
 ### Validation locale (sans serveur)
 

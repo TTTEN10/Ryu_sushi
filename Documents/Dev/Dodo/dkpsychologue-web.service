@@ -1,0 +1,34 @@
+# dkpsychologue-web.service
+#
+# systemd unit for the dedicated Podman container serving dkpsychologue.com.
+# Installed by deploy-podman.sh on the server at:
+#
+#   /etc/systemd/system/dkpsychologue-web.service
+#
+# A classic unit is used (instead of Quadlet) for compatibility with the
+# Podman version shipped by Ubuntu 22.04 (3.4.4), which predates Quadlet.
+# The image is built on the server beforehand:
+#
+#   podman build --format docker -t dkpsychologue-web -f Containerfile .
+#
+# The old Docker container is stopped/removed by the deploy script.
+
+[Unit]
+Description=Dedicated Podman container for dkpsychologue.com (Caddy)
+After=network-online.target
+Wants=network-online.target
+After=podman.service docker.service
+Requires=podman.service
+
+[Service]
+Type=simple
+# Fresh container on every start; named volumes keep Caddy data (TLS certs)
+ExecStartPre=-/usr/bin/podman rm -f dkpsychologue-web
+ExecStart=/usr/bin/podman run --name dkpsychologue-web --rm -p 80:80 -p 443:443 -e ACME_AGREE=true -v caddy_data:/data -v caddy_config:/config localhost/dkpsychologue-web:latest
+ExecStop=/usr/bin/podman stop dkpsychologue-web
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

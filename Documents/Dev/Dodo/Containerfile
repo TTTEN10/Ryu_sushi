@@ -1,4 +1,4 @@
-FROM caddy:2.9-alpine
+FROM docker.io/library/caddy:2.9-alpine
 
 # Create app directory
 WORKDIR /app
