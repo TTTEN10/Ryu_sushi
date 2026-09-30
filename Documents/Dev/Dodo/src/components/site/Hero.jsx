@@ -11,6 +11,12 @@ export default function Hero() {
 
   return (
     <section className="mk-hero" id="accueil">
+      <div className="mk-hero-media">
+        <img
+          src="/dolgoon-khuyag-cabinet.png"
+          alt="Dolgoon Khuyag, psychologue, dans son cabinet"
+        />
+      </div>
       <div className="mk-hero-copy">
         <p className="mk-kicker">PSYCHOLOGUE · CONSULTATIONS EN LIGNE</p>
         <h1>
