@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(node *)",
+      "Bash(curl *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(./deploy.sh *)",
+      "Bash(./deploy-podman.sh *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(podman *)"
+    ]
+  }
+}

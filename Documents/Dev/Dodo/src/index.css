@@ -265,8 +265,8 @@ a {
   background: var(--mk-gold);
 }
 
-/* Mobile Navigation Menu */
-@media (max-width: 767px) {
+/* Phones + tablets (iPad / Galaxy Tab up to 1279px): hamburger nav */
+@media (max-width: 1279px) {
   .mk-menu {
     display: flex;
     margin-left: auto;
@@ -368,24 +368,8 @@ a {
   font-size: 0.7rem;
 }
 
-/* Tablets / iPads (768-1024px): keep the inline desktop nav without overflowing.
-   The header CTA is hidden here since the hero and contact banner already offer it. */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .mk-nav {
-    gap: 1.25rem;
-  }
-
-  .mk-nav a {
-    font-size: 0.6rem;
-  }
-
-  .mk-header-actions .mk-header-cta {
-    display: none;
-  }
-}
-
-/* Phones: hide the header CTA so it never clips next to the burger menu */
-@media (max-width: 767px) {
+/* Hide the header CTA next to the burger on phones and tablets */
+@media (max-width: 1279px) {
   .mk-header-actions .mk-header-cta {
     display: none;
   }
@@ -425,7 +409,7 @@ a {
   z-index: 1;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-hero {
     min-height: auto;
     flex-direction: column;
@@ -557,7 +541,7 @@ a {
   display: none;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-hero-media {
     display: block;
     position: relative;
@@ -606,7 +590,7 @@ a {
   margin: 0 auto;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1279px) {
   .mk-situation-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem;
@@ -741,7 +725,7 @@ a {
   margin: 0 auto;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1279px) {
   .mk-axes-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -866,7 +850,7 @@ a {
   text-align: left;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1279px) {
   .mk-dimension-wheel {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -936,7 +920,7 @@ a {
   border-radius: 4px;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-about-head {
     flex-direction: column;
     text-align: center;
@@ -1038,7 +1022,7 @@ a {
   gap: 2rem;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-contact-inner {
     flex-direction: column;
     text-align: center;
@@ -1236,7 +1220,7 @@ a {
   align-items: flex-start;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-footer-inner {
     flex-direction: column;
     gap: 1.5rem;
@@ -1404,7 +1388,7 @@ a {
   font-size: 0.85rem;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-contact-page {
     padding-bottom: 2rem;
   }
@@ -1559,7 +1543,7 @@ a {
   font-weight: bold;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-page-qui-suis-je {
     min-height: auto;
   }
@@ -1593,7 +1577,7 @@ a {
   }
 
   .mk-formation-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
   }
 }
@@ -1951,7 +1935,7 @@ a {
   color: var(--mk-gold);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1279px) {
   .mk-process-hub {
     --hub-gap: 3.5rem;
     gap: 3.5rem;
@@ -1967,7 +1951,7 @@ a {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-process-hub {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -2015,7 +1999,7 @@ a {
 }
 
 /* Responsive pour nouveaux styles */
-@media (max-width: 1024px) {
+@media (max-width: 1279px) {
   .mk-dimension-wheel {
     grid-template-columns: 1fr 1fr;
   }
@@ -2032,6 +2016,10 @@ a {
 
 @media (max-width: 767px) {
   .mk-dimension-wheel {
+    grid-template-columns: 1fr;
+  }
+
+  .mk-formation-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2085,7 +2073,7 @@ a {
   margin: 0 auto 1.5rem;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .mk-page-header {
     padding: calc(var(--header-height) + 2rem) 1.5rem 2rem;
   }
@@ -2226,7 +2214,7 @@ a {
 }
 
 /* Legal pages mobile responsive */
-@media (max-width: 767px) {
+@media (max-width: 1279px) {
   .legal-header {
     padding: calc(var(--header-height) + 2rem) 0 2rem;
   }
@@ -2269,6 +2257,22 @@ a {
   }
 }
 
+/* Touch targets on phones and tablets */
+@media (max-width: 1279px) {
+  .mk-btn {
+    min-height: 44px;
+  }
+
+  .mk-menu {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .mk-faq summary {
+    min-height: 44px;
+  }
+}
+
 /* General mobile improvements */
 @media (max-width: 640px) {
   /* Ensure all buttons have comfortable touch targets */
@@ -2303,8 +2307,8 @@ a {
   }
 }
 
-/* Mobile layout cleanup — kept last so it wins over earlier base rules */
-@media (max-width: 767px) {
+/* Phone + tablet layout cleanup — kept last so it wins over earlier base rules */
+@media (max-width: 1279px) {
   .mk-header-actions .mk-header-cta {
     display: none;
   }
@@ -2373,5 +2377,27 @@ a {
 
   .mk-footer nav a {
     text-align: center;
+  }
+}
+
+/* iPad + Galaxy Tab: keep type and drawer comfortable in both orientations */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .mk-nav {
+    max-width: 380px;
+  }
+
+  .mk-hero h1 {
+    font-size: 2.15rem;
+  }
+
+  .mk-hero-copy {
+    max-width: 640px;
+    padding: 2rem 2rem 1rem;
+  }
+
+  .mk-hero-media img {
+    max-height: 52vh;
+    width: 100%;
+    object-fit: cover;
   }
 }

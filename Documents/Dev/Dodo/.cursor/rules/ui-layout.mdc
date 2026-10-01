@@ -1,0 +1,14 @@
+---
+description: Layout mk-* et tablettes iPad / Galaxy Tab
+globs: src/**/*.{css,jsx}
+alwaysApply: false
+---
+
+# UI et tablettes
+
+- Styles uniquement via `src/index.css` et classes `mk-*`. Pas de Tailwind dans le markup.
+- Breakpoint tablette : hamburger + hero empilé jusqu'à **1279px** (iPad portrait/paysage 11", Galaxy Tab 800–1280).
+- Desktop inline nav + CTA à partir de **1280px**.
+- Grilles 4 colonnes → 2 colonnes sous 1279px ; 1 colonne sous 640px.
+- Cibles tactiles ≥ 44px sur téléphone et tablette.
+- Apostrophes françaises : éviter `react/no-unescaped-entities` (utiliser `{"'"}` ou `’`).

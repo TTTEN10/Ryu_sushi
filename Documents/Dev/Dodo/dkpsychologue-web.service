@@ -24,7 +24,8 @@ Requires=podman.service
 Type=simple
 # Fresh container on every start; named volumes keep Caddy data (TLS certs)
 ExecStartPre=-/usr/bin/podman rm -f dkpsychologue-web
-ExecStart=/usr/bin/podman run --name dkpsychologue-web --rm -p 80:80 -p 443:443 -e ACME_AGREE=true -v caddy_data:/data -v caddy_config:/config localhost/dkpsychologue-web:latest
+# Host network avoids Docker leftover FORWARD/DROP, which blocked published 80/443.
+ExecStart=/usr/bin/podman run --name dkpsychologue-web --rm --network=host -e ACME_AGREE=true -v caddy_data:/data -v caddy_config:/config localhost/dkpsychologue-web:latest
 ExecStop=/usr/bin/podman stop dkpsychologue-web
 Restart=on-failure
 RestartSec=10

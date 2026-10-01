@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export default function useMobile(breakpoint = 768) {
+export default function useMobile(breakpoint = 1280) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < breakpoint : false
   )

@@ -1,0 +1,31 @@
+---
+description: Conventions du site vitrine dkpsychologue.com (React + Caddy)
+alwaysApply: true
+---
+
+# Dodo / dkpsychologue.com
+
+Site vitrine React SPA pour Dolgoon Khuyag. Travaillez dans `src/`.
+
+## Commandes
+
+| Commande | Rôle |
+|---|---|
+| `cd src && npm run dev` | Vite, port 3000 |
+| `cd src && npm run build` | Build → `src/dist/` |
+| `./deploy-podman.sh` | Déploiement production (recommandé) |
+
+Pas de tests. Lint baseline sale (~108) : n'introduisez pas de nouvelles erreurs, ne réparez pas tout.
+
+## Architecture
+
+- React 19 + react-router-dom v7. Entrée : `src/main.jsx`.
+- Style : CSS custom `mk-*` dans `src/index.css`. Tailwind est configuré mais inutilisé.
+- UI en français. Un composant par fichier, `export default function Nom()`.
+- Site 100 % statique. Ne pas importer `src/lib/QueryClient.jsx` ni `src/components/ui/*`.
+- `public/` est généré : ne pas l'éditer à la main.
+- Pages mortes non routées : `Parcours`, `Programme`, `Register`, `ResetPassword`.
+
+## Git
+
+La racine git est le home (`~`), pas `Dodo/`. Chemins précis uniquement. Jamais `git add .` global. Ne jamais committer `.env`.

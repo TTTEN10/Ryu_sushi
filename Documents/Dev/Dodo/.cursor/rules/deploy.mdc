@@ -1,0 +1,16 @@
+---
+description: Déploiement production Podman/Caddy et secrets Scaleway
+alwaysApply: true
+---
+
+# Déploiement
+
+Méthode recommandée : `./deploy-podman.sh` (voir `DEPLOY.md`). Pas `deploy.sh` (Docker, legacy).
+
+Après `systemctl enable --now`, redémarrer `dkpsychologue-web.service` si le conteneur n'est pas neuf.
+
+Le service utilise `--network=host` pour que Caddy écoute 80/443 sur l'instance (évite le FORWARD/DROP Docker).
+
+Secrets Scaleway : `SCW_ACCESS_KEY_ID` et `SCW_SECRET_KEY` dans `.env` (gitignoré). Ne pas les afficher ni les committer.
+
+Lien de RDV Google Calendar : grep `googleCalendarLink` et mettre à jour toutes les occurrences.
