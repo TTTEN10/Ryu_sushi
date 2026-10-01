@@ -42,8 +42,17 @@ export default function Methodologie() {
           </p>
         </div>
         <div className="mk-dimension-wheel">
-          {dimensions.map((dim, index) => (
-            <article key={index} className="mk-reveal-card">
+          {dimensions.slice(0, 2).map((dim) => (
+            <article key={dim.title} className="mk-reveal-card">
+              <h3>{dim.title}</h3>
+              <p>{dim.description}</p>
+            </article>
+          ))}
+          <div className="mk-dimension-vous" aria-hidden="true">
+            <span>Vous</span>
+          </div>
+          {dimensions.slice(2).map((dim) => (
+            <article key={dim.title} className="mk-reveal-card">
               <h3>{dim.title}</h3>
               <p>{dim.description}</p>
             </article>

@@ -20,8 +20,8 @@ export default function Hero() {
       <div className="mk-hero-copy">
         <p className="mk-kicker">PSYCHOLOGUE · CONSULTATIONS EN LIGNE</p>
         <h1>
-          Trouver sa place<br />
-          <span className="mk-gold-word">oser</span> la prendre
+          Trouver sa place,<br />
+          <span className="mk-gold-word">Oser</span> la prendre
         </h1>
         <i className="mk-rule"></i>
         <p>
@@ -37,7 +37,7 @@ export default function Hero() {
         </div>
         <p className="mk-offer-note">
           <strong>Première consultation offerte</strong>
-          <span>60 minutes · En visioconférence</span>
+          <span>30 minutes · En visioconférence</span>
         </p>
       </div>
     </section>

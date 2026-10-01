@@ -200,12 +200,54 @@ a {
 .mk-logo {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .mk-logo img {
   height: 40px;
   width: auto;
+  flex-shrink: 0;
+}
+
+.mk-logo-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.mk-logo-text strong {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--mk-navy);
+  white-space: nowrap;
+}
+
+.mk-logo-text span {
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mk-gold);
+}
+
+@media (max-width: 380px) {
+  .mk-logo img {
+    height: 32px;
+  }
+
+  .mk-logo-text strong {
+    font-size: 0.68rem;
+  }
+
+  .mk-logo-text span {
+    font-size: 0.5rem;
+    letter-spacing: 0.12em;
+  }
 }
 
 .mk-menu {
@@ -363,6 +405,12 @@ a {
   gap: 1rem;
 }
 
+@media (min-width: 1280px) {
+  .mk-header-actions {
+    margin-left: 2rem;
+  }
+}
+
 .mk-header-cta {
   padding: 0.5rem 1.25rem;
   font-size: 0.7rem;
@@ -395,7 +443,7 @@ a {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(90deg, rgba(248, 246, 243, 0.7) 0%, rgba(248, 246, 243, 0.5) 40%, rgba(248, 246, 243, 0.2) 60%, transparent 100%), url('/dolgoon-khuyag-cabinet.png');
+  background: linear-gradient(270deg, rgba(248, 246, 243, 0.7) 0%, rgba(248, 246, 243, 0.5) 40%, rgba(248, 246, 243, 0.2) 60%, transparent 100%), url('/dolgoon-khuyag-cabinet.png');
   background-size: cover;
   background-position: right center;
   background-repeat: no-repeat;
@@ -484,7 +532,7 @@ a {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-style: italic;
+  font-style: normal;
 }
 
 .mk-hero .mk-rule {
@@ -1658,22 +1706,19 @@ a {
   content: '';
   position: absolute;
   left: 1rem;
-  top: 1.3rem;
+  top: 50%;
+  transform: translateY(-50%);
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--mk-gold) 0%, var(--mk-gold-light) 60%, var(--mk-gold-dark) 100%);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-6'/%3E%3C/svg%3E") center / 12px 12px no-repeat,
+    linear-gradient(135deg, var(--mk-gold) 0%, var(--mk-gold-light) 60%, var(--mk-gold-dark) 100%);
   box-shadow: 0 2px 6px rgba(212, 175, 55, 0.4);
 }
 
 .mk-about-formation .mk-cert-list li::after {
-  content: '\2713';
-  position: absolute;
-  left: 1.08rem;
-  top: 1.28rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--mk-white);
+  content: none;
 }
 
 .mk-about-formation .mk-cert-list li:hover {
@@ -1791,6 +1836,10 @@ a {
   font-size: 0.85rem;
   color: var(--mk-navy);
   line-height: 1.6;
+}
+
+.mk-dimension-vous {
+  display: none;
 }
 
 /* Process - Un accompagnement qui ne s'arrête pas à la prise de conscience */
@@ -2325,6 +2374,29 @@ a {
   .mk-dimension-wheel .mk-reveal-card::before,
   .mk-dimension-wheel .mk-reveal-card::after {
     display: none;
+  }
+
+  .mk-dimension-vous {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    grid-column: 1 / -1;
+    width: 84px;
+    height: 84px;
+    margin: 0.15rem auto;
+    border-radius: 50%;
+    background: var(--mk-cream);
+    border: 2px solid var(--mk-gold);
+    box-shadow: 0 0 0 8px rgba(212, 175, 55, 0.12);
+  }
+
+  .mk-dimension-vous span {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mk-gold);
   }
 
   .mk-process {
