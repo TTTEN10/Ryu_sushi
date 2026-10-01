@@ -443,7 +443,7 @@ a {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(270deg, rgba(248, 246, 243, 0.7) 0%, rgba(248, 246, 243, 0.5) 40%, rgba(248, 246, 243, 0.2) 60%, transparent 100%), url('/dolgoon-khuyag-cabinet.png');
+  background: linear-gradient(90deg, rgba(248, 246, 243, 0.92) 0%, rgba(248, 246, 243, 0.78) 28%, rgba(248, 246, 243, 0.4) 42%, transparent 50%), url('/dolgoon-khuyag-cabinet.png');
   background-size: cover;
   background-position: right center;
   background-repeat: no-repeat;
