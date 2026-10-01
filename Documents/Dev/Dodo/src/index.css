@@ -602,6 +602,16 @@ a {
     height: auto;
     object-fit: contain;
     object-position: center top;
+    display: block;
+  }
+
+  .mk-hero-media::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(248, 246, 243, 0.92) 0%, rgba(248, 246, 243, 0.78) 28%, rgba(248, 246, 243, 0.4) 42%, transparent 50%);
   }
 
   .mk-hero-media::after {
@@ -611,6 +621,7 @@ a {
     right: 0;
     bottom: 0;
     height: 10%;
+    z-index: 2;
     background: linear-gradient(180deg, rgba(255, 248, 239, 0), var(--mk-cream));
     pointer-events: none;
   }
