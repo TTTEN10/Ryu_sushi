@@ -33,6 +33,7 @@ export default function Header() {
 
     if (isRoute) {
       navigate(href)
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     } else {
       if (location.pathname !== '/') {
         navigate('/' + href)
@@ -60,7 +61,7 @@ export default function Header() {
 
   return (
     <header className="mk-header" role="banner">
-      <a href="/" className="mk-logo" aria-label="Dolgoon Khuyag Psychologue" onClick={(e) => { e.preventDefault(); navigate('/'); closeMenu(); }}>
+      <a href="/" className="mk-logo" aria-label="Dolgoon Khuyag Psychologue" onClick={(e) => { e.preventDefault(); navigate('/'); closeMenu(); window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }}>
         <img src="/logo-dk.png" alt="" />
         <span className="mk-logo-text">
           <strong>DOLGOON KHUYAG</strong>
