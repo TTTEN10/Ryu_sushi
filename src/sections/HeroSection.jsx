@@ -32,11 +32,11 @@ export default function HeroSection() {
           <h1 className="hero__title">
             Du Vrai
             <span className="hero__title-accent">Sushi</span>
-            À Vannes
+            En Morbihan
           </h1>
           <p className="hero__subtitle description">
-            L&apos;art du sushi japonais depuis notre food truck à Vannes et dans le Morbihan.
-            Ingrédients frais, techniques traditionnelles, énergie moderne.
+            L&apos;art du sushi japonais depuis notre food truck itinérant, de Saint-Jean-Brévelay
+            à Larmor-Baden. Ingrédients frais, techniques traditionnelles, énergie moderne.
           </p>
           <div className="btn-group">
             <a href="#contact" className="btn btn--primary">Commander</a>
@@ -53,7 +53,7 @@ export default function HeroSection() {
         >
           <img
             src={truckAnimeImg}
-            alt="Food truck Ryu Sushi à Vannes, Morbihan - sushi japonais premium dans le Golfe du Morbihan"
+            alt="Food truck Ryu Sushi en tournée dans le Morbihan - sushi japonais premium dans le Golfe du Morbihan"
             className="hero__anime-truck"
             loading="eager"
             width={560}

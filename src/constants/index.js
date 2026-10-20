@@ -1,7 +1,7 @@
 export const SITE_NAME = 'Ryu Sushi';
 export const SITE_URL = 'https://ryusushi.com';
-export const SITE_DESCRIPTION = 'Food truck de sushi japonais premium à Vannes et dans le Morbihan. Poisson frais, savoir-faire authentique et cuisine de rue raffinée. Trouvez notre camion sushi à Vannes, consultez le menu et réservez votre expérience.';
-export const SITE_KEYWORDS = 'sushi vannes, food truck vannes, camion sushi vannes, restaurant japonais vannes, maki vannes, nigiri frais vannes, traiteur sushi morbihan, festival sushi vannes, ryu sushi vannes, vannes food, vannes food truck, vannes foodtruck, vannes sushi, manger sushi vannes, meilleur sushi vannes, food truck morbihan, sushi golfe du morbihan';
+export const SITE_DESCRIPTION = 'Food truck de sushi japonais premium en itinérance dans le Morbihan : Saint-Jean-Brévelay, Meucon, Baud, Elven, Baden, Saint-Nolff, Theix-Noyalo et Larmor-Baden. Poisson frais, savoir-faire authentique et cuisine de rue raffinée. Consultez le planning hebdomadaire et réservez votre expérience.';
+export const SITE_KEYWORDS = 'sushi morbihan, food truck morbihan, camion sushi morbihan, sushi vannes, food truck vannes, sushi saint-jean-brévelay, sushi meucon, sushi baud, sushi elven, sushi baden, sushi saint-nolff, sushi theix-noyalo, sushi larmor-baden, traiteur sushi morbihan, festival sushi morbihan, ryu sushi, food truck itinérant bretagne, marché sushi morbihan';
 
 export const NAV_LINKS = [
   { label: 'Accueil', href: '#home' },
@@ -17,19 +17,9 @@ export const CONTACT_INFO = {
   email: 'ryusushi56@gmail.com',
   instagram: 'https://instagram.com/ryusushi',
   facebook: 'https://www.facebook.com/people/Ryu-Sushi/61555112947963/?mibextid=wwXIfr&rdid=4hVQzpv94R97sT20&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F19B6FVZBff%2F%3Fmibextid%3DwwXIfr',
-  address: 'Vannes, Morbihan, France',
+  address: 'Golfe du Morbihan, France',
   geo: { lat: 47.6577, lng: -2.7603 },
 };
-
-export const OPENING_HOURS = [
-  { day: 'Lundi', hours: '11:00 — 22:00' },
-  { day: 'Mardi', hours: '11:00 — 22:00' },
-  { day: 'Mercredi', hours: '11:00 — 22:00' },
-  { day: 'Jeudi', hours: '11:00 — 23:00' },
-  { day: 'Vendredi', hours: '11:00 — 23:00' },
-  { day: 'Samedi', hours: '12:00 — 23:00' },
-  { day: 'Dimanche', hours: '12:00 — 21:00' },
-];
 
 export const COUNTERS = [
   { end: 8, suffix: '+', label: "Années d'expérience" },
@@ -37,15 +27,166 @@ export const COUNTERS = [
   { end: 100, suffix: '%', label: 'Servis avec sourire' },
 ];
 
+/**
+ * Planning hebdomadaire du food truck — source unique de vérité.
+ * Chaque jour porte une liste d'arrêts (`stops`) : certains jours en comptent deux
+ * (marché le matin, service le soir). `closed: true` marque un jour sans service.
+ * `opens` / `closes` sont au format 24 h "HH:MM" pour les données structurées ;
+ * `time` est la version affichée.
+ */
 export const WEEKLY_SCHEDULE = [
-  { day: 'Lundi', location: 'Port de Vannes', time: '11:30 — 14:30 / 18:00 — 22:00' },
-  { day: 'Mardi', location: 'Place de la République - Vannes', time: '11:30 — 14:30 / 18:00 — 22:00' },
-  { day: 'Mercredi', location: 'Marché des Lices - Vannes', time: '11:30 — 14:30 / 18:00 — 22:00' },
-  { day: 'Jeudi', location: 'Jardin des Remparts - Vannes', time: '11:30 — 14:30 / 18:00 — 22:00' },
-  { day: 'Vendredi', location: 'Plage de Conleau - Vannes', time: '11:30 — 14:30 / 18:00 — 23:00' },
-  { day: 'Samedi', location: 'Marché de Keroulzer - Vannes', time: '11:30 — 23:00' },
-  { day: 'Dimanche', location: 'Port de Plaisance - Vannes', time: '12:00 — 21:00' },
+  {
+    day: 'Lundi',
+    closed: true,
+    stops: [],
+  },
+  {
+    day: 'Mardi',
+    stops: [
+      {
+        label: 'Saint-Jean-Brévelay',
+        market: false,
+        time: '12h — 20h30',
+        opens: '12:00',
+        closes: '20:30',
+        address: 'Rue de l’Église, 56660 Saint-Jean-Brévelay',
+        city: 'Saint-Jean-Brévelay',
+        postalCode: '56660',
+      },
+    ],
+  },
+  {
+    day: 'Mercredi',
+    stops: [
+      {
+        label: 'Meucon',
+        market: true,
+        time: '16h — 20h',
+        opens: '16:00',
+        closes: '20:00',
+        address: 'Place de la Mairie, 56890 Meucon',
+        city: 'Meucon',
+        postalCode: '56890',
+      },
+    ],
+  },
+  {
+    day: 'Jeudi',
+    stops: [
+      {
+        label: 'Baud',
+        market: false,
+        time: '12h — 21h',
+        opens: '12:00',
+        closes: '21:00',
+        address: 'Place du Marché, 56150 Baud',
+        city: 'Baud',
+        postalCode: '56150',
+      },
+    ],
+  },
+  {
+    day: 'Vendredi',
+    stops: [
+      {
+        label: 'Elven',
+        market: true,
+        time: '8h — 13h',
+        opens: '08:00',
+        closes: '13:00',
+        address: 'Place de l’Église, 56250 Elven',
+        city: 'Elven',
+        postalCode: '56250',
+      },
+      {
+        label: 'Baden',
+        market: true,
+        time: '16h — 20h',
+        opens: '16:00',
+        closes: '20:00',
+        address: 'Place du Marchallac’h, 56870 Baden',
+        city: 'Baden',
+        postalCode: '56870',
+      },
+    ],
+  },
+  {
+    day: 'Samedi',
+    // Un samedi sur deux — semaines impaires uniquement.
+    biweekly: true,
+    stops: [
+      {
+        label: 'Saint-Nolff',
+        market: true,
+        time: '9h — 13h',
+        opens: '09:00',
+        closes: '13:00',
+        address: 'Centre commercial des Ajoncs, 56250 Saint-Nolff',
+        city: 'Saint-Nolff',
+        postalCode: '56250',
+      },
+      {
+        label: 'Theix-Noyalo',
+        market: false,
+        time: '16h — 20h',
+        opens: '16:00',
+        closes: '20:00',
+        address: '6 place de Rhuys, 56450 Theix-Noyalo',
+        city: 'Theix-Noyalo',
+        postalCode: '56450',
+      },
+    ],
+  },
+  {
+    day: 'Dimanche',
+    stops: [
+      {
+        label: 'Larmor-Baden',
+        market: true,
+        time: '8h — 13h',
+        opens: '08:00',
+        closes: '13:00',
+        address: 'Place de l’Église, 56870 Larmor-Baden',
+        city: 'Larmor-Baden',
+        postalCode: '56870',
+      },
+    ],
+  },
 ];
+
+export const BIWEEKLY_NOTE = '1 samedi sur 2 — semaines impaires';
+
+/** Toutes les villes desservies, dans l'ordre du planning. */
+export const SERVED_CITIES = [
+  ...new Set(WEEKLY_SCHEDULE.flatMap((d) => d.stops.map((s) => s.city))),
+];
+
+/**
+ * Arrêts à plat, un par emplacement hebdomadaire : `{ day, city, address,
+ * postalCode, market, opens, closes, biweekly }`. Utilisé pour les données
+ * structurées, qui décrivent un lieu par ville plutôt qu'un lieu unique.
+ */
+export const SCHEDULE_STOPS = WEEKLY_SCHEDULE.flatMap((d) =>
+  d.stops.map((s) => ({
+    day: d.day,
+    city: s.city,
+    address: s.address,
+    postalCode: s.postalCode,
+    market: s.market,
+    opens: s.opens,
+    closes: s.closes,
+    biweekly: Boolean(d.biweekly),
+  }))
+);
+
+/**
+ * Créneaux d'ouverture dérivés du planning, pour les données structurées.
+ * Un jour à deux arrêts produit deux créneaux (valide en schema.org).
+ */
+export const OPENING_HOURS = WEEKLY_SCHEDULE.flatMap((d) =>
+  d.stops.map((s) => ({ day: d.day, opens: s.opens, closes: s.closes }))
+);
+
 
 export const CATERING_SERVICES = [
   { title: 'Événements privés', desc: 'Réceptions intimistes avec menus sushi sur mesure, préparés devant vos invités.' },
@@ -76,11 +217,19 @@ export const SIGNATURE_ROLLS = [
 export const FAQ_ITEMS = [
   {
     question: 'Où se trouve le food truck Ryu Sushi aujourd\'hui ?',
-    answer: 'Notre emplacement change chaque jour dans Paris. Consultez la section Food Truck pour voir le planning hebdomadaire et l\'adresse du jour.',
+    answer: 'Notre emplacement change chaque jour dans le Morbihan : Saint-Jean-Brévelay le mardi, Meucon le mercredi, Baud le jeudi, Elven et Baden le vendredi, Saint-Nolff et Theix-Noyalo le samedi, Larmor-Baden le dimanche. Consultez la section Food Truck pour l\'adresse et les horaires du jour.',
+  },
+  {
+    question: 'Êtes-vous ouverts le lundi ?',
+    answer: 'Non, le food truck est fermé tous les lundis. Nous vous retrouvons du mardi au dimanche.',
+  },
+  {
+    question: 'Le samedi, êtes-vous toujours là ?',
+    answer: 'Nous sommes présents un samedi sur deux, les semaines impaires. Le planning du site indique automatiquement si le samedi à venir est ouvert.',
   },
   {
     question: 'Proposez-vous des événements privés ou des festivals ?',
-    answer: 'Oui. Ryu Sushi intervient pour les événements privés et les festivals avec des menus sur mesure et une préparation live.',
+    answer: 'Oui. Ryu Sushi intervient pour les événements privés et les festivals dans tout le Morbihan, avec des menus sur mesure et une préparation live.',
   },
   {
     question: 'Les poissons sont-ils frais ?',
@@ -88,6 +237,6 @@ export const FAQ_ITEMS = [
   },
   {
     question: 'Comment réserver ou commander ?',
-    answer: 'Utilisez le formulaire de contact ou de réservation sur le site, ou appelez-nous au 07 88 42 15 46.',
+    answer: 'Commandez par appel ou SMS au 07 88 42 15 46. Pour un événement privé ou un festival, appelez-nous ou écrivez à ryusushi56@gmail.com.',
   },
 ];

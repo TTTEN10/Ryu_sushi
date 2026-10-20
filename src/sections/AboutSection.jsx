@@ -27,7 +27,7 @@ export default function AboutSection() {
             <h2 className="section-title">L&apos;Art de Ryu Sushi</h2>
             <p className="description" style={{ marginBottom: '24px', color: 'var(--steel)' }}>
               Né d&apos;une passion pour la cuisine japonaise authentique, Ryu Sushi apporte l&apos;excellence
-              du sushi directement dans les rues de Vannes et du Morbihan. Ryu — le dragon — symbolise la puissance,
+              du sushi directement dans les rues du Morbihan, de marché en marché. Ryu — le dragon — symbolise la puissance,
               la sagesse et la quête incessante de perfection culinaire.
             </p>
             <p className="description" style={{ marginBottom: '24px', color: 'var(--steel)' }}>
@@ -36,7 +36,7 @@ export default function AboutSection() {
             </p>
             <p className="description" style={{ color: 'var(--steel)' }}>
               Des événements privés aux festivals dans le Morbihan, Ryu Sushi offre une expérience inoubliable
-              qui vous transporte au cœur des meilleurs bars à sushi de Tokyo, maintenant à Vannes.
+              qui vous transporte au cœur des meilleurs bars à sushi de Tokyo, le temps d&apos;une halte.
             </p>
             <div className="red-stamp mt-32" aria-hidden="true">龍</div>
           </motion.div>

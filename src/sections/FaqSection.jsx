@@ -19,7 +19,7 @@ export default function FaqSection() {
           <p className="section-label">FAQ</p>
           <h2 className="section-title">Questions Fréquentes</h2>
           <p className="section-subtitle center description">
-            Tout ce qu&apos;il faut savoir sur le food truck Ryu Sushi à Paris.
+            Tout ce qu&apos;il faut savoir sur le food truck Ryu Sushi en Morbihan.
           </p>
         </motion.div>
 

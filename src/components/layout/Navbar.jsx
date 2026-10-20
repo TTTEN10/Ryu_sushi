@@ -45,7 +45,7 @@ export default function Navbar() {
     <nav className={`nav ${lastScrollYRef.current > 50 ? 'nav--scrolled' : ''} ${hidden ? 'nav--hidden' : ''}`} role="navigation" aria-label="Navigation principale">
       <div className="container nav__inner">
         <a href="#home" onClick={(e) => { e.preventDefault(); handleNavClick('#home'); }} aria-label="Ryu Sushi — Accueil">
-          <img src={logoImg} alt="Ryu Sushi — Food truck sushi japonais à Vannes, Morbihan" className="nav__logo" />
+          <img src={logoImg} alt="Ryu Sushi — Food truck sushi japonais en tournée dans le Morbihan" className="nav__logo" />
         </a>
 
         <div className="nav__actions">

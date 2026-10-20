@@ -911,6 +911,154 @@
   max-width: 90%;
 }
 
+/* Menu — note de commande, note de catégorie, quantité d'un article */
+.menu-order-note {
+  margin-top: 20px;
+  font-size: var(--font-small);
+  color: var(--steel);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.menu-order-note a {
+  color: var(--orange);
+  border-bottom: 1px dotted currentColor;
+}
+
+.menu-category-note {
+  text-align: center;
+  margin: -28px 0 40px;
+  font-size: var(--font-small);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.menu-list__meta {
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--steel);
+  border: 1px solid rgba(126, 148, 160, 0.35);
+  border-radius: var(--radius-btn);
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+
+/* Menu — formules (Hitori, Nijuu, Sanjuu, Shogo) */
+.formule-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 32px;
+}
+
+.formule-card {
+  display: flex;
+  flex-direction: column;
+  padding: 32px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: rgba(126, 148, 160, 0.08);
+  transition: var(--transition);
+}
+
+.formule-card:hover {
+  border-color: var(--orange);
+}
+
+.formule-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(126, 148, 160, 0.2);
+}
+
+.formule-card__name {
+  font-size: var(--font-menu);
+  letter-spacing: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.formule-card__meta {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--orange);
+  color: #120B03;
+  padding: 4px 10px;
+  border-radius: 3px;
+  transform: rotate(-2deg);
+}
+
+.formule-card__serve {
+  margin-top: 8px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+.formule-card__price {
+  font-size: var(--font-menu);
+  color: var(--red);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.formule-card__contents {
+  list-style: none;
+  flex: 1;
+  margin: 20px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 20px;
+}
+
+.formule-card__content-line {
+  font-size: var(--font-small);
+  color: var(--steel);
+  text-transform: none;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+
+.formule-card__content-line::before {
+  content: '·';
+  color: var(--orange);
+  margin-right: 8px;
+}
+
+.formule-card__footer {
+  padding-top: 20px;
+  border-top: 1px solid rgba(126, 148, 160, 0.2);
+}
+
+.formule-card__sides {
+  font-size: var(--font-small);
+  color: var(--black);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.formule-card__sides-label {
+  color: var(--steel);
+}
+
+.formule-card__note {
+  margin-top: 8px;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--steel);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
 /* Featured dishes */
 .featured-grid {
   display: grid;
@@ -1024,6 +1172,133 @@
   font-size: var(--font-small);
   margin-top: 8px;
   color: var(--black);
+}
+
+/* Arrêts multiples par jour (marché le matin + service le soir) */
+.schedule-card__stop {
+  display: block;
+  font-weight: 500;
+}
+
+.schedule-card__stop + .schedule-card__stop,
+.schedule-card__slot + .schedule-card__slot {
+  margin-top: 4px;
+}
+
+.schedule-card__tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 162, 2, 0.45);
+  color: var(--orange);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.schedule-card__slot {
+  display: block;
+  color: var(--steel);
+  font-size: 14px;
+}
+
+/* Samedi en semaine paire, ou jour sans service */
+.schedule-card--inactive {
+  opacity: 0.55;
+}
+
+.schedule-card__badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(240, 162, 2, 0.12);
+  border: 1px solid rgba(240, 162, 2, 0.35);
+  color: var(--orange);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.schedule-note {
+  font-size: 14px;
+  color: var(--steel);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* Indicateur « ouvert maintenant » dans le bloc du jour */
+.open-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 5px 14px 5px 11px;
+  border-radius: var(--radius-btn);
+  background: rgba(126, 148, 160, 0.12);
+  border: 1px solid rgba(126, 148, 160, 0.3);
+}
+
+.open-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--steel);
+  flex-shrink: 0;
+}
+
+.open-status__dot--open {
+  background: #3FBF7F;
+  box-shadow: 0 0 0 0 rgba(63, 191, 127, 0.55);
+  animation: openPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes openPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(63, 191, 127, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(63, 191, 127, 0); }
+}
+
+.open-status__label {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: var(--steel);
+}
+
+/* Rappel du samedi bimensuel, sous le bloc du jour */
+.find-us-horizontal__biweekly {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(126, 148, 160, 0.2);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: var(--steel);
+}
+
+/* Liste des arrêts du jour dans le bloc « aujourd'hui » */
+.today-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.today-stops__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.today-stops__time {
+  font-size: var(--font-menu);
+  color: var(--orange);
+  line-height: 1.2;
+}
+
+.today-stops__address {
+  font-size: var(--font-small);
+  color: var(--steel);
+  line-height: 1.4;
 }
 
 /* Find us — horizontal layout */
@@ -1614,6 +1889,24 @@ img {
 
   .menu-list__price {
     font-size: 18px;
+  }
+
+  .formule-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .formule-card {
+    padding: 24px;
+  }
+
+  .formule-card__name,
+  .formule-card__price {
+    font-size: 20px;
+  }
+
+  .formule-card__contents {
+    grid-template-columns: 1fr;
   }
 
   .contact-coords__value {

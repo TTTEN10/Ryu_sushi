@@ -10,8 +10,8 @@ export default function Footer() {
           <div>
             <img src={logoImg} alt="Ryu Sushi" className="footer__logo" />
             <p className="footer__desc">
-              Food truck de sushi japonais premium à Vannes et dans le Morbihan. Savoir-faire authentique
-              et ingrédients les plus frais, directement dans vos rues.
+              Food truck de sushi japonais premium en tournée dans le Morbihan, de Saint-Jean-Brévelay
+              à Larmor-Baden. Savoir-faire authentique et ingrédients les plus frais, directement dans vos rues.
             </p>
             <div className="footer__socials">
               <a href={CONTACT_INFO.instagram} className="footer__social" aria-label="Instagram Ryu Sushi" target="_blank" rel="noopener noreferrer">

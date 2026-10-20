@@ -6,9 +6,16 @@ import {
   SITE_KEYWORDS,
   CONTACT_INFO,
   OPENING_HOURS,
+  SERVED_CITIES,
+  SCHEDULE_STOPS,
   NAV_LINKS,
 } from '../../constants';
-import { MENU_CATEGORIES, MENU_ITEMS } from '../../constants/menu';
+import {
+  MENU_CATEGORIES,
+  MENU_CATEGORY_NOTES,
+  MENU_ITEMS,
+  MENU_FORMULES,
+} from '../../constants/menu';
 
 const OG_IMAGE = `${SITE_URL}/assets/ryu-truck-anime.png`;
 const LOGO_IMAGE = `${SITE_URL}/assets/ryu-logo.png`;
@@ -23,45 +30,63 @@ const DAY_TO_SCHEMA = {
   Dimanche: 'Sunday',
 };
 
-function parseHours(hours) {
-  const [opens, closes] = hours.split(' — ').map((part) => part.trim());
-  return { opens, closes };
+function buildOpeningHours() {
+  return OPENING_HOURS.map((slot) => ({
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: DAY_TO_SCHEMA[slot.day] || slot.day,
+    opens: slot.opens,
+    closes: slot.closes,
+  }));
 }
 
+/** Emplacements desservis, dérivés du planning (source unique de vérité). */
+const AREA_SERVED = SERVED_CITIES.map((city) => ({ '@type': 'City', name: city }));
+
+/** "Saint-Jean-Brévelay" → "saint-jean-brevelay", pour les `@id` de lieu. */
+const slugify = (value) =>
+  value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
 function buildMenuSchema() {
-  const items = MENU_CATEGORIES.flatMap((cat) =>
-    (MENU_ITEMS[cat] || []).map((item) => ({
-      '@type': 'MenuItem',
-      name: item.name,
-      description: item.desc,
-      offers: {
-        '@type': 'Offer',
-        price: item.price.replace(/[^\d,]/g, '').replace(',', '.'),
-        priceCurrency: 'EUR',
-      },
-    }))
-  );
+  const toOffer = (price) => ({
+    '@type': 'Offer',
+    price: price.replace(/[^\d,]/g, '').replace(',', '.'),
+    priceCurrency: 'EUR',
+  });
+
+  const toMenuItem = (item) => ({
+    '@type': 'MenuItem',
+    name: item.meta ? `${item.name} (${item.meta})` : item.name,
+    ...(item.desc ? { description: item.desc } : {}),
+    offers: toOffer(item.price),
+  });
+
+  const sections = MENU_CATEGORIES.map((cat) => ({
+    '@type': 'MenuSection',
+    name: cat,
+    ...(MENU_CATEGORY_NOTES[cat] ? { description: MENU_CATEGORY_NOTES[cat] } : {}),
+    hasMenuItem: cat === 'Menus'
+      ? MENU_FORMULES.map((formule) => ({
+          '@type': 'MenuItem',
+          name: `Menu ${formule.name} — ${formule.pieces} (${formule.persons})`,
+          description: `${formule.contents.join(', ')}. Accompagnement : ${formule.sides}.`,
+          offers: toOffer(formule.price),
+        }))
+      : (MENU_ITEMS[cat] || []).map(toMenuItem),
+  }));
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Menu',
-    name: 'Menu Ryu Sushi',
-    description: 'Carte complète du food truck sushi japonais Ryu Sushi à Paris',
-    hasMenuSection: MENU_CATEGORIES.map((cat) => ({
-      '@type': 'MenuSection',
-      name: cat,
-      hasMenuItem: (MENU_ITEMS[cat] || []).map((item) => ({
-        '@type': 'MenuItem',
-        name: item.name,
-        description: item.desc,
-        offers: {
-          '@type': 'Offer',
-          price: item.price.replace(/[^\d,]/g, '').replace(',', '.'),
-          priceCurrency: 'EUR',
-        },
-      })),
-    })),
-    hasMenuItem: items.slice(0, 20),
+    '@id': `${SITE_URL}/#menu`,
+    name: 'Menu Ryu Sushi 2026',
+    description: 'Carte complète du food truck sushi japonais Ryu Sushi, en Morbihan',
+    inLanguage: 'fr-FR',
+    hasMenuSection: sections,
   };
 }
 
@@ -107,7 +132,7 @@ const schemas = [
     '@type': ['Restaurant', 'FoodEstablishment', 'LocalBusiness'],
     '@id': `${SITE_URL}/#restaurant`,
     name: SITE_NAME,
-    alternateName: 'Ryu Sushi Food Truck Vannes',
+    alternateName: 'Ryu Sushi Food Truck Morbihan',
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     telephone: CONTACT_INFO.phone,
@@ -119,11 +144,10 @@ const schemas = [
     acceptsReservations: true,
     currenciesAccepted: 'EUR',
     paymentAccepted: 'Cash, Credit Card',
+    // Food truck itinérant : le Morbihan est la zone desservie, sans adresse fixe.
     address: {
       '@type': 'PostalAddress',
-      addressLocality: 'Vannes',
       addressRegion: 'Morbihan',
-      postalCode: '56000',
       addressCountry: 'FR',
     },
     geo: {
@@ -132,22 +156,11 @@ const schemas = [
       longitude: CONTACT_INFO.geo.lng,
     },
     areaServed: [
-      { '@type': 'City', name: 'Vannes' },
-      { '@type': 'City', name: 'Ploeren' },
-      { '@type': 'City', name: 'Arradon' },
-      { '@type': 'City', name: 'Baden' },
-      { '@type': 'City', name: 'Plescop' },
+      ...AREA_SERVED,
       { '@type': 'AdministrativeArea', name: 'Golfe du Morbihan' },
+      { '@type': 'AdministrativeArea', name: 'Morbihan' },
     ],
-    openingHoursSpecification: OPENING_HOURS.map((h) => {
-      const { opens, closes } = parseHours(h.hours);
-      return {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: DAY_TO_SCHEMA[h.day] || h.day,
-        opens,
-        closes,
-      };
-    }),
+    openingHoursSpecification: buildOpeningHours(),
     sameAs: [CONTACT_INFO.instagram, CONTACT_INFO.facebook],
     parentOrganization: { '@id': `${SITE_URL}/#organization` },
     hasMenu: { '@id': `${SITE_URL}/#menu` },
@@ -157,7 +170,8 @@ const schemas = [
     '@type': 'FoodTruck',
     '@id': `${SITE_URL}/#foodtruck`,
     name: `${SITE_NAME} Food Truck`,
-    description: 'Food truck sushi japonais premium à Vannes et dans le Golfe du Morbihan',
+    description: 'Food truck de sushi japonais en tournée dans le Morbihan : Saint-Jean-Brévelay, Meucon, Baud, Elven, Baden, Saint-Nolff, Theix-Noyalo et Larmor-Baden.',
+    url: SITE_URL,
     telephone: CONTACT_INFO.phone,
     email: CONTACT_INFO.email,
     image: OG_IMAGE,
@@ -165,9 +179,7 @@ const schemas = [
     servesCuisine: ['Japanese', 'Sushi', 'Japonais'],
     address: {
       '@type': 'PostalAddress',
-      addressLocality: 'Vannes',
       addressRegion: 'Morbihan',
-      postalCode: '56000',
       addressCountry: 'FR',
     },
     geo: {
@@ -175,9 +187,44 @@ const schemas = [
       latitude: CONTACT_INFO.geo.lat,
       longitude: CONTACT_INFO.geo.lng,
     },
+    areaServed: AREA_SERVED,
+    openingHoursSpecification: buildOpeningHours(),
     hasMenu: { '@id': `${SITE_URL}/#menu` },
     sameAs: [CONTACT_INFO.instagram, CONTACT_INFO.facebook],
   },
+  // Un lieu par emplacement hebdomadaire : chaque ville a sa propre adresse et
+  // ses propres horaires, ce qui alimente les résultats locaux par commune.
+  ...SCHEDULE_STOPS.map((stop) => ({
+    '@context': 'https://schema.org',
+    '@type': 'FoodEstablishment',
+    '@id': `${SITE_URL}/#stop-${slugify(stop.city)}`,
+    name: `${SITE_NAME} — ${stop.city}${stop.market ? ' (marché)' : ''}`,
+    description: stop.biweekly
+      ? `Food truck de sushi japonais Ryu Sushi à ${stop.city}, un samedi sur deux (semaines impaires).`
+      : `Food truck de sushi japonais Ryu Sushi à ${stop.city}, le ${stop.day.toLowerCase()}.`,
+    url: SITE_URL,
+    telephone: CONTACT_INFO.phone,
+    image: OG_IMAGE,
+    priceRange: '€€',
+    servesCuisine: ['Japanese', 'Sushi'],
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: stop.address.split(',')[0].trim(),
+      addressLocality: stop.city,
+      postalCode: stop.postalCode,
+      addressRegion: 'Morbihan',
+      addressCountry: 'FR',
+    },
+    areaServed: { '@type': 'City', name: stop.city },
+    openingHoursSpecification: {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: DAY_TO_SCHEMA[stop.day] || stop.day,
+      opens: stop.opens,
+      closes: stop.closes,
+    },
+    parentOrganization: { '@id': `${SITE_URL}/#organization` },
+    hasMenu: { '@id': `${SITE_URL}/#menu` },
+  })),
   {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -192,8 +239,8 @@ const schemas = [
 ];
 
 export default function SEO() {
-  const title = `${SITE_NAME} — Food Truck Sushi Japonais Premium à Vannes & Morbihan`;
-  const twitterTitle = `${SITE_NAME} | Sushi Food Truck Vannes`;
+  const title = `${SITE_NAME} — Food Truck Sushi Japonais en Tournée dans le Morbihan`;
+  const twitterTitle = `${SITE_NAME} | Sushi Food Truck Morbihan`;
 
   return (
     <Helmet htmlAttributes={{ lang: 'fr' }}>
@@ -208,7 +255,7 @@ export default function SEO() {
       <link rel="alternate" hrefLang="x-default" href={SITE_URL} />
 
       <meta name="geo.region" content="FR-56" />
-      <meta name="geo.placename" content="Vannes" />
+      <meta name="geo.placename" content="Morbihan" />
       <meta name="geo.position" content={`${CONTACT_INFO.geo.lat};${CONTACT_INFO.geo.lng}`} />
       <meta name="ICBM" content={`${CONTACT_INFO.geo.lat}, ${CONTACT_INFO.geo.lng}`} />
 
@@ -220,7 +267,7 @@ export default function SEO() {
       <meta property="og:image" content={OG_IMAGE} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta property="og:image:alt" content="Food truck Ryu Sushi à Vannes, Morbihan" />
+      <meta property="og:image:alt" content="Food truck Ryu Sushi en tournée dans le Morbihan" />
       <meta property="og:locale" content="fr_FR" />
       <meta property="og:locale:alternate" content="en_US" />
 
@@ -228,7 +275,7 @@ export default function SEO() {
       <meta name="twitter:title" content={twitterTitle} />
       <meta name="twitter:description" content={SITE_DESCRIPTION} />
       <meta name="twitter:image" content={OG_IMAGE} />
-      <meta name="twitter:image:alt" content="Food truck Ryu Sushi à Vannes, Morbihan" />
+      <meta name="twitter:image:alt" content="Food truck Ryu Sushi en tournée dans le Morbihan" />
 
       <meta name="apple-mobile-web-app-title" content={SITE_NAME} />
       <meta name="application-name" content={SITE_NAME} />
