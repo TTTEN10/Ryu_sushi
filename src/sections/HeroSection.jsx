@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { fadeInUp, fadeInRight } from '../animations/variants';
-import Lanterns from '../components/ui/Lanterns';
 const truckAnimeImg = '/images/ryu-truck-anime.png';
 
 export default function HeroSection() {
@@ -12,7 +11,6 @@ export default function HeroSection() {
         <div className="hero__circle hero__circle--3" />
       </div>
       <div className="paper-texture" aria-hidden="true" />
-      <Lanterns />
 
       <div className="smoke-container" style={{ bottom: '20%', left: '60%' }} aria-hidden="true">
         {[0, 1, 2].map((i) => (

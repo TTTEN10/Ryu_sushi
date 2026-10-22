@@ -95,17 +95,6 @@
   100% { opacity: 0; transform: translateY(-80px) scale(1.4); }
 }
 
-@keyframes lanternSwayHero {
-  0%, 100% { transform: rotate(-5deg) translateY(0); }
-  33%       { transform: rotate(3deg) translateY(-3px); }
-  66%       { transform: rotate(-2deg) translateY(-1px); }
-}
-
-@keyframes lanternGlowPulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50%      { opacity: 1; transform: scale(1.08); }
-}
-
 .animate-float {
   animation: float 4s ease-in-out infinite;
 }

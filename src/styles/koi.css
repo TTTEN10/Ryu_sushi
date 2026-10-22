@@ -1,19 +1,20 @@
-/* ─── Koi pond : flat top-down koi swimming along offset-paths ───
-   Palette and proportions are taken from the brand artwork
-   (Copie de Vector Smart Object_Poisson.ai): cream body, red/orange
-   patches, forked tail, pectoral fins, paired eyes. */
+/* ─── Coil Koi (offset-path animation) ───
+   Bead-chain look restored from before the "brand artwork" rework, but
+   keeping the current movement choreography: two crossing routes
+   (pathA / pathB), per-fish duration / delay / rest, negative delays so
+   the school is mid-route on load, and reduced-motion parks the fish on
+   their route instead of hiding them. */
 
 .koi-pond {
-  /* Artwork palette */
-  --koi-cream: #fff7ed;
-  --koi-white: #ffddaf;
-  --koi-red: #ff5e38;
-  --koi-orange: #ffaa56;
-  --koi-gold: #f2af00;
-  --koi-dark: #1a1410;
-
-  --koi-w: 104px;
-  --koi-opacity: 0.8;
+  --coilSize: 24px;
+  --delayCount: 160ms;
+  --scaleMe: 1;
+  --scaleFlip: 1;
+  --posFlip: 0;
+  --koi-white: #FAF7EF;
+  --koi-red: #E73636;
+  --koi-orange: #F0A202;
+  --koi-black: #120B03;
 
   position: absolute;
   inset: 0;
@@ -40,197 +41,257 @@
     radial-gradient(ellipse 40% 25% at 70% 50%, rgba(231, 54, 54, 0.06), transparent);
 }
 
-/* ── The fish ──────────────────────────────────────────────────────────
-   Body is ~2.2:1, matching the side-on koi in the artwork. Head at the
-   right, so `offset-rotate: auto` points the head along the swim path. */
-
-.koi {
-  /* variant hooks — overridden by the modifier classes below */
-  --koi-body: var(--koi-cream);
-  --koi-patch: var(--koi-red);
-  --koi-fin: var(--koi-orange);
-  --koi-eye: var(--koi-dark);
-
+.coil-fish {
   position: absolute;
   top: 0;
   left: 0;
-  width: var(--koi-w);
-  height: calc(var(--koi-w) * 0.46);
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(
+    calc(var(--coilSize) * 4) calc(var(--coilSize) / 3) 5px rgba(18, 11, 3, 0.2)
+  );
+}
 
-  offset-anchor: center;
-  offset-rotate: auto;
-  opacity: var(--koi-opacity);
-
-  animation: koiSwim var(--koi-dur, 26s) linear infinite;
-  animation-delay: var(--koi-delay, 0s);
-  will-change: offset-distance;
+.coil-fish--flip {
+  transform-origin: top center;
+  transform: scale(-1, 1);
+  filter: drop-shadow(
+    calc(var(--coilSize) * -4) calc(var(--coilSize) / 3) 5px rgba(18, 11, 3, 0.2)
+  );
 }
 
 /* Two crossing routes so the school reads as a living pond */
-.koi--pathA {
+.coil-fish--pathA .koi-coil {
   offset-path: path("M -260 200 C 140 70 470 370 860 220 S 1450 50 1920 260");
 }
-.koi--pathB {
+.coil-fish--pathB .koi-coil {
   offset-path: path("M 1920 640 C 1500 520 1180 800 780 660 S 180 470 -260 720");
 }
 
-/* ── Body ── */
-.koi__body {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 74%;
-  height: 100%;
-  background: var(--koi-body);
-  /* narrows toward the tail joint (left), full rounded head (right) */
-  border-radius: 52% 48% 48% 52% / 50% 50% 50% 50%;
-  clip-path: polygon(
-    0% 26%,
-    18% 4%,
-    62% 0%,
-    100% 22%,
-    100% 78%,
-    62% 100%,
-    18% 96%,
-    0% 74%
-  );
-  overflow: hidden; /* keeps the patches inside the silhouette */
-}
+.coil-fish--sm { --coilSize: 18px; }
+.coil-fish--md { --coilSize: 24px; }
+.coil-fish--lg { --coilSize: 28px; }
 
-/* Colour patches — the "blobs" that define the koi markings */
-.koi__patch {
+.koi-coil {
   position: absolute;
-  background: var(--koi-patch);
-}
-.koi__patch--1 {
-  width: 40%;
-  height: 66%;
-  top: 14%;
-  right: 24%;
-  border-radius: 62% 38% 52% 48% / 58% 46% 54% 42%;
-}
-.koi__patch--2 {
-  width: 26%;
-  height: 46%;
-  bottom: 10%;
-  right: 54%;
-  border-radius: 48% 52% 40% 60% / 52% 58% 42% 48%;
-}
-
-/* ── Tail (forked caudal fin, sways) ──
-   Right edge is a full-height vertical so it seats under the body. */
-.koi__tail {
-  position: absolute;
-  top: 8%;
-  left: 0;
-  width: 42%;
-  height: 84%;
-  background: var(--koi-body);
-  clip-path: polygon(
-    100% 0%,
-    34% 0%,
-    0% 19%,
-    46% 50%,
-    0% 81%,
-    34% 100%,
-    100% 100%
-  );
-  transform-origin: 100% 50%;
-  animation: koiTail 2.4s ease-in-out infinite alternate;
-}
-
-/* ── Pectoral fins ── */
-/* Fins are teardrops anchored just inside the body edge, then rotated to
-   sweep back. They sit behind the body in the DOM, so only the part that
-   clears the silhouette reads — giving a soft fin rather than a block. */
-.koi__fin {
-  position: absolute;
-  width: 22%;
-  height: 58%;
-  left: 48%;
-  background: var(--koi-fin);
-  border-radius: 50% 50% 42% 58% / 62% 62% 38% 38%;
-  animation: koiFin 2.8s ease-in-out infinite alternate;
-}
-.koi__fin--top {
-  top: -22%;
-  --fin-rot: -32deg;
-  transform-origin: bottom right;
-}
-.koi__fin--bottom {
-  bottom: -22%;
-  --fin-rot: 32deg;
-  transform-origin: top right;
-}
-
-/* ── Eyes (top-down: one on each flank, near the head) ── */
-.koi__eye {
-  position: absolute;
-  right: 13%;
-  width: 7%;
-  aspect-ratio: 1;
+  width: var(--coilSize);
+  height: var(--coilSize);
+  background-color: var(--koi-red);
   border-radius: 50%;
-  background: var(--koi-eye);
-}
-.koi__eye--top { top: 24%; }
-.koi__eye--bottom { bottom: 24%; }
-
-/* ── Colour variants ── */
-.koi--orange {
-  --koi-patch: var(--koi-orange);
-  --koi-fin: var(--koi-gold);
-}
-/* sumi-goi: dark body, cream markings */
-.koi--sumi {
-  --koi-body: var(--koi-dark);
-  --koi-patch: var(--koi-cream);
-  --koi-fin: var(--koi-white);
-  --koi-eye: var(--koi-red);
+  top: 50%;
+  left: 50%;
+  margin-left: calc(var(--coilSize) / -2);
+  margin-top: calc(var(--coilSize) / -2);
+  transform: scale(var(--scaleMe), var(--scaleMe));
+  filter: contrast(200%);
+  will-change: offset-distance;
+  animation: coilFishAnim var(--koi-dur, 20s) linear infinite;
+  animation-delay: var(--koi-delay, 0s);
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-white) inset;
 }
 
-/* ── Size ── */
-.koi--sm { --koi-w: 72px; }
-.koi--md { --koi-w: 104px; }
-.koi--lg { --koi-w: 140px; }
-
-/* ── Depth ── */
-.koi--back {
-  --koi-opacity: 0.28;
-  filter: blur(1.2px);
-}
-.koi--mid { --koi-opacity: 0.5; }
-.koi--front { --koi-opacity: 0.78; }
-
-@keyframes koiSwim {
-  from { offset-distance: 0%; }
-  to { offset-distance: 100%; }
+/* White / kohaku variant (flipped fish) */
+.coil-fish--flip .koi-coil {
+  background-color: var(--koi-white);
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-red) inset;
 }
 
-@keyframes koiTail {
-  from { transform: rotate(-11deg); }
-  to { transform: rotate(11deg); }
+/* Orange variant */
+.coil-fish--orange .koi-coil {
+  background-color: var(--koi-orange);
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-white) inset;
 }
 
-@keyframes koiFin {
-  from { transform: rotate(calc(var(--fin-rot) - 7deg)) scaleY(1); }
-  to { transform: rotate(calc(var(--fin-rot) + 9deg)) scaleY(0.85); }
+.coil-fish--orange.coil-fish--flip .koi-coil {
+  background-color: var(--koi-white);
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-orange) inset;
+}
+
+/* Black and white variant (sumi-goi / shiro utsuri style) */
+.coil-fish--blackwhite .koi-coil {
+  background-color: var(--koi-black);
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-white) inset;
+}
+
+.coil-fish--blackwhite.coil-fish--flip .koi-coil {
+  background-color: var(--koi-white);
+  box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-black) inset;
+}
+
+.coil-fish--blackwhite .koi-coil:nth-of-type(15),
+.coil-fish--blackwhite .koi-coil:nth-of-type(14) {
+  background-color: var(--koi-black);
+}
+
+.coil-fish--blackwhite.coil-fish--flip .koi-coil:nth-of-type(15),
+.coil-fish--blackwhite.coil-fish--flip .koi-coil:nth-of-type(14) {
+  background-color: var(--koi-white);
+}
+
+.coil-fish--blackwhite .koi-coil:nth-of-type(1)::before {
+  background-color: var(--koi-white);
+}
+
+.coil-fish--blackwhite.coil-fish--flip .koi-coil:nth-of-type(1)::before {
+  background-color: var(--koi-black);
+}
+
+.coil-fish--blackwhite .koi-coil:nth-of-type(12)::before,
+.coil-fish--blackwhite .koi-coil:nth-of-type(12)::after {
+  background-color: var(--koi-white);
+}
+
+.coil-fish--blackwhite.coil-fish--flip .koi-coil:nth-of-type(12)::before,
+.coil-fish--blackwhite.coil-fish--flip .koi-coil:nth-of-type(12)::after {
+  background-color: var(--koi-black);
+}
+
+/* Tail coils */
+.coil-fish .koi-coil:nth-of-type(15),
+.coil-fish .koi-coil:nth-of-type(14) {
+  background-color: var(--koi-red);
+}
+
+.coil-fish--flip .koi-coil:nth-of-type(15),
+.coil-fish--flip .koi-coil:nth-of-type(14) {
+  background-color: var(--koi-white);
+}
+
+.coil-fish--orange .koi-coil:nth-of-type(15),
+.coil-fish--orange .koi-coil:nth-of-type(14) {
+  background-color: var(--koi-orange);
+}
+
+.coil-fish--orange.coil-fish--flip .koi-coil:nth-of-type(15),
+.coil-fish--orange.coil-fish--flip .koi-coil:nth-of-type(14) {
+  background-color: var(--koi-white);
+}
+
+/* Eye on tail coil */
+.koi-coil:nth-of-type(15)::after {
+  content: ":";
+  position: absolute;
+  color: var(--koi-black);
+  font-weight: 800;
+  text-align: center;
+  line-height: 60%;
+  font-size: calc(var(--coilSize) * 1.2);
+  width: 100%;
+}
+
+/* Tail fin (head coil) */
+.koi-coil:nth-of-type(1)::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 50%;
+  top: 25%;
+  left: -100%;
+  border-radius: var(--coilSize);
+  background-color: var(--koi-white);
+  transform-origin: center right;
+  animation: coilBackFlip 200ms ease-in-out alternate infinite;
+}
+
+.coil-fish--flip .koi-coil:nth-of-type(1)::before {
+  background-color: var(--koi-red);
+}
+
+.coil-fish--orange .koi-coil:nth-of-type(1)::before {
+  background-color: var(--koi-white);
+}
+
+/* Body scale + stagger delays — the per-fish negative delay offsets the
+   whole string so the school is mid-route on load */
+.koi-coil:nth-of-type(14) { --scaleMe: 1.2; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 1); }
+.koi-coil:nth-of-type(13) { --scaleMe: 1.35; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 2); }
+.koi-coil:nth-of-type(12) { --scaleMe: 1.55; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 3); }
+.koi-coil:nth-of-type(11) { --scaleMe: 1.75; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 4); }
+.koi-coil:nth-of-type(10) { --scaleMe: 1.9;  animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 5); }
+.koi-coil:nth-of-type(9)  { --scaleMe: 2;    animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 6); }
+.koi-coil:nth-of-type(8)  { --scaleMe: 2;    animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 7); }
+.koi-coil:nth-of-type(7)  { --scaleMe: 2;    animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 8); }
+.koi-coil:nth-of-type(6)  { --scaleMe: 1.9;  animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 9); }
+.koi-coil:nth-of-type(5)  { --scaleMe: 1.75; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 10); }
+.koi-coil:nth-of-type(4)  { --scaleMe: 1.55; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 11); }
+.koi-coil:nth-of-type(3)  { --scaleMe: 1.35; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 12); }
+.koi-coil:nth-of-type(2)  { --scaleMe: 1.2;  animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 13); }
+.koi-coil:nth-of-type(1)  { animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 14); }
+
+/* Side fins on coil 12 */
+.koi-coil:nth-of-type(12)::before,
+.koi-coil:nth-of-type(12)::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 20%;
+  top: -10%;
+  left: -100%;
+  border-radius: var(--coilSize);
+  background-color: var(--koi-white);
+  transform-origin: center right;
+  animation: coilSideFlip 500ms ease-in-out alternate infinite;
+}
+
+.coil-fish--flip .koi-coil:nth-of-type(12)::before,
+.coil-fish--flip .koi-coil:nth-of-type(12)::after {
+  background-color: var(--koi-red);
+}
+
+.koi-coil:nth-of-type(12)::after {
+  --scaleFlip: -1;
+  --posFlip: calc(var(--coilSize) * -1);
+}
+
+/* Depth / placement modifiers */
+.coil-fish--back  { opacity: 0.28; filter: blur(1.2px) drop-shadow(calc(var(--coilSize) * 4) calc(var(--coilSize) / 3) 3px rgba(18, 11, 3, 0.15)); }
+.coil-fish--mid   { opacity: 0.5; }
+.coil-fish--front { opacity: 0.78; }
+
+@keyframes coilFishAnim {
+  0%   { offset-distance: 0%; }
+  100% { offset-distance: 100%; }
+}
+
+@keyframes coilBackFlip {
+  0%   { transform: rotate(45deg); }
+  100% { transform: rotate(-45deg); }
+}
+
+@keyframes coilSideFlip {
+  0%   { transform: scale(1, var(--scaleFlip)) translateY(var(--posFlip)) rotate(80deg); }
+  100% { transform: scale(1, var(--scaleFlip)) translateY(var(--posFlip)) rotate(20deg); }
 }
 
 @media (max-width: 768px) {
-  .koi--back { display: none; }
-  .koi--sm { --koi-w: 56px; }
-  .koi--md { --koi-w: 78px; }
-  .koi--lg { --koi-w: 100px; }
+  .coil-fish--back { display: none; }
+  .coil-fish--sm   { --coilSize: 16px; }
+  .coil-fish--md   { --coilSize: 20px; }
+  .coil-fish--lg   { --coilSize: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* keep the artwork, drop the motion: park each koi on its route */
-  .koi {
-    animation: none;
-    offset-distance: var(--koi-rest, 30%);
-  }
-  .koi__tail,
-  .koi__fin {
+  /* keep the artwork, drop the motion: park each fish on its route */
+  .koi-coil {
     animation: none;
   }
+  .coil-fish--pathA .koi-coil,
+  .coil-fish--pathB .koi-coil {
+    offset-distance: calc(var(--koi-rest, 30%) + var(--coil-park, 0%));
+  }
+  .koi-coil:nth-of-type(15) { --coil-park: 0%; }
+  .koi-coil:nth-of-type(14) { --coil-park: 0.25%; }
+  .koi-coil:nth-of-type(13) { --coil-park: 0.5%; }
+  .koi-coil:nth-of-type(12) { --coil-park: 0.75%; }
+  .koi-coil:nth-of-type(11) { --coil-park: 1%; }
+  .koi-coil:nth-of-type(10) { --coil-park: 1.25%; }
+  .koi-coil:nth-of-type(9)  { --coil-park: 1.5%; }
+  .koi-coil:nth-of-type(8)  { --coil-park: 1.75%; }
+  .koi-coil:nth-of-type(7)  { --coil-park: 2%; }
+  .koi-coil:nth-of-type(6)  { --coil-park: 2.25%; }
+  .koi-coil:nth-of-type(5)  { --coil-park: 2.5%; }
+  .koi-coil:nth-of-type(4)  { --coil-park: 2.75%; }
+  .koi-coil:nth-of-type(3)  { --coil-park: 3%; }
+  .koi-coil:nth-of-type(2)  { --coil-park: 3.25%; }
+  .koi-coil:nth-of-type(1)  { --coil-park: 3.5%; }
 }
