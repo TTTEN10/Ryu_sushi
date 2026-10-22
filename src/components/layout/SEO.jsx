@@ -17,8 +17,8 @@ import {
   MENU_FORMULES,
 } from '../../constants/menu';
 
-const OG_IMAGE = `${SITE_URL}/assets/ryu-truck-anime.png`;
-const LOGO_IMAGE = `${SITE_URL}/assets/ryu-logo.png`;
+const OG_IMAGE = `${SITE_URL}/images/ryu-truck-anime.png`;
+const LOGO_IMAGE = `${SITE_URL}/images/ryu-logo.png`;
 
 const DAY_TO_SCHEMA = {
   Lundi: 'Monday',

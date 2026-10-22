@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { fadeInUp, fadeInRight } from '../animations/variants';
 import Lanterns from '../components/ui/Lanterns';
-import truckAnimeImg from '../assets/ryu-truck-anime.png';
+const truckAnimeImg = '/images/ryu-truck-anime.png';
 
 export default function HeroSection() {
   return (

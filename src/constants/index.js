@@ -200,9 +200,9 @@ export const SPECIALS = [
 ];
 
 export const GALLERY_ITEMS = [
-  { id: 1, alt: 'Yakitori grillé', aspect: 'tall', src: '/gallery/yakitori.jpg' },
-  { id: 2, alt: 'California roll', aspect: 'wide', src: '/gallery/california.jpg' },
-  { id: 3, alt: 'Bento Ryu Sushi', aspect: 'square', src: '/gallery/bento.jpg' },
+  { id: 1, alt: 'Yakitori grillé', aspect: 'tall', src: '/images/gallery-yakitori.jpg' },
+  { id: 2, alt: 'California roll', aspect: 'wide', src: '/images/gallery-california.jpg' },
+  { id: 3, alt: 'Bento Ryu Sushi', aspect: 'square', src: '/images/gallery-bento.jpg' },
 ];
 
 export const SIGNATURE_ROLLS = [

@@ -1,4 +1,4 @@
-import logoImg from '../../assets/ryu-logo.png';
+const logoImg = '/images/ryu-logo.png';
 
 const PANEL_KOI = [
   { cls: 'truck__panel-koi--1', reverse: false },

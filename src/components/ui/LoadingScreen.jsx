@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import logoImg from '../../assets/ryu-logo.png';
+const logoImg = '/images/ryu-logo.png';
 
 export default function LoadingScreen({ onComplete }) {
   const [phase, setPhase] = useState('loading');

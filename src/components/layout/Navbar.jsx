@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiMoon, FiSun } from 'react-icons/fi';
 import { useTheme } from '../../hooks';
-import logoImg from '../../assets/ryu-logo.png';
+const logoImg = '/images/ryu-logo.png';
 
 export default function Navbar() {
   const { theme, toggle: toggleTheme } = useTheme();

@@ -9,7 +9,7 @@
   "theme_color": "#120B03",
   "icons": [
     {
-      "src": "/assets/ryu-logo.png",
+      "src": "/images/ryu-logo.png",
       "sizes": "470x470",
       "type": "image/png",
       "purpose": "any maskable"

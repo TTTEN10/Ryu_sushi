@@ -4,6 +4,7 @@ import { fadeInUp, staggerContainer, defaultViewport } from '../animations/varia
 import {
   MENU_CATEGORIES,
   MENU_CATEGORY_NOTES,
+  MENU_CATEGORY_IMAGES,
   MENU_ITEMS,
   MENU_FORMULES,
 } from '../constants/menu';
@@ -49,6 +50,7 @@ export default function MenuSection() {
   const isFormules = activeCategory === 'Menus';
   const items = MENU_ITEMS[activeCategory] || [];
   const note = MENU_CATEGORY_NOTES[activeCategory];
+  const categoryImage = MENU_CATEGORY_IMAGES[activeCategory];
 
   return (
     <section id="menu" className="section relative" aria-label="Menu">
@@ -104,28 +106,50 @@ export default function MenuSection() {
             ))}
           </motion.ul>
         ) : (
-          <motion.ul
-            className="menu-list"
+          <motion.div
             key={activeCategory}
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
-            role="list"
           >
-            {items.map((item) => (
-              <motion.li key={item.name} className="menu-list__item" variants={fadeInUp}>
-                <div className="menu-list__header">
-                  <h3 className="menu-list__name">
-                    {item.name}
-                    {item.meta && <span className="menu-list__meta">{item.meta}</span>}
-                  </h3>
-                  <span className="menu-list__dots" aria-hidden="true" />
-                  <span className="menu-list__price">{item.price}</span>
-                </div>
-                {item.desc && <p className="menu-list__desc">{item.desc}</p>}
-              </motion.li>
-            ))}
-          </motion.ul>
+            {categoryImage && (
+              <motion.div className="menu-category-image" variants={fadeInUp}>
+                <img
+                  src={`/images/${categoryImage.image}`}
+                  alt={categoryImage.alt}
+                  loading="lazy"
+                />
+              </motion.div>
+            )}
+
+            <ul className="menu-list" role="list">
+              {items.map((item) => (
+                <motion.li key={item.name} className="menu-list__item" variants={fadeInUp}>
+                  {item.image && (
+                    <img
+                      className="menu-list__thumb"
+                      src={`/images/${item.image}`}
+                      alt={item.name}
+                      loading="lazy"
+                      width="56"
+                      height="56"
+                    />
+                  )}
+                  <div className="menu-list__body">
+                    <div className="menu-list__header">
+                      <h3 className="menu-list__name">
+                        {item.name}
+                        {item.meta && <span className="menu-list__meta">{item.meta}</span>}
+                      </h3>
+                      <span className="menu-list__dots" aria-hidden="true" />
+                      <span className="menu-list__price">{item.price}</span>
+                    </div>
+                    {item.desc && <p className="menu-list__desc">{item.desc}</p>}
+                  </div>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
         )}
       </div>
     </section>

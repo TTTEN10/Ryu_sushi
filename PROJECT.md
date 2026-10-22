@@ -101,19 +101,43 @@ Ryu Sushi/
 │   ├── hooks/                 # Custom React hooks
 │   ├── constants/             # App-wide constants
 │   ├── utils/                 # Helper functions
-│   ├── assets/                # Images, fonts, etc.
 │   ├── animations/            # Animation configurations
 │   └── styles/                # CSS stylesheets
 ├── server/
 │   ├── index.js               # Express server entry
 │   └── db.js                  # SQLite database setup
-├── public/                    # Static assets
+├── public/
+│   └── images/                # Toutes les images du site (voir ci-dessous)
 ├── dist/                      # Production build output
 ├── index.html                 # HTML entry point
 ├── vite.config.js             # Vite configuration
 ├── package.json               # Dependencies & scripts
 └── .env.example               # Environment variables template
 ```
+
+---
+
+## Images
+
+Toutes les images vivent dans `public/images/` (dossier unique, noms de fichiers ASCII en
+kebab-case). Elles sont servies à l'URL `/images/<nom>`.
+
+Convention de nommage :
+
+| Préfixe | Usage |
+|---------|-------|
+| `ryu-*` | Identité de marque (logo, camion) |
+| `gallery-*` | Photos de la section Galerie |
+| `<plat>.<ext>` | Vignette d'un article du menu (`cali-mango.png`, `sashimi-thon.png`…) |
+| `poke-bowl`, `brochettes-japonaises` | Photo unique d'une catégorie entière |
+
+Chaque article de `MENU_ITEMS` (`src/constants/menu.js`) porte un champ `image` optionnel,
+résolu en `/images/<image>` et affiché en vignette ronde à gauche du nom. Les catégories qui
+n'ont qu'une seule photo pour plusieurs articles (`Poke Bowls`, `Brochettes`) sont déclarées
+dans `MENU_CATEGORY_IMAGES` : leur image s'affiche une fois en tête de catégorie.
+
+Images conservées dans le dossier mais non affichées : `eau.jpg`, `mogu-mogu-fraise.jpg`,
+`mogu-mogu-mangue.jpg`, `instagram-473044809.jpg`.
 
 ---
 

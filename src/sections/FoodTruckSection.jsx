@@ -10,7 +10,7 @@ import {
   getOpenStatus,
   formatTimeLabel,
 } from '../utils';
-import truckAnimeImg from '../assets/ryu-truck-anime.png';
+const truckAnimeImg = '/images/ryu-truck-anime.png';
 
 /** Un jour du planning affiché en carte compacte. */
 function ScheduleCard({ entry, isToday }) {

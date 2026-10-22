@@ -1,6 +1,6 @@
 import { FaInstagram, FaFacebookF } from 'react-icons/fa';
 import { CONTACT_INFO, NAV_LINKS } from '../../constants';
-import logoImg from '../../assets/ryu-logo.png';
+const logoImg = '/images/ryu-logo.png';
 
 export default function Footer() {
   return (
