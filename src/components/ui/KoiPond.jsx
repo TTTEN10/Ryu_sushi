@@ -1,14 +1,14 @@
 const COIL_COUNT = 15;
 
 const FISH = [
-  { id: 1, classes: 'coil-fish--pathA coil-fish--md coil-fish--mid', style: { '--koi-dur': '68s', '--koi-delay': '-2s', '--koi-rest': '12%' } },
-  { id: 2, classes: 'coil-fish--pathA coil-fish--flip coil-fish--lg coil-fish--front', style: { '--koi-dur': '54s', '--koi-delay': '-11s', '--koi-rest': '34%' } },
-  { id: 3, classes: 'coil-fish--pathB coil-fish--orange coil-fish--sm coil-fish--back', style: { '--koi-dur': '92s', '--koi-delay': '-20s', '--koi-rest': '58%' } },
-  { id: 4, classes: 'coil-fish--pathA coil-fish--flip coil-fish--orange coil-fish--md coil-fish--mid', style: { '--koi-dur': '62s', '--koi-delay': '-6s', '--koi-rest': '20%' } },
-  { id: 5, classes: 'coil-fish--pathA coil-fish--md coil-fish--front', style: { '--koi-dur': '48s', '--koi-delay': '-15s', '--koi-rest': '70%' } },
-  { id: 6, classes: 'coil-fish--pathB coil-fish--flip coil-fish--sm coil-fish--mid', style: { '--koi-dur': '82s', '--koi-delay': '-9s', '--koi-rest': '46%' } },
-  { id: 7, classes: 'coil-fish--pathB coil-fish--orange coil-fish--lg coil-fish--back', style: { '--koi-dur': '58s', '--koi-delay': '-24s', '--koi-rest': '84%' } },
-  { id: 8, classes: 'coil-fish--pathA coil-fish--blackwhite coil-fish--md coil-fish--mid', style: { '--koi-dur': '76s', '--koi-delay': '-3s', '--koi-rest': '62%' } },
+  { id: 1, classes: 'coil-fish--md coil-fish--mid', style: { top: '0%', left: '-5%', width: '110%' } },
+  { id: 2, classes: 'coil-fish--flip coil-fish--lg coil-fish--front coil-fish--slow', style: { top: '12%', left: '0', width: '100%' } },
+  { id: 3, classes: 'coil-fish--orange coil-fish--sm coil-fish--back coil-fish--fast', style: { top: '28%', left: '8%', width: '92%' } },
+  { id: 4, classes: 'coil-fish--flip coil-fish--orange coil-fish--md coil-fish--mid', style: { top: '42%', left: '-6%', width: '106%' } },
+  { id: 5, classes: 'coil-fish--md coil-fish--front', style: { top: '58%', left: '2%', width: '98%' } },
+  { id: 6, classes: 'coil-fish--flip coil-fish--sm coil-fish--mid coil-fish--slow', style: { top: '72%', left: '-4%', width: '104%' } },
+  { id: 7, classes: 'coil-fish--orange coil-fish--lg coil-fish--back coil-fish--fast', style: { top: '85%', left: '5%', width: '95%' } },
+  { id: 8, classes: 'coil-fish--blackwhite coil-fish--md coil-fish--mid coil-fish--slow', style: { top: '15%', left: '10%', width: '90%' } },
 ];
 
 function CoilFish({ classes, style }) {

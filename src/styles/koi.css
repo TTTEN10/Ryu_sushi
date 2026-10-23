@@ -1,13 +1,7 @@
-/* ─── Coil Koi (offset-path animation) ───
-   Bead-chain look restored from before the "brand artwork" rework, but
-   keeping the current movement choreography: two crossing routes
-   (pathA / pathB), per-fish duration / delay / rest, negative delays so
-   the school is mid-route on load, and reduced-motion parks the fish on
-   their route instead of hiding them. */
-
+/* ─── Coil Koi (offset-path animation) ─── */
 .koi-pond {
-  --coilSize: 24px;
-  --delayCount: 160ms;
+  --coilSize: 12px;
+  --delayCount: 40ms;
   --scaleMe: 1;
   --scaleFlip: 1;
   --posFlip: 0;
@@ -60,17 +54,12 @@
   );
 }
 
-/* Two crossing routes so the school reads as a living pond */
-.coil-fish--pathA .koi-coil {
-  offset-path: path("M -260 200 C 140 70 470 370 860 220 S 1450 50 1920 260");
-}
-.coil-fish--pathB .koi-coil {
-  offset-path: path("M 1920 640 C 1500 520 1180 800 780 660 S 180 470 -260 720");
-}
+.coil-fish--sm { --coilSize: 9px; }
+.coil-fish--md { --coilSize: 12px; }
+.coil-fish--lg { --coilSize: 14px; }
 
-.coil-fish--sm { --coilSize: 18px; }
-.coil-fish--md { --coilSize: 24px; }
-.coil-fish--lg { --coilSize: 28px; }
+.coil-fish--slow .koi-coil { animation-duration: 28000ms; }
+.coil-fish--fast .koi-coil { animation-duration: 16000ms; }
 
 .koi-coil {
   position: absolute;
@@ -84,9 +73,10 @@
   margin-top: calc(var(--coilSize) / -2);
   transform: scale(var(--scaleMe), var(--scaleMe));
   filter: contrast(200%);
-  will-change: offset-distance;
-  animation: coilFishAnim var(--koi-dur, 20s) linear infinite;
-  animation-delay: var(--koi-delay, 0s);
+  offset-path: path(
+    "M11.7692 229.5C14.552 200.052 7.51901 171.858 -42.8757 170.644C-105.869 169.128 -131.294 76.612 -101.695 51.5872C-72.0955 26.5625 -24.6607 -50.7867 70.5883 51.5872C165.837 153.961 27.7073 131.211 33.0199 183.157C38.3326 235.102 90.3211 195.669 139.274 223.727C188.226 251.785 207.959 299.56 139.274 316.243C70.5883 332.926 41.3685 398.9 81.9726 419.754C122.577 440.608 222 478.524 222 419.754C222 372.738 222 242.432 222 183.157C219.091 129.948 175.78 30.8091 25.8099 59.9288C-161.652 96.3284 -30.3529 119.837 25.8099 141.07C81.9726 162.303 171.529 204.769 126.751 260.506C81.9726 316.243 101.326 362.501 139.274 373.496C177.222 384.492 170.012 464.495 70.5883 462.979C-28.835 461.462 -42.8757 393.015 -42.8757 373.496C-42.8757 238.288 11.7692 293 11.7692 240.506C11.7692 208.05 11.7692 237.336 11.7692 229.5Z"
+  );
+  animation: coilFishAnim 20000ms linear infinite;
   box-shadow: calc(var(--coilSize) / -2) calc(var(--coilSize) / -10) 0 var(--koi-white) inset;
 }
 
@@ -201,22 +191,21 @@
   background-color: var(--koi-white);
 }
 
-/* Body scale + stagger delays — the per-fish negative delay offsets the
-   whole string so the school is mid-route on load */
-.koi-coil:nth-of-type(14) { --scaleMe: 1.2; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 1); }
-.koi-coil:nth-of-type(13) { --scaleMe: 1.35; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 2); }
-.koi-coil:nth-of-type(12) { --scaleMe: 1.55; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 3); }
-.koi-coil:nth-of-type(11) { --scaleMe: 1.75; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 4); }
-.koi-coil:nth-of-type(10) { --scaleMe: 1.9;  animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 5); }
-.koi-coil:nth-of-type(9)  { --scaleMe: 2;    animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 6); }
-.koi-coil:nth-of-type(8)  { --scaleMe: 2;    animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 7); }
-.koi-coil:nth-of-type(7)  { --scaleMe: 2;    animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 8); }
-.koi-coil:nth-of-type(6)  { --scaleMe: 1.9;  animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 9); }
-.koi-coil:nth-of-type(5)  { --scaleMe: 1.75; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 10); }
-.koi-coil:nth-of-type(4)  { --scaleMe: 1.55; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 11); }
-.koi-coil:nth-of-type(3)  { --scaleMe: 1.35; animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 12); }
-.koi-coil:nth-of-type(2)  { --scaleMe: 1.2;  animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 13); }
-.koi-coil:nth-of-type(1)  { animation-delay: calc(var(--koi-delay, 0s) + var(--delayCount) * 14); }
+/* Body scale + stagger delays */
+.koi-coil:nth-of-type(14) { --scaleMe: 1.2; animation-delay: calc(var(--delayCount) * 1); }
+.koi-coil:nth-of-type(13) { --scaleMe: 1.35; animation-delay: calc(var(--delayCount) * 2); }
+.koi-coil:nth-of-type(12) { --scaleMe: 1.55; animation-delay: calc(var(--delayCount) * 3); }
+.koi-coil:nth-of-type(11) { --scaleMe: 1.75; animation-delay: calc(var(--delayCount) * 4); }
+.koi-coil:nth-of-type(10) { --scaleMe: 1.9;  animation-delay: calc(var(--delayCount) * 5); }
+.koi-coil:nth-of-type(9)  { --scaleMe: 2;    animation-delay: calc(var(--delayCount) * 6); }
+.koi-coil:nth-of-type(8)  { --scaleMe: 2;    animation-delay: calc(var(--delayCount) * 7); }
+.koi-coil:nth-of-type(7)  { --scaleMe: 2;    animation-delay: calc(var(--delayCount) * 8); }
+.koi-coil:nth-of-type(6)  { --scaleMe: 1.9;  animation-delay: calc(var(--delayCount) * 9); }
+.koi-coil:nth-of-type(5)  { --scaleMe: 1.75; animation-delay: calc(var(--delayCount) * 10); }
+.koi-coil:nth-of-type(4)  { --scaleMe: 1.55; animation-delay: calc(var(--delayCount) * 11); }
+.koi-coil:nth-of-type(3)  { --scaleMe: 1.35; animation-delay: calc(var(--delayCount) * 12); }
+.koi-coil:nth-of-type(2)  { --scaleMe: 1.2;  animation-delay: calc(var(--delayCount) * 13); }
+.koi-coil:nth-of-type(1)  { animation-delay: calc(var(--delayCount) * 14); }
 
 /* Side fins on coil 12 */
 .koi-coil:nth-of-type(12)::before,
@@ -244,9 +233,9 @@
 }
 
 /* Depth / placement modifiers */
-.coil-fish--back  { opacity: 0.28; filter: blur(1.2px) drop-shadow(calc(var(--coilSize) * 4) calc(var(--coilSize) / 3) 3px rgba(18, 11, 3, 0.15)); }
-.coil-fish--mid   { opacity: 0.5; }
-.coil-fish--front { opacity: 0.78; }
+.coil-fish--back  { opacity: 0.35; filter: blur(1px) drop-shadow(calc(var(--coilSize) * 4) calc(var(--coilSize) / 3) 3px rgba(18, 11, 3, 0.15)); }
+.coil-fish--mid   { opacity: 0.6; }
+.coil-fish--front { opacity: 0.85; }
 
 @keyframes coilFishAnim {
   0%   { offset-distance: 0%; }
@@ -265,33 +254,11 @@
 
 @media (max-width: 768px) {
   .coil-fish--back { display: none; }
-  .coil-fish--sm   { --coilSize: 16px; }
-  .coil-fish--md   { --coilSize: 20px; }
-  .coil-fish--lg   { --coilSize: 22px; }
+  .coil-fish--sm   { --coilSize: 8px; }
+  .coil-fish--md   { --coilSize: 10px; }
+  .coil-fish--lg   { --coilSize: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* keep the artwork, drop the motion: park each fish on its route */
-  .koi-coil {
-    animation: none;
-  }
-  .coil-fish--pathA .koi-coil,
-  .coil-fish--pathB .koi-coil {
-    offset-distance: calc(var(--koi-rest, 30%) + var(--coil-park, 0%));
-  }
-  .koi-coil:nth-of-type(15) { --coil-park: 0%; }
-  .koi-coil:nth-of-type(14) { --coil-park: 0.25%; }
-  .koi-coil:nth-of-type(13) { --coil-park: 0.5%; }
-  .koi-coil:nth-of-type(12) { --coil-park: 0.75%; }
-  .koi-coil:nth-of-type(11) { --coil-park: 1%; }
-  .koi-coil:nth-of-type(10) { --coil-park: 1.25%; }
-  .koi-coil:nth-of-type(9)  { --coil-park: 1.5%; }
-  .koi-coil:nth-of-type(8)  { --coil-park: 1.75%; }
-  .koi-coil:nth-of-type(7)  { --coil-park: 2%; }
-  .koi-coil:nth-of-type(6)  { --coil-park: 2.25%; }
-  .koi-coil:nth-of-type(5)  { --coil-park: 2.5%; }
-  .koi-coil:nth-of-type(4)  { --coil-park: 2.75%; }
-  .koi-coil:nth-of-type(3)  { --coil-park: 3%; }
-  .koi-coil:nth-of-type(2)  { --coil-park: 3.25%; }
-  .koi-coil:nth-of-type(1)  { --coil-park: 3.5%; }
+  .coil-fish { display: none; }
 }
