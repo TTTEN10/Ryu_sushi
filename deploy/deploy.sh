@@ -6,6 +6,7 @@ set -euo pipefail
 DOMAIN="${DOMAIN:-ryusushi.fr}"
 APP_IMAGE="${APP_IMAGE:-ryu-sushi:latest}"
 NET="ryu-net"
+NET_SUBNET="${NET_SUBNET:-10.89.0.0/24}"
 DATA_VOL="ryu-data"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -89,6 +90,14 @@ podman run -d --name ryu-caddy \
   -v caddy-config:/config \
   docker.io/library/caddy:2-alpine
 
+# Podman 3.4.4/CNI publie les ports mais n'accepte pas les connexions NEW
+# entrantes (-P FORWARD DROP): le flux 80/443 est DNATé vers le conteneur puis
+# jeté, d'où les timeouts externes alors que l'instance est ouverte. On insère
+# donc une règle FORWARD (idempotente) ; ryu-ports.service la réapplique au boot.
+if ! iptables -C FORWARD -d "$NET_SUBNET" -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT 2>/dev/null; then
+  iptables -I FORWARD 1 -d "$NET_SUBNET" -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT
+fi
+
 # 7/8 Services systemd (redémarrage automatique au boot)
 echo "[7/8] Installation des services systemd..."
 mkdir -p /etc/systemd/system
@@ -100,7 +109,32 @@ sed -i '/\[Service\]/a Restart=always' /etc/systemd/system/ryu-caddy.service
 # relatif ".env.production" du service ryu-sushi est introuvable.
 sed -i '/\[Service\]/a WorkingDirectory='"$REPO" /etc/systemd/system/ryu-sushi.service
 sed -i '/\[Service\]/a WorkingDirectory='"$REPO" /etc/systemd/system/ryu-caddy.service
+
+# Service au boot: réapplique la règle FORWARD 80/443 (cf. étape 6/8)
+cat > /usr/local/sbin/ryu-open-ports.sh <<SH
+#!/usr/bin/env bash
+# Ouvre FORWARD 80/443 pour les ports publiés (contournement podman 3.4.4)
+SUBNET="$NET_SUBNET"
+iptables -C FORWARD -d "\$SUBNET" -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT 2>/dev/null || \
+  iptables -I FORWARD 1 -d "\$SUBNET" -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT
+SH
+chmod +x /usr/local/sbin/ryu-open-ports.sh
+cat > /etc/systemd/system/ryu-ports.service <<U
+[Unit]
+Description=Ouvre FORWARD 80/443 pour les conteneurs Ryu Sushi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ryu-open-ports.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+U
 systemctl daemon-reload
+systemctl enable ryu-ports.service >/dev/null 2>&1 || true
 podman stop ryu-sushi ryu-caddy >/dev/null 2>&1 || true
 podman rm ryu-sushi ryu-caddy >/dev/null 2>&1 || true
 # Les conteneurs lancés manuellement ci-dessus orphelinent leur dnsmasq lors de

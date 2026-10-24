@@ -67,6 +67,12 @@ Sur Ubuntu 22.04, podman 3.4.4 (CNI) nécessite 3 corrections, intégrées à `d
    `podman generate systemd` héritent du `--env-file .env.production` relatif:
    systemd démarre depuis `/` et ne trouve pas le fichier. Le script ajoute
    `WorkingDirectory=$REPO` aux unités.
+4. **Ports publiés injoignables (FORWARD DROP).** Podman 3.4.4 DNATé bien
+   `80`/`443` vers le conteneur Caddy mais ne crée pas de règle d'acceptation
+   des connexions `NEW` entrantes: `-P FORWARD DROP` les jette (timeouts
+   externes alors que SSH et le SG Scaleway passent). `deploy.sh` insère la
+   règle `ACCEPT ... --ctstate NEW` et installe le service `ryu-ports.service`
+   qui la réapplique à chaque boot.
 
 Prérequis externe: ouvrir les ports entrants **80** et **443** dans le Security
 Group Scaleway de l'instance. Le premier certificat Let's Encrypt est alors émis
