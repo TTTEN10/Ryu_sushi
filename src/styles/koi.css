@@ -41,17 +41,11 @@
   left: 0;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(
-    calc(var(--coilSize) * 4) calc(var(--coilSize) / 3) 5px rgba(18, 11, 3, 0.2)
-  );
 }
 
 .coil-fish--flip {
   transform-origin: top center;
   transform: scale(-1, 1);
-  filter: drop-shadow(
-    calc(var(--coilSize) * -4) calc(var(--coilSize) / 3) 5px rgba(18, 11, 3, 0.2)
-  );
 }
 
 .coil-fish--sm { --coilSize: 9px; }
