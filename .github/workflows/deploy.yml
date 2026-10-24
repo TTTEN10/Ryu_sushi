@@ -20,12 +20,8 @@ jobs:
       - name: Sync code to production server
         env:
           SSH_PASSPHRASE: ${{ github.event.inputs.ssh_passphrase || 'NOPASS' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          # Source .env to get SSH_PRIVATE_KEY
-          set -a
-          source .env
-          set +a
-
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
