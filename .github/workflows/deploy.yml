@@ -1,0 +1,56 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [feat/koi-css-fish]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync code to production server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 51.15.79.169 >> ~/.ssh/known_hosts
+
+          # Tar-sync to server (same method as deploy-mac.sh)
+          tar czf /tmp/ryu-sync.tar.gz \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=*.db \
+            --exclude=.env.production \
+            -C . .
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no /tmp/ryu-sync.tar.gz root@51.15.79.169:/tmp/ryu-sync.tar.gz
+
+          # Extract and run deploy
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@51.15.79.169 <<'SSH_EOF'
+            set -e
+            mkdir -p /opt/ryu-sushi
+            tar xzf /tmp/ryu-sync.tar.gz -C /opt/ryu-sushi
+            cd /opt/ryu-sushi
+            ./deploy/deploy.sh
+          SSH_EOF
+
+      - name: Verify deployment
+        run: |
+          for i in $(seq 1 6); do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://ryusushi.fr/" 2>/dev/null || echo "000")
+            if [ "$RESPONSE" = "200" ]; then
+              echo "Deployment verified (HTTP $RESPONSE)"
+              exit 0
+            fi
+            echo "Health check $i/6: HTTP $RESPONSE, retrying in 10s..."
+            sleep 10
+          done
+          echo "Deployment verification failed"
+          exit 1
