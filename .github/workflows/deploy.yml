@@ -50,7 +50,7 @@ jobs:
             mkdir -p /opt/ryu-sushi
             tar xzf /tmp/ryu-sync.tar.gz -C /opt/ryu-sushi
             cd /opt/ryu-sushi
-            ./deploy/deploy.sh
+            sudo ./deploy/deploy.sh
           SSH_EOF
 
       - name: Verify deployment
