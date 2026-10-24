@@ -12,5 +12,4 @@ async function request(endpoint, data) {
 }
 
 export const submitContact = (data) => request('/contact', data);
-export const submitReservation = (data) => request('/reservation', data);
 export const subscribeNewsletter = (data) => request('/newsletter', data);

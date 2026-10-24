@@ -1,18 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-export function useScrollPosition() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return scrolled;
-}
-
 export function useCounter(end, duration = 2000, startOnView = true) {
   const [count, setCount] = useState(0);
   const [started, setStarted] = useState(!startOnView);
@@ -47,71 +34,3 @@ export function useCounter(end, duration = 2000, startOnView = true) {
   return { count, ref };
 }
 
-export function useMediaQuery(query) {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    setMatches(mq.matches);
-    const handler = (e) => setMatches(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [query]);
-
-  return matches;
-}
-
-export function useChopstickCursor(enabled) {
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const move = (e) => setPos({ x: e.clientX, y: e.clientY });
-    const enter = () => setVisible(true);
-    const leave = () => setVisible(false);
-
-    document.addEventListener('mousemove', move);
-    document.querySelectorAll('[data-chopstick]').forEach((el) => {
-      el.addEventListener('mouseenter', enter);
-      el.addEventListener('mouseleave', leave);
-    });
-
-    return () => {
-      document.removeEventListener('mousemove', move);
-    };
-  }, [enabled]);
-
-  return { pos, visible };
-}
-
-export function useCarousel(length, interval = 5000) {
-  const [current, setCurrent] = useState(0);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (paused) return;
-    const timer = setInterval(() => {
-      setCurrent((c) => (c + 1) % length);
-    }, interval);
-    return () => clearInterval(timer);
-  }, [length, interval, paused]);
-
-  return { current, setCurrent, paused, setPaused };
-}
-
-export function useIntersectionObserver(options = {}) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
-      { threshold: 0.1, ...options }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [options]);
-
-  return { ref, inView };
-}

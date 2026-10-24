@@ -193,50 +193,9 @@ export const CATERING_SERVICES = [
   { title: 'Festivals', desc: 'Service haute capacité sans compromis sur la qualité ni la présentation.' },
 ];
 
-export const SPECIALS = [
-  { name: 'Dragon Roll du Chef', desc: 'Crevette tempura, avocat, sauce anguille', price: '16 €' },
-  { name: 'Box Omakase', desc: '12 pièces sélectionnées par le chef', price: '45 €' },
-  { name: 'Poke Thon Épicé', desc: 'Thon frais, mayo épicée, edamame', price: '14 €' },
-];
-
 export const GALLERY_ITEMS = [
   { id: 1, alt: 'Yakitori grillé', aspect: 'tall', src: '/images/gallery-yakitori.jpg' },
   { id: 2, alt: 'California roll', aspect: 'wide', src: '/images/gallery-california.jpg' },
   { id: 3, alt: 'Bento Ryu Sushi', aspect: 'square', src: '/images/gallery-bento.jpg' },
 ];
 
-export const SIGNATURE_ROLLS = [
-  { name: 'Ryu Dragon', desc: 'Anguille, avocat, concombre, sauce dragon', price: '18 €' },
-  { name: 'Tokyo Sunset', desc: 'Saumon, mangue, tobiko, mayo épicée', price: '15 €' },
-  { name: 'Black Pearl', desc: 'Thon, tobiko noir, huile de truffe', price: '20 €' },
-  { name: 'Golden Koi', desc: 'Hamachi, feuille d\'or, zestes de yuzu', price: '22 €' },
-  { name: 'Sakura Blossom', desc: 'Tempura de crevette, radis sakura', price: '16 €' },
-  { name: 'Volcano Roll', desc: 'Thon épicé, jalapeño, sauce volcano', price: '17 €' },
-];
-
-export const FAQ_ITEMS = [
-  {
-    question: 'Où se trouve le food truck Ryu Sushi aujourd\'hui ?',
-    answer: 'Notre emplacement change chaque jour dans le Morbihan : Saint-Jean-Brévelay le mardi, Meucon le mercredi, Baud le jeudi, Elven et Baden le vendredi, Saint-Nolff et Theix-Noyalo le samedi, Larmor-Baden le dimanche. Consultez la section Food Truck pour l\'adresse et les horaires du jour.',
-  },
-  {
-    question: 'Êtes-vous ouverts le lundi ?',
-    answer: 'Non, le food truck est fermé tous les lundis. Nous vous retrouvons du mardi au dimanche.',
-  },
-  {
-    question: 'Le samedi, êtes-vous toujours là ?',
-    answer: 'Nous sommes présents un samedi sur deux, les semaines impaires. Le planning du site indique automatiquement si le samedi à venir est ouvert.',
-  },
-  {
-    question: 'Proposez-vous des événements privés ou des festivals ?',
-    answer: 'Oui. Ryu Sushi intervient pour les événements privés et les festivals dans tout le Morbihan, avec des menus sur mesure et une préparation live.',
-  },
-  {
-    question: 'Les poissons sont-ils frais ?',
-    answer: 'Absolument. Nos chefs sélectionnent chaque matin des produits de la mer auprès de fournisseurs de confiance.',
-  },
-  {
-    question: 'Comment réserver ou commander ?',
-    answer: 'Commandez par appel ou SMS au 07 88 42 15 46. Pour un événement privé ou un festival, appelez-nous ou écrivez à ryusushi56@gmail.com.',
-  },
-];
