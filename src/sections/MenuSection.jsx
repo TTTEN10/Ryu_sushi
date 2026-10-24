@@ -139,7 +139,7 @@ export default function MenuSection() {
               ))}
             </ul>
             </div>
-            )}
+          )}
       </div>
     </section>
   );

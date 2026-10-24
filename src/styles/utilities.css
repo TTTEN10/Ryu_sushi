@@ -793,7 +793,7 @@
 
 /* Menu — note de commande, note de catégorie, quantité d'un article */
 .menu-order-note {
-  margin-top: 20px;
+  margin-top: 8px;
   font-size: var(--font-small);
   color: var(--steel);
   text-transform: none;
