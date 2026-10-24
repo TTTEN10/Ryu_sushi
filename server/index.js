@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import Database from 'better-sqlite3';
 import nodemailer from 'nodemailer';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -21,19 +22,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting (simple in-memory implementation)
+// Rate limiting (in-memory, POST-only to protect form submissions)
 const rateLimitStore = new Map();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 100; // 100 requests per minute
+const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW, 10) || 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX, 10) || 1000; // 1000 requests per minute
 
+// Only rate-limit POST requests (GET is for assets/navigation — no need to block)
 app.use((req, res, next) => {
+  if (req.method !== 'POST') return next();
+
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
   const userRequests = rateLimitStore.get(ip) || [];
   const recentRequests = userRequests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
 
   if (recentRequests.length >= RATE_LIMIT_MAX) {
-    return res.status(429).json({ error: 'Too many requests' });
+    return res.status(429).json({ error: 'Trop de requêtes, réessayez plus tard' });
   }
 
   recentRequests.push(now);
@@ -62,7 +66,13 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-const db = new Database(path.join(__dirname, 'ryu-sushi.db'));
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/api')) req.url = req.url.slice('/api'.length);
+  next();
+});
+
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'ryu-sushi.db');
+const db = new Database(DB_PATH);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS contacts (
@@ -250,6 +260,15 @@ app.post('/email/send', (req, res) => {
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+const distDir = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Ryu Sushi API running on http://localhost:${PORT}`);

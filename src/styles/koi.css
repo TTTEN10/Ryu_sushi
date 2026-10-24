@@ -262,3 +262,8 @@
 @media (prefers-reduced-motion: reduce) {
   .coil-fish { display: none; }
 }
+
+/* Pause all koi animations when the tab is hidden */
+html[data-koi-paused="1"] .koi-coil {
+  animation-play-state: paused !important;
+}

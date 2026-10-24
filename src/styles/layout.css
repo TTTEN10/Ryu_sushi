@@ -8,6 +8,8 @@
   padding-block: var(--section-desktop);
   position: relative;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 600px;
 }
 
 @media (max-width: 1024px) {

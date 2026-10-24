@@ -21,7 +21,7 @@ function CoilFish({ classes, style }) {
   );
 }
 
-export default function KoiPond() {
+function KoiPond() {
   return (
     <div className="koi-pond koi-pond--global" aria-hidden="true">
       <div className="koi-pond__sea" />
@@ -31,3 +31,13 @@ export default function KoiPond() {
     </div>
   );
 }
+
+// Pause CSS animations when the tab is hidden to save CPU/GPU
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    const root = document.documentElement;
+    root.dataset.koiPaused = document.hidden ? '1' : '0';
+  });
+}
+
+export default KoiPond;

@@ -1499,6 +1499,10 @@
     display: none;
   }
 
+  .nav__actions .btn {
+    display: none;
+  }
+
   .nav__burger {
     display: flex;
   }

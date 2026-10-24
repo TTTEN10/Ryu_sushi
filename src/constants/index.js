@@ -1,5 +1,5 @@
 export const SITE_NAME = 'Ryu Sushi';
-export const SITE_URL = 'https://ryusushi.com';
+export const SITE_URL = 'https://ryusushi.fr';
 export const SITE_DESCRIPTION = 'Food truck de sushi japonais premium en itinérance dans le Morbihan : Saint-Jean-Brévelay, Meucon, Baud, Elven, Baden, Saint-Nolff, Theix-Noyalo et Larmor-Baden. Poisson frais, savoir-faire authentique et cuisine de rue raffinée. Consultez le planning hebdomadaire et réservez votre expérience.';
 export const SITE_KEYWORDS = 'sushi morbihan, food truck morbihan, camion sushi morbihan, sushi vannes, food truck vannes, sushi saint-jean-brévelay, sushi meucon, sushi baud, sushi elven, sushi baden, sushi saint-nolff, sushi theix-noyalo, sushi larmor-baden, traiteur sushi morbihan, festival sushi morbihan, ryu sushi, food truck itinérant bretagne, marché sushi morbihan';
 

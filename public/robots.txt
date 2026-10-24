@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ryusushi.com/sitemap.xml
+Sitemap: https://ryusushi.fr/sitemap.xml
