@@ -983,8 +983,11 @@
 
 .featured-card__overlay {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(18, 11, 3, 0.95) 0%, transparent 60%);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(to top, rgba(18, 11, 3, 0.98) 0%, rgba(18, 11, 3, 0.85) 40%, rgba(18, 11, 3, 0.4) 100%);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -996,6 +999,7 @@
 .featured-card__name {
   font-size: var(--font-subtitle);
   margin-bottom: 8px;
+  color: var(--white);
 }
 
 .featured-card__price {
