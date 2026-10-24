@@ -9,11 +9,6 @@
 @import './waves.css';
 @import './utilities.css';
 
-/* Default to dark theme on initial load (before JS hydrates) */
-html {
-  color-scheme: dark;
-}
-
 html.lenis, html.lenis body {
   height: auto;
 }

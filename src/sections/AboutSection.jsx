@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { fadeInUp, fadeInLeft, fadeInRight, defaultViewport } from '../animations/variants';
+
 import { COUNTERS } from '../constants';
 import { useCounter } from '../hooks';
 import { formatCounter } from '../utils';
@@ -17,12 +16,12 @@ function CounterItem({ end, suffix, label }) {
 
 export default function AboutSection() {
   return (
-    <section id="about" className="section section--dark" aria-label="À propos">
+    <section id="about" className="section" aria-label="À propos">
       <span className="kanji-deco" style={{ top: '10%', right: '5%', opacity: 0.05 }} aria-hidden="true">道</span>
 
       <div className="container">
         <div className="grid-2" style={{ alignItems: 'center', gap: '64px' }}>
-          <motion.div initial="hidden" whileInView="visible" viewport={defaultViewport} variants={fadeInLeft}>
+          <div>
             <p className="section-label">Notre Histoire</p>
             <h2 className="section-title">L&apos;Art de Ryu Sushi</h2>
             <p className="description" style={{ marginBottom: '24px', color: 'var(--steel)' }}>
@@ -39,9 +38,9 @@ export default function AboutSection() {
               qui vous transporte au cœur des meilleurs bars à sushi de Tokyo, le temps d&apos;une halte.
             </p>
             <div className="red-stamp mt-32" aria-hidden="true">龍</div>
-          </motion.div>
+          </div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={defaultViewport} variants={fadeInRight}>
+          <div>
             <div className="featured-grid">
               {[
                 { name: 'Poisson Frais', emoji: '🐟', gradient: 'linear-gradient(135deg, #E73636, #120B03)' },
@@ -58,14 +57,14 @@ export default function AboutSection() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
 
-        <motion.div className="counter-grid mt-48" initial="hidden" whileInView="visible" viewport={defaultViewport} variants={fadeInUp}>
+        <div className="counter-grid mt-48">
           {COUNTERS.map((c) => (
             <CounterItem key={c.label} {...c} />
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

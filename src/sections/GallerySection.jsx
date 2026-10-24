@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { fadeInUp, staggerContainer, defaultViewport } from '../animations/variants';
+
 import { GALLERY_ITEMS } from '../constants';
 
 export default function GallerySection() {
@@ -11,11 +10,7 @@ export default function GallerySection() {
       <span className="kanji-deco" style={{ bottom: '10%', left: '5%' }} aria-hidden="true">美</span>
 
       <div className="container">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={defaultViewport}
-          variants={fadeInUp}
+        <div
           className="text-center"
         >
           <p className="section-label">Galerie</p>
@@ -23,20 +18,15 @@ export default function GallerySection() {
           <p className="section-subtitle center description">
             Un aperçu de l&apos;expérience Ryu Sushi — de notre cuisine à votre assiette.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           className="gallery-grid"
-          initial="hidden"
-          whileInView="visible"
-          viewport={defaultViewport}
-          variants={staggerContainer}
         >
           {GALLERY_ITEMS.map((item) => (
-            <motion.div
+            <div
               key={item.id}
               className="gallery-card"
-              variants={fadeInUp}
               onClick={() => setLightbox(item)}
               role="button"
               tabIndex={0}
@@ -49,9 +39,9 @@ export default function GallerySection() {
                 className="gallery-card__img"
                 loading="lazy"
               />
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       </div>
 
       {lightbox && (

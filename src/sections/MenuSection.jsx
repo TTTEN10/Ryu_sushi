@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { fadeInUp, staggerContainer, defaultViewport } from '../animations/variants';
+
 import {
   MENU_CATEGORIES,
   MENU_CATEGORY_NOTES,
@@ -14,7 +13,7 @@ const PHONE_HREF = `tel:${CONTACT_INFO.phone.replace(/\s/g, '')}`;
 
 function FormuleCard({ formule }) {
   return (
-    <motion.li className="formule-card" variants={fadeInUp}>
+    <li className="formule-card">
       <div className="formule-card__header">
         <div>
           <h3 className="formule-card__name">
@@ -41,7 +40,7 @@ function FormuleCard({ formule }) {
         </p>
         {formule.note && <p className="formule-card__note">{formule.note}</p>}
       </div>
-    </motion.li>
+    </li>
   );
 }
 
@@ -57,11 +56,7 @@ export default function MenuSection() {
       <span className="kanji-deco" style={{ top: '5%', left: '3%' }} aria-hidden="true">食</span>
 
       <div className="container">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={defaultViewport}
-          variants={fadeInUp}
+        <div
           className="text-center"
         >
           <p className="section-label">Notre Menu 2026</p>
@@ -74,7 +69,7 @@ export default function MenuSection() {
             Préparation sur commande — commande par appel ou SMS au{' '}
             <a href={PHONE_HREF}>{CONTACT_INFO.phone}</a>.
           </p>
-        </motion.div>
+        </div>
 
         <div className="menu-categories" role="tablist" aria-label="Catégories du menu">
           {MENU_CATEGORIES.map((cat) => (
@@ -93,38 +88,32 @@ export default function MenuSection() {
         {note && <p className="menu-category-note">{note}</p>}
 
         {isFormules ? (
-          <motion.ul
+          <ul
             className="formule-grid"
             key={activeCategory}
-            initial="hidden"
-            animate="visible"
-            variants={staggerContainer}
             role="list"
           >
             {MENU_FORMULES.map((formule) => (
               <FormuleCard key={formule.name} formule={formule} />
             ))}
-          </motion.ul>
+          </ul>
         ) : (
-          <motion.div
+          <div
             key={activeCategory}
-            initial="hidden"
-            animate="visible"
-            variants={staggerContainer}
           >
             {categoryImage && (
-              <motion.div className="menu-category-image" variants={fadeInUp}>
+              <div className="menu-category-image">
                 <img
                   src={`/images/${categoryImage.image}`}
                   alt={categoryImage.alt}
                   loading="lazy"
                 />
-              </motion.div>
+              </div>
             )}
 
             <ul className="menu-list" role="list">
               {items.map((item) => (
-                <motion.li key={item.name} className="menu-list__item" variants={fadeInUp}>
+                <li key={item.name} className="menu-list__item">
                   {item.image && (
                     <img
                       className="menu-list__thumb"
@@ -146,11 +135,11 @@ export default function MenuSection() {
                     </div>
                     {item.desc && <p className="menu-list__desc">{item.desc}</p>}
                   </div>
-                </motion.li>
+                </li>
               ))}
             </ul>
-          </motion.div>
-        )}
+            </div>
+            )}
       </div>
     </section>
   );

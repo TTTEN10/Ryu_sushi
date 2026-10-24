@@ -11,10 +11,6 @@
   box-shadow: var(--shadow-card-hover);
 }
 
-[data-theme="dark"] .card {
-  background: rgba(250, 247, 239, 0.05);
-}
-
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;
@@ -180,24 +176,6 @@
   font-size: 28px;
   animation: stampPress 1.5s var(--ease) 0.5s forwards;
   opacity: 0;
-}
-
-/* Dark mode toggle */
-.theme-toggle {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(126, 148, 160, 0.15);
-  transition: var(--transition);
-  color: var(--black);
-}
-
-.theme-toggle:hover {
-  background: rgba(126, 148, 160, 0.3);
-  transform: scale(1.05);
 }
 
 /* Audio toggle */
@@ -1855,7 +1833,6 @@ img {
   .menu-category-btn,
   .faq-item__question,
   .footer__social,
-  .theme-toggle,
   .nav__link {
     min-height: 44px;
     min-width: 44px;
@@ -1930,7 +1907,6 @@ img {
 @media print {
   .nav,
   .footer,
-  .theme-toggle,
   .nav__burger,
   .btn,
   .koi-pond,

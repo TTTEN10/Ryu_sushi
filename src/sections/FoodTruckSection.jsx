@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { fadeInUp, defaultViewport } from '../animations/variants';
+
 import { WEEKLY_SCHEDULE, CATERING_SERVICES, BIWEEKLY_NOTE } from '../constants';
 import {
   FRENCH_DAYS,
@@ -175,15 +174,11 @@ export default function FoodTruckSection() {
       : 'Suivez nos emplacements hebdomadaires dans le Morbihan, du mardi au dimanche.';
 
   return (
-    <section id="food-truck" className="section section--dark" aria-label="Food Truck">
+    <section id="food-truck" className="section" aria-label="Food Truck">
       <span className="kanji-deco" style={{ top: '5%', left: '8%' }} aria-hidden="true">車</span>
 
       <div className="container">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={defaultViewport}
-          variants={fadeInUp}
+        <div
           className="text-center"
         >
           <p className="section-label">Nous Trouver</p>
@@ -191,14 +186,10 @@ export default function FoodTruckSection() {
           <p className="section-subtitle center description" style={{ color: 'var(--steel)' }}>
             {subtitle}
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           className="find-us-horizontal mt-48"
-          initial="hidden"
-          whileInView="visible"
-          viewport={defaultViewport}
-          variants={fadeInUp}
         >
           <div className="find-us-horizontal__truck">
             <img
@@ -226,13 +217,9 @@ export default function FoodTruckSection() {
 
             <p className="schedule-note">{BIWEEKLY_NOTE}.</p>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={defaultViewport}
-          variants={fadeInUp}
+        <div
           className="mt-48"
         >
           <h3 className="section-title text-center" style={{ fontSize: 'var(--font-subtitle)' }}>Nos Services</h3>
@@ -244,7 +231,7 @@ export default function FoodTruckSection() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

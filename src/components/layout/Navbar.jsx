@@ -1,10 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { FiMoon, FiSun } from 'react-icons/fi';
-import { useTheme } from '../../hooks';
+import { useState, useRef } from 'react';
 const logoImg = '/images/ryu-logo.png';
 
 export default function Navbar() {
-  const { theme, toggle: toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const lastScrollYRef = useRef(0);
@@ -55,9 +52,6 @@ export default function Navbar() {
           <a href="#contact" className="btn btn--primary btn--sm" onClick={(e) => { e.preventDefault(); handleNavClick('#contact'); }}>
             Commander
           </a>
-          <button className="theme-toggle" onClick={toggleTheme} aria-label={theme === 'light' ? 'Activer le mode sombre' : 'Activer le mode clair'}>
-            {theme === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
-          </button>
           <button className="nav__burger" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Ouvrir le menu" aria-expanded={mobileOpen}>
             <span style={{ transform: mobileOpen ? 'rotate(45deg) translateY(7px)' : 'none' }} />
             <span style={{ opacity: mobileOpen ? 0 : 1 }} />
@@ -67,12 +61,7 @@ export default function Navbar() {
       </div>
 
       <div className={`nav__mobile-menu ${mobileOpen ? 'nav__mobile-menu--open' : ''}`}>
-        <a
-          href="#menu"
-          className="nav__link"
-          style={{ fontSize: '24px' }}
-          onClick={(e) => { e.preventDefault(); handleNavClick('#menu'); }}
-        >
+        <a href="#menu" className="btn btn--secondary" onClick={(e) => { e.preventDefault(); handleNavClick('#menu'); }}>
           Menu
         </a>
         <a href="#contact" className="btn btn--primary" onClick={(e) => { e.preventDefault(); handleNavClick('#contact'); }}>

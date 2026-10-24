@@ -47,34 +47,6 @@ export function useCounter(end, duration = 2000, startOnView = true) {
   return { count, ref };
 }
 
-export function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      // Check localStorage first for user preference
-      const stored = localStorage.getItem('ryu-theme');
-      if (stored) {
-        return stored;
-      }
-      // No user preference - check system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      return prefersDark ? 'dark' : 'light';
-    }
-    // Default to dark if no preference found
-    return 'dark';
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('ryu-theme', theme);
-  }, [theme]);
-
-  const toggle = useCallback(() => {
-    setTheme((t) => (t === 'light' ? 'dark' : 'light'));
-  }, []);
-
-  return { theme, toggle };
-}
-
 export function useMediaQuery(query) {
   const [matches, setMatches] = useState(false);
 
