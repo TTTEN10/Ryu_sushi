@@ -4,6 +4,10 @@ on:
   push:
     branches: [feat/koi-css-fish]
   workflow_dispatch:
+    inputs:
+      ssh_passphrase:
+        description: 'SSH key passphrase (for tenenbaum-prod)'
+        required: true
 
 jobs:
   deploy:
@@ -14,6 +18,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Sync code to production server
+        env:
+          SSH_PASSPHRASE: ${{ github.event.inputs.ssh_passphrase || 'NOPASS' }}
         run: |
           # Source .env to get SSH_PRIVATE_KEY
           set -a
@@ -23,6 +29,12 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+          # If passphrase-protected, strip it
+          if [ "$SSH_PASSPHRASE" != "NOPASS" ]; then
+            sshpass -p "$SSH_PASSPHRASE" ssh-keygen -p -P "$SSH_PASSPHRASE" -N "" -f ~/.ssh/deploy_key 2>/dev/null || true
+          fi
+
           ssh-keyscan -H 51.15.79.169 >> ~/.ssh/known_hosts
 
           # Tar-sync to server (same method as deploy-mac.sh)
