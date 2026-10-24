@@ -1,6 +1,7 @@
 node_modules
 dist
-.env
+# .env is tracked in git (see .env.example for template)
+# .env.production is never committed — deploy-mac.sh preserves it on the server
 .env.production
 *.db
 .DS_Store
