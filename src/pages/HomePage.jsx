@@ -64,7 +64,7 @@ export default function HomePage() {
           <WaveDivider flip color="var(--black)" />
 
           <Suspense fallback={<SectionFallback />}>
-            <AboutSection />
+            <FoodTruckSection />
           </Suspense>
 
           <WaveDivider color="var(--cream)" />
@@ -73,20 +73,18 @@ export default function HomePage() {
             <GallerySection />
           </Suspense>
 
-          <WaveDivider flip color="var(--black)" />
-
-          <Suspense fallback={<SectionFallback />}>
-            <FoodTruckSection />
-          </Suspense>
-
-          <WaveDivider color="var(--cream)" />
-
           <Suspense fallback={<SectionFallback />}>
             <MenuSection />
           </Suspense>
 
+          <WaveDivider flip color="var(--black)" />
+
           <Suspense fallback={<SectionFallback />}>
             <ContactSection />
+          </Suspense>
+
+          <Suspense fallback={<SectionFallback />}>
+            <AboutSection />
           </Suspense>
         </main>
 
