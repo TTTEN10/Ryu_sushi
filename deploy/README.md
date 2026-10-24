@@ -86,6 +86,52 @@ cd /opt/ryu-sushi && git pull
 sudo ./deploy/deploy.sh
 ```
 
+## Déploiement autonome GitHub Actions (CI/CD)
+
+Le déploiement automatisé fonctionne via GitHub Actions :
+
+### 1. Clé SSH de déploiement
+
+L'instance Scaleway (`51.15.79.169`, zone `nl-ams-1`) utilise une clé SSH dédiée :
+- **Clé publique** : `~/.ssh/ryu-deploy.pub` (sans passphrase)
+- **Clé privée** : `~/.ssh/ryu-deploy` → ajoutée comme secret GitHub `SSH_PRIVATE_KEY`
+
+Pour ajouter la clé à l'instance (première fois ou remplacement) :
+```bash
+# Via Scaleway CLI (recommandé, fonctionne depuis Mac/local)
+scw instance ssh add-key \
+  server-id=a96f58e6-fac3-4e1c-9a67-a912b536881e \
+  public-key="$(cat ~/.ssh/ryu-deploy.pub)" \
+  zone=nl-ams-1
+
+# Reboot requis pour prendre en compte la nouvelle clé
+scw instance server reboot a96f58e6-fac3-4e1c-9a67-a912b536881e zone=nl-ams-1 --wait
+```
+
+Ou manuellement sur l'instance (si accès SSH existant) :
+```bash
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEd+Pi7mG+lsZ93HaEQOKuXK2VKn8UONcPmKlMFD4pfE ryu-deploy' >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+### 2. Workflow GitHub Actions
+
+Le workflow `.github/workflows/deploy.yml` :
+1. Checkout du code
+2. Sync tarball via `scp` (exclut `.git`, `node_modules`, `*.db`, `.env.*`)
+3. Extraction + exécution de `./deploy/deploy.sh` sur l'instance
+4. Vérification HTTP (6 retries × 10s)
+
+Déclenchement automatique sur push vers `feat/koi-css-fish`.
+Déclenchement manuel : `gh workflow run deploy.yml --ref feat/koi-css-fish`
+
+### 3. Dépannage SSH
+
+Si "Permission denied (publickey)" :
+- Vérifier que la clé `ryu-deploy.pub` est bien dans `~/.ssh/authorized_keys` sur le serveur
+- Redémarrer l'instance après ajout de clé : `scw instance server reboot <id> zone=nl-ams-1 --wait`
+- Tester localement : `ssh -i ~/.ssh/ryu-deploy root@51.15.79.169`
+
 ## Alternative nginx (sans conteneur Caddy)
 
 Si vous préférez nginx + certbot sur l'hôte:
