@@ -1,6 +1,7 @@
 node_modules
 dist
 .env
+.env.production
 *.db
 .DS_Store
 .tmp-preview/

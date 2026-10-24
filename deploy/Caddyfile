@@ -1,0 +1,11 @@
+{
+	# Forcer l'émetteur Let's Encrypt de production (un dossier historique
+	# "acme-staging" peut subsister dans le volume caddy-data).
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+ryusushi.fr {
+	encode gzip zstd
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	reverse_proxy ryu-sushi:3001
+}
